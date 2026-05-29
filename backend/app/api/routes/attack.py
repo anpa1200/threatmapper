@@ -9,6 +9,82 @@ from app.models.attack import AttackVersion, Tactic, Technique
 
 router = APIRouter(prefix="/attack", tags=["ATT&CK"])
 
+# ── Canonical ATT&CK kill-chain tactic order ──────────────────────────────────
+# Shortname → sort position (0-based).
+# Two-level fallback for unknown tactics:
+#   1. TA0043 (Reconnaissance) and TA0042 (Resource Development) → prepend
+#   2. All other unknown IDs → numeric order after known tactics
+_TACTIC_SHORTNAME_POS: dict[str, int] = {
+    # Enterprise pre-attack
+    "reconnaissance":              0,
+    "resource-development":        1,
+    # Enterprise main chain
+    "initial-access":              2,
+    "execution":                   3,
+    "persistence":                 4,
+    "privilege-escalation":        5,
+    "stealth":                     6,   # v19: new tactic after priv-esc
+    "defense-evasion":             7,
+    "defense-impairment":          8,   # v19: new tactic near defense-evasion
+    "credential-access":           9,
+    "discovery":                   10,
+    "lateral-movement":            11,
+    "collection":                  12,
+    "command-and-control":         13,
+    "exfiltration":                14,
+    "impact":                      15,
+    # Mobile-specific
+    "network-based-exploitation":  2,
+    "supply-chain-compromise":     1,
+    # ICS-specific
+    "impair-process-control":      13,
+    "inhibit-response-function":   14,
+    "evasion":                     7,
+}
+
+# TA ID number → forced sort position for well-known cases
+# (covers tactics whose shortname may differ across STIX versions)
+_TACTIC_ID_POS: dict[int, int] = {
+    43: 0,   # Reconnaissance
+    42: 1,   # Resource Development
+    1:  2,   # Initial Access
+    2:  3,   # Execution
+    3:  4,   # Persistence
+    4:  5,   # Privilege Escalation
+    5:  7,   # Defense Evasion
+    6:  9,   # Credential Access
+    7:  10,  # Discovery
+    8:  11,  # Lateral Movement
+    9:  12,  # Collection
+    11: 13,  # Command and Control
+    10: 14,  # Exfiltration
+    40: 15,  # Impact
+}
+
+
+def _tactic_sort_key(shortname: str, attack_id: str) -> tuple[int, str]:
+    """
+    Returns (position, attack_id) so tactics render left→right in kill-chain order.
+    Prefers shortname lookup; falls back to numeric TA-ID lookup; then appends at end.
+    """
+    # 1. Exact shortname match
+    pos = _TACTIC_SHORTNAME_POS.get(shortname)
+    if pos is not None:
+        return (pos, attack_id)
+
+    # 2. TA ID number fallback
+    try:
+        num = int(attack_id[2:])   # "TA0043" → 43
+        id_pos = _TACTIC_ID_POS.get(num)
+        if id_pos is not None:
+            return (id_pos, attack_id)
+        # Unknown ID: append after known tactics
+        return (50 + num, attack_id)
+    except (ValueError, IndexError):
+        pass
+
+    return (999, attack_id)
+
 
 # ── Pydantic response schemas ─────────────────────────────────────────────────
 
@@ -73,20 +149,27 @@ async def list_tactics(
         select(Tactic)
         .where(Tactic.version_id == ver_id)
         .options(selectinload(Tactic.techniques))
-        .order_by(Tactic.name)
     )
-    result = []
-    for tactic in rows.scalars():
-        result.append(TacticOut(
-            attack_id=tactic.attack_id,
-            name=tactic.name,
-            shortname=tactic.shortname,
-            description=tactic.description,
-            url=tactic.url,
-            domain=tactic.domain,
-            technique_count=len(tactic.techniques),
-        ))
-    return result
+    tactics = rows.scalars().all()
+
+    # Sort by official ATT&CK kill-chain order, not alphabetically
+    tactics = sorted(
+        tactics,
+        key=lambda t: _tactic_sort_key(t.shortname, t.attack_id),
+    )
+
+    return [
+        TacticOut(
+            attack_id=t.attack_id,
+            name=t.name,
+            shortname=t.shortname,
+            description=t.description,
+            url=t.url,
+            domain=t.domain,
+            technique_count=len(t.techniques),
+        )
+        for t in tactics
+    ]
 
 
 @router.get("/techniques", response_model=list[TechniqueListItem])
