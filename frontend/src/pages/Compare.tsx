@@ -382,7 +382,7 @@ function GapAnalysis({
   result, groupDetail, userIds,
 }: {
   result: CompareResult;
-  groupDetail: { techniques: Array<{ attack_id: string; name: string; tactic: string; is_subtechnique: boolean }> } | null;
+  groupDetail: { techniques: Array<{ attack_id: string; name: string; tactics: string[]; is_subtechnique: boolean; use_description: string }> } | null;
   userIds: Set<string>;
 }) {
   if (!groupDetail) return <div className="text-gray-600 text-sm">Loading group details…</div>;
@@ -390,7 +390,7 @@ function GapAnalysis({
   const gapTechs = groupDetail.techniques.filter(t => !userIds.has(t.attack_id));
   const coveredByTactic = new Map<string, { gap: number; covered: number }>();
   for (const t of groupDetail.techniques) {
-    const tactic = t.tactic || 'unknown';
+    const tactic = t.tactics?.[0] || 'unknown';
     if (!coveredByTactic.has(tactic)) coveredByTactic.set(tactic, { gap: 0, covered: 0 });
     const entry = coveredByTactic.get(tactic)!;
     userIds.has(t.attack_id) ? entry.covered++ : entry.gap++;
@@ -418,7 +418,7 @@ function GapAnalysis({
               <div key={t.attack_id} className="flex items-center gap-3 py-1.5 px-3 rounded hover:bg-gray-800/60 transition-colors">
                 <span className="font-mono text-xs text-blue-400 w-20 shrink-0">{t.attack_id}</span>
                 <span className="text-sm text-gray-300 flex-1">{t.name}</span>
-                <span className="text-[10px] bg-gray-800 text-gray-500 px-1.5 py-0.5 rounded shrink-0">{t.tactic}</span>
+                <span className="text-[10px] bg-gray-800 text-gray-500 px-1.5 py-0.5 rounded shrink-0">{t.tactics?.[0] || ''}</span>
                 {t.is_subtechnique && <span className="text-[10px] text-gray-600 shrink-0">sub</span>}
               </div>
             ))}

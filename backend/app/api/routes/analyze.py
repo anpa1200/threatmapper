@@ -240,14 +240,6 @@ async def chat(req: ChatRequest):
     if req.context:
         user = f"Context:\n{req.context}\n\n---\n\nQuestion: {req.message}"
 
-    async def stream_chat() -> AsyncIterator[str]:
-        try:
-            async for token in adapter.stream_extract.__func__(adapter, user):  # type: ignore
-                yield _sse({"type": "token", "content": token})
-        except Exception as exc:
-            yield _sse({"type": "error", "message": str(exc)})
-
-    # Use a simpler direct streaming path for chat
     async def direct_stream() -> AsyncIterator[str]:
         try:
             async for token in adapter._stream_complete(system, user):

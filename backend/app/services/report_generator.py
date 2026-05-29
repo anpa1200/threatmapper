@@ -16,7 +16,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 # fpdf2 ≥ 2.7 API
-from fpdf import FPDF, Align
+from fpdf import FPDF
 
 # ── Colour palette ─────────────────────────────────────────────────────────────
 _RED   = (200, 18, 60)
