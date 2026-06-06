@@ -209,6 +209,83 @@ async def analyze_stream(
     )
 
 
+# ── List stored report sessions (DB 2) ───────────────────────────────────────
+# NOTE: must be defined BEFORE GET /{session_id} to avoid route shadowing
+
+@router.get("/sessions", response_model=list[SessionListItem])
+async def list_sessions(
+    db: AsyncSession = Depends(get_session),
+    limit: int = 50,
+    offset: int = 0,
+):
+    """
+    Return all completed analysis sessions (DB 2 — user report mappings),
+    newest first.  Used to populate the Reports library.
+    """
+    rows = await db.execute(
+        select(AnalysisSession, AnalysisResult)
+        .outerjoin(AnalysisResult, AnalysisResult.session_id == AnalysisSession.id)
+        .where(AnalysisSession.status == "completed")
+        .order_by(AnalysisSession.created_at.desc())
+        .limit(limit)
+        .offset(offset)
+    )
+    items = []
+    for sess, res in rows:
+        technique_count = len(res.extracted_techniques) if res else 0
+        items.append(SessionListItem(
+            session_id=str(sess.id),
+            name=sess.name,
+            status=sess.status,
+            provider=sess.llm_provider,
+            model=sess.model,
+            domain=sess.domain,
+            filename=sess.filename,
+            created_at=sess.created_at.isoformat(),
+            technique_count=technique_count,
+        ))
+    return items
+
+
+# ── Compare a stored report against MITRE actors ──────────────────────────────
+# NOTE: must be defined BEFORE GET /{session_id} to avoid route shadowing
+
+@router.post("/sessions/{session_id}/compare", response_model=list)
+async def compare_session(
+    session_id: str,
+    top_n: int = 10,
+    db: AsyncSession = Depends(get_session),
+):
+    """
+    Re-run Jaccard comparison for a stored report session against all APT groups
+    and campaigns for the session's domain.  Returns merged results.
+    """
+    try:
+        sid = uuid.UUID(session_id)
+    except ValueError:
+        raise HTTPException(400, "Invalid session ID")
+
+    res_row = await db.execute(
+        select(AnalysisSession, AnalysisResult)
+        .outerjoin(AnalysisResult, AnalysisResult.session_id == AnalysisSession.id)
+        .where(AnalysisSession.id == sid, AnalysisSession.status == "completed")
+    )
+    pair = res_row.first()
+    if not pair:
+        raise HTTPException(404, "Completed session not found")
+
+    sess, res = pair
+    if not res or not res.extracted_techniques:
+        return []
+
+    from app.services.ai.base import ExtractionResult, ExtractedTechnique
+    ext = ExtractionResult(
+        techniques=[ExtractedTechnique(**t) for t in res.extracted_techniques],
+    )
+    apt_matches = await _rank_apt_groups(ext, sess.domain, db, top_n=top_n)
+    return [m.model_dump() for m in apt_matches]
+
+
 # ── Retrieve stored result ────────────────────────────────────────────────────
 
 @router.get("/{session_id}", response_model=AnalysisOut)
@@ -252,81 +329,6 @@ async def get_result(
         apt_matches=apt_matches,
         apt_hints=[],
     )
-
-
-# ── List stored report sessions (DB 2) ───────────────────────────────────────
-
-@router.get("/sessions", response_model=list[SessionListItem])
-async def list_sessions(
-    db: AsyncSession = Depends(get_session),
-    limit: int = 50,
-    offset: int = 0,
-):
-    """
-    Return all completed analysis sessions (DB 2 — user report mappings),
-    newest first.  Used to populate the Reports library.
-    """
-    rows = await db.execute(
-        select(AnalysisSession, AnalysisResult)
-        .outerjoin(AnalysisResult, AnalysisResult.session_id == AnalysisSession.id)
-        .where(AnalysisSession.status == "completed")
-        .order_by(AnalysisSession.created_at.desc())
-        .limit(limit)
-        .offset(offset)
-    )
-    items = []
-    for sess, res in rows:
-        technique_count = len(res.extracted_techniques) if res else 0
-        items.append(SessionListItem(
-            session_id=str(sess.id),
-            name=sess.name,
-            status=sess.status,
-            provider=sess.llm_provider,
-            model=sess.model,
-            domain=sess.domain,
-            filename=sess.filename,
-            created_at=sess.created_at.isoformat(),
-            technique_count=technique_count,
-        ))
-    return items
-
-
-# ── Compare a stored report against MITRE actors ──────────────────────────────
-
-@router.post("/sessions/{session_id}/compare", response_model=list)
-async def compare_session(
-    session_id: str,
-    top_n: int = 10,
-    db: AsyncSession = Depends(get_session),
-):
-    """
-    Re-run Jaccard comparison for a stored report session against all APT groups
-    and campaigns for the session's domain.  Returns merged results.
-    """
-    try:
-        sid = uuid.UUID(session_id)
-    except ValueError:
-        raise HTTPException(400, "Invalid session ID")
-
-    res_row = await db.execute(
-        select(AnalysisSession, AnalysisResult)
-        .outerjoin(AnalysisResult, AnalysisResult.session_id == AnalysisSession.id)
-        .where(AnalysisSession.id == sid, AnalysisSession.status == "completed")
-    )
-    pair = res_row.first()
-    if not pair:
-        raise HTTPException(404, "Completed session not found")
-
-    sess, res = pair
-    if not res or not res.extracted_techniques:
-        return []
-
-    from app.services.ai.base import ExtractionResult, ExtractedTechnique
-    ext = ExtractionResult(
-        techniques=[ExtractedTechnique(**t) for t in res.extracted_techniques],
-    )
-    apt_matches = await _rank_apt_groups(ext, sess.domain, db, top_n=top_n)
-    return [m.model_dump() for m in apt_matches]
 
 
 # ── Single-turn LLM chat ──────────────────────────────────────────────────────
