@@ -1,6 +1,6 @@
 # ThreatMapper: I Built a Self-Hosted AI Threat Intelligence Platform — Here's How to Use It
 
-*Map adversary behaviour to MITRE ATT&CK in seconds, compare against 160+ APT groups, and generate PDF reports — all running locally with your own LLM keys.*
+*Map adversary behaviour to MITRE ATT&CK in seconds, compare against 174+ APT groups, and generate PDF reports — all running locally with your own LLM keys.*
 
 ---
 
@@ -250,9 +250,7 @@ The layer is immediately written to the database. The technique IDs are stored i
 
 1. Click **📂 Load layer** in the toolbar (always visible)
 2. A list of all saved layers appears, each showing the name, technique count, domain, and last-modified date
-3. Click **Load** — the layer's techniques are merged into your current selection
-
-**Tip:** If you want to start fresh with just the saved layer, click **Clear my TTPs** first, then load.
+3. Click **Load** — the saved layer replaces your current selection entirely
 
 To delete a layer you no longer need, click the **✕** button next to it in the Load dialog and confirm.
 
@@ -363,9 +361,9 @@ This is useful in a few scenarios:
 
 | Mode | What you compare | Against |
 |---|---|---|
-| **Groups (DB 1)** | Your selected TTPs (from Navigator) | All 160+ ATT&CK groups |
+| **Groups (DB 1)** | Your selected TTPs (from Navigator) | All 174+ ATT&CK groups |
 | **Campaigns (DB 1)** | Your selected TTPs (from Navigator) | All named MITRE campaigns |
-| **Reports (DB 2)** | A stored report's extracted TTPs | All 160+ ATT&CK groups |
+| **Reports (DB 2)** | A stored report's extracted TTPs | All 174+ ATT&CK groups |
 
 Use the mode switcher at the top of the Compare page to move between them.
 
