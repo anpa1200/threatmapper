@@ -286,6 +286,27 @@ async def compare_session(
     return [m.model_dump() for m in apt_matches]
 
 
+# ── Delete a stored session ───────────────────────────────────────────────────
+# NOTE: must be defined BEFORE GET /{session_id} to avoid route shadowing
+
+@router.delete("/sessions/{session_id}", status_code=204)
+async def delete_session(
+    session_id: str,
+    db: AsyncSession = Depends(get_session),
+):
+    try:
+        sid = uuid.UUID(session_id)
+    except ValueError:
+        raise HTTPException(400, "Invalid session ID")
+
+    row = await db.execute(select(AnalysisSession).where(AnalysisSession.id == sid))
+    session = row.scalar_one_or_none()
+    if not session:
+        raise HTTPException(404, "Session not found")
+    await db.delete(session)
+    await db.commit()
+
+
 # ── Retrieve stored result ────────────────────────────────────────────────────
 
 @router.get("/{session_id}", response_model=AnalysisOut)

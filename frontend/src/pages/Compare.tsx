@@ -1,8 +1,8 @@
 import { useState, useMemo } from 'react';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useAppStore } from '@/store';
-import { aptApi, analyzeApi, reportsApi } from '@/api/client';
+import { aptApi, analyzeApi, reportsApi, exportApi } from '@/api/client';
 import { useAttackMatrix } from '@/hooks/useAttackMatrix';
 import { MatrixDiff } from '@/components/Compare/MatrixDiff';
 import { TacticBreakdown } from '@/components/Compare/TacticBreakdown';
@@ -15,6 +15,7 @@ type DetailTab   = 'overview' | 'tactic' | 'matrix' | 'gap';
 export function Compare() {
   const { domain, version, selectedTechniques, setOverlayGroup } = useAppStore();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   // ── Mode switcher ───────────────────────────────────────────────────────────
   const [mode, setMode] = useState<CompareMode>('groups');
@@ -96,6 +97,18 @@ export function Compare() {
   const compareReportMutation = useMutation({
     mutationFn: (sessionId: string) => reportsApi.compare(sessionId, 20),
     onSuccess: data => { setReportMatches(data); setActiveReportMatch(data[0] ?? null); },
+  });
+
+  const deleteReportMutation = useMutation({
+    mutationFn: (sessionId: string) => reportsApi.remove(sessionId),
+    onSuccess: (_data, sessionId) => {
+      queryClient.invalidateQueries({ queryKey: ['report-sessions'] });
+      if (selectedReport?.session_id === sessionId) {
+        setSelectedReport(null);
+        setReportMatches([]);
+        setActiveReportMatch(null);
+      }
+    },
   });
 
   // PDF export (groups mode)
@@ -479,29 +492,56 @@ export function Compare() {
                 </div>
               ) : (
                 reportSessions.map(s => (
-                  <button
+                  <div
                     key={s.session_id}
-                    onClick={() => {
-                      setSelectedReport(s);
-                      setReportMatches([]);
-                      setActiveReportMatch(null);
-                      compareReportMutation.mutate(s.session_id);
-                    }}
-                    className={`w-full text-left px-4 py-3 border-b border-gray-800 transition-colors ${
+                    className={`border-b border-gray-800 transition-colors ${
                       selectedReport?.session_id === s.session_id
                         ? 'bg-gray-800 border-l-2 border-l-green-500' : 'hover:bg-gray-800/60'
                     }`}
                   >
-                    <div className="text-sm font-medium text-white truncate">
-                      {s.name || s.filename || `Session ${s.session_id.slice(0, 8)}`}
+                    {/* Clickable session body */}
+                    <button
+                      onClick={() => {
+                        setSelectedReport(s);
+                        setReportMatches([]);
+                        setActiveReportMatch(null);
+                        compareReportMutation.mutate(s.session_id);
+                      }}
+                      className="w-full text-left px-4 pt-3 pb-1"
+                    >
+                      <div className="text-sm font-medium text-white truncate">
+                        {s.name || s.filename || `Session ${s.session_id.slice(0, 8)}`}
+                      </div>
+                      <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                        <span className="text-[10px] text-gray-500">{s.technique_count} techniques</span>
+                        <span className="text-[10px] text-gray-600">{s.domain}</span>
+                        <span className="text-[10px] text-gray-600">{s.created_at.slice(0, 10)}</span>
+                      </div>
+                      <div className="text-[10px] text-gray-600">{s.provider} · {s.model}</div>
+                    </button>
+                    {/* Action buttons */}
+                    <div className="flex items-center gap-2 px-4 pb-2 pt-1">
+                      <a
+                        href={exportApi.analysisUrl(s.session_id)}
+                        download={`analysis-${s.session_id.slice(0, 8)}.pdf`}
+                        onClick={e => e.stopPropagation()}
+                        className="text-[10px] text-gray-400 hover:text-white border border-gray-700 hover:border-gray-500 px-2 py-0.5 rounded transition-colors"
+                      >
+                        ↓ PDF
+                      </a>
+                      <button
+                        onClick={e => {
+                          e.stopPropagation();
+                          if (window.confirm('Delete this report session?')) {
+                            deleteReportMutation.mutate(s.session_id);
+                          }
+                        }}
+                        className="text-[10px] text-red-500 hover:text-red-300 border border-red-900 hover:border-red-700 px-2 py-0.5 rounded transition-colors"
+                      >
+                        ✕ Remove
+                      </button>
                     </div>
-                    <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                      <span className="text-[10px] text-gray-500">{s.technique_count} techniques</span>
-                      <span className="text-[10px] text-gray-600">{s.domain}</span>
-                      <span className="text-[10px] text-gray-600">{s.created_at.slice(0, 10)}</span>
-                    </div>
-                    <div className="text-[10px] text-gray-600">{s.provider} · {s.model}</div>
-                  </button>
+                  </div>
                 ))
               )}
             </div>

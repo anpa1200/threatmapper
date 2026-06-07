@@ -80,6 +80,9 @@ export const reportsApi = {
     http.post(`/analyze/sessions/${sessionId}/compare`, null, {
       params: { top_n: topN },
     }).then(r => r.data),
+
+  remove: (sessionId: string): Promise<void> =>
+    http.delete(`/analyze/sessions/${sessionId}`).then(() => {}),
 };
 
 // ── Analysis ──────────────────────────────────────────────────────────────────
