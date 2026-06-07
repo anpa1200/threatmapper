@@ -13,7 +13,7 @@
 - [Core Workflow: Analysing a Threat Report](#core-workflow-analysing-a-threat-report)
 - [The Navigator: Your ATT&CK Workspace](#the-navigator-your-attck-workspace)
 - [Saving and Loading Named Layers](#saving-and-loading-named-layers)
-- [APT Attribution Deep-Dive: The Compare View](#apt-attribution-deep-dive-the-compare-view)
+- [APT Attribution Deep-Dive: Three Compare Modes](#apt-attribution-deep-dive-three-compare-modes)
 - [Two Databases: Actor Profiles and Your Report Library](#two-databases-actor-profiles-and-your-report-library)
 - [Generating Reports](#generating-reports)
 - [Using the AI Chat Assistant](#using-the-ai-chat-assistant)
@@ -256,9 +256,9 @@ To delete a layer you no longer need, click the **✕** button next to it in the
 
 ---
 
-## APT Attribution Deep-Dive: The Compare View
+## APT Attribution Deep-Dive: Three Compare Modes
 
-The Compare view has three modes selectable from a switcher at the top of the page.
+The Compare view has three modes — **Groups**, **Campaigns**, and **Reports** — selectable from a switcher at the top of the page. Each answers a different attribution question.
 
 ### Mode 1 — Groups (DB 1)
 
