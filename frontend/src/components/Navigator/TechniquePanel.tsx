@@ -6,7 +6,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { attackApi } from '@/api/client';
-import { loadTechniqueReferenceIndex, techniqueReferenceUrl } from '@/config/references';
+import { loadTechniqueReferenceIndex, techniqueReferenceUrl, getEcosystemLinks } from '@/config/references';
 import { useAppStore } from '@/store';
 import { LLMChat } from './LLMChat';
 
@@ -121,7 +121,7 @@ export function TechniquePanel({ attackId, onClose }: Props) {
             )}
 
             {techniqueReferences.length > 0 && (
-              <Section title="Exact Reference Paragraphs">
+              <Section title="Anomaly Detection Atlas">
                 <div className="space-y-2.5">
                   {techniqueReferences.map(reference => (
                     <a
@@ -142,6 +142,25 @@ export function TechniquePanel({ attackId, onClose }: Props) {
                 </div>
               </Section>
             )}
+
+            <Section title="Ecosystem Resources">
+              <div className="space-y-2">
+                {getEcosystemLinks(attackId).map(link => (
+                  <a
+                    key={link.url}
+                    href={link.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex items-center gap-2 group hover:bg-gray-800 rounded px-2 py-1.5 -mx-2 transition-colors"
+                  >
+                    <span className="text-[10px] text-gray-600 shrink-0">↗</span>
+                    <span className="text-xs text-blue-400 group-hover:text-blue-300 group-hover:underline">
+                      {link.label}
+                    </span>
+                  </a>
+                ))}
+              </div>
+            </Section>
 
             {/* Sub-technique indicator */}
             {tech.is_subtechnique && tech.parent_attack_id && (

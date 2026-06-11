@@ -7,6 +7,7 @@ import { useAttackMatrix } from '@/hooks/useAttackMatrix';
 import { MatrixDiff } from '@/components/Compare/MatrixDiff';
 import { TacticBreakdown } from '@/components/Compare/TacticBreakdown';
 import { Header } from '@/components/Layout/Header';
+import { TechniqueModal } from '@/components/TechniqueModal';
 import type { CampaignResult, CompareResult, ReportSession } from '@/types/attack';
 
 type CompareMode = 'groups' | 'campaigns' | 'reports';
@@ -16,6 +17,8 @@ export function Compare() {
   const { domain, version, selectedTechniques, setOverlayGroup } = useAppStore();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+
+  const [techModalId, setTechModalId] = useState<string | null>(null);
 
   // ── Mode switcher ───────────────────────────────────────────────────────────
   const [mode, setMode] = useState<CompareMode>('groups');
@@ -158,6 +161,7 @@ export function Compare() {
 
   return (
     <div className="flex flex-col h-full">
+      <TechniqueModal attackId={techModalId} onClose={() => setTechModalId(null)} />
       <Header title="APT Comparison" />
 
       {/* ── My TTPs summary + mode switcher bar ────────────────────────────── */}
@@ -315,7 +319,7 @@ export function Compare() {
                   </div>
                 </div>
                 <div className="flex-1 overflow-y-auto p-6">
-                  {tab === 'overview' && <OverviewTab result={activeGroup} userIds={selectedTechniques} />}
+                  {tab === 'overview' && <OverviewTab result={activeGroup} userIds={selectedTechniques} onTechClick={setTechModalId} />}
                   {tab === 'tactic' && (
                     <TacticBreakdown tactics={tactics} techniquesByTactic={techniquesByTactic} userIds={selectedTechniques} aptIds={aptIds} />
                   )}
@@ -330,7 +334,7 @@ export function Compare() {
                     </div>
                   )}
                   {tab === 'gap' && (
-                    <GapAnalysis result={activeGroup} groupDetail={groupDetail ?? null} userIds={selectedTechniques} />
+                    <GapAnalysis result={activeGroup} groupDetail={groupDetail ?? null} userIds={selectedTechniques} onTechClick={setTechModalId} />
                   )}
                 </div>
               </div>
@@ -432,9 +436,9 @@ export function Compare() {
                     </div>
                     <div className="flex flex-wrap gap-1.5">
                       {activeCampaign.shared_techniques.map(id => (
-                        <span key={id} className="text-xs font-mono bg-purple-900/30 text-purple-300 border border-purple-800/50 px-2 py-0.5 rounded">
-                          {id}
-                        </span>
+                        <button key={id} onClick={() => setTechModalId(id)}
+                          className="text-xs font-mono bg-purple-900/30 text-purple-300 border border-purple-800/50 px-2 py-0.5 rounded hover:bg-purple-800/40 hover:text-purple-200 transition-colors"
+                        >{id}</button>
                       ))}
                     </div>
                   </div>
@@ -632,9 +636,9 @@ export function Compare() {
                         </div>
                         <div className="flex flex-wrap gap-1.5">
                           {activeReportMatch.shared_techniques.map(id => (
-                            <span key={id} className="text-xs font-mono bg-green-900/20 text-green-400 border border-green-900/30 px-2 py-0.5 rounded">
-                              {id}
-                            </span>
+                            <button key={id} onClick={() => setTechModalId(id)}
+                              className="text-xs font-mono bg-green-900/20 text-green-400 border border-green-900/30 px-2 py-0.5 rounded hover:bg-green-800/30 hover:text-green-300 transition-colors"
+                            >{id}</button>
                           ))}
                         </div>
                       </div>
@@ -684,7 +688,7 @@ function EmptyState({
   );
 }
 
-function OverviewTab({ result, userIds }: { result: CompareResult; userIds: Set<string> }) {
+function OverviewTab({ result, userIds, onTechClick }: { result: CompareResult; userIds: Set<string>; onTechClick: (id: string) => void }) {
   const onlyInUser = Array.from(userIds).filter(id => !result.shared_techniques.includes(id));
   return (
     <div className="space-y-6">
@@ -700,7 +704,9 @@ function OverviewTab({ result, userIds }: { result: CompareResult; userIds: Set<
           </div>
           <div className="flex flex-wrap gap-1.5">
             {result.shared_techniques.map(id => (
-              <span key={id} className="text-xs font-mono bg-amber-900/30 text-amber-400 border border-amber-800/50 px-2 py-0.5 rounded">{id}</span>
+              <button key={id} onClick={() => onTechClick(id)}
+                className="text-xs font-mono bg-amber-900/30 text-amber-400 border border-amber-800/50 px-2 py-0.5 rounded hover:bg-amber-800/40 hover:text-amber-300 transition-colors"
+              >{id}</button>
             ))}
           </div>
         </div>
@@ -712,7 +718,9 @@ function OverviewTab({ result, userIds }: { result: CompareResult; userIds: Set<
           </div>
           <div className="flex flex-wrap gap-1.5">
             {onlyInUser.map(id => (
-              <span key={id} className="text-xs font-mono bg-red-900/20 text-red-400 border border-red-900/30 px-2 py-0.5 rounded">{id}</span>
+              <button key={id} onClick={() => onTechClick(id)}
+                className="text-xs font-mono bg-red-900/20 text-red-400 border border-red-900/30 px-2 py-0.5 rounded hover:bg-red-800/30 hover:text-red-300 transition-colors"
+              >{id}</button>
             ))}
           </div>
         </div>
@@ -722,11 +730,12 @@ function OverviewTab({ result, userIds }: { result: CompareResult; userIds: Set<
 }
 
 function GapAnalysis({
-  result, groupDetail, userIds,
+  result, groupDetail, userIds, onTechClick,
 }: {
   result: CompareResult;
   groupDetail: { techniques: Array<{ attack_id: string; name: string; tactics: string[]; is_subtechnique: boolean; use_description: string }> } | null;
   userIds: Set<string>;
+  onTechClick: (id: string) => void;
 }) {
   if (!groupDetail) return <div className="text-gray-600 text-sm">Loading group details…</div>;
   const gapTechs = groupDetail.techniques.filter(t => !userIds.has(t.attack_id));
@@ -749,7 +758,9 @@ function GapAnalysis({
           <div className="space-y-1 max-h-96 overflow-y-auto">
             {gapTechs.map(t => (
               <div key={t.attack_id} className="flex items-center gap-3 py-1.5 px-3 rounded hover:bg-gray-800/60 transition-colors">
-                <span className="font-mono text-xs text-blue-400 w-20 shrink-0">{t.attack_id}</span>
+                <button onClick={() => onTechClick(t.attack_id)}
+                  className="font-mono text-xs text-blue-400 w-20 shrink-0 text-left hover:underline hover:text-blue-300 transition-colors"
+                >{t.attack_id}</button>
                 <span className="text-sm text-gray-300 flex-1">{t.name}</span>
                 <span className="text-[10px] bg-gray-800 text-gray-500 px-1.5 py-0.5 rounded shrink-0">{t.tactics?.[0] || ''}</span>
                 {t.is_subtechnique && <span className="text-[10px] text-gray-600 shrink-0">sub</span>}

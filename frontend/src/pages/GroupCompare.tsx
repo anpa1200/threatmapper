@@ -5,6 +5,7 @@ import { useAppStore } from '@/store';
 import { aptApi } from '@/api/client';
 import { useAttackMatrix } from '@/hooks/useAttackMatrix';
 import { Header } from '@/components/Layout/Header';
+import { TechniqueModal } from '@/components/TechniqueModal';
 import type { GroupDetail, Tactic, TechniqueListItem } from '@/types/attack';
 
 // ── Constants ──────────────────────────────────────────────────────────────────
@@ -31,12 +32,13 @@ export function GroupCompare() {
   const { domain, version, setOverlayGroup } = useAppStore();
   const navigate = useNavigate();
 
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [search,      setSearch]      = useState('');
-  const [tab,         setTab]         = useState<Tab>('overlap');
-  const [techFilter,  setTechFilter]  = useState<TechFilter>('all');
-  const [techSort,    setTechSort]    = useState('id');
-  const [sortDir,     setSortDir]     = useState<1 | -1>(1);
+  const [selectedIds,  setSelectedIds]  = useState<string[]>([]);
+  const [search,       setSearch]       = useState('');
+  const [tab,          setTab]          = useState<Tab>('overlap');
+  const [techFilter,   setTechFilter]   = useState<TechFilter>('all');
+  const [techSort,     setTechSort]     = useState('id');
+  const [sortDir,      setSortDir]      = useState<1 | -1>(1);
+  const [techModalId,  setTechModalId]  = useState<string | null>(null);
 
   // ── Data ──────────────────────────────────────────────────────────────────────
   const { data: groups = [], isLoading: groupsLoading } = useQuery({
@@ -113,6 +115,7 @@ export function GroupCompare() {
   // ── Render ────────────────────────────────────────────────────────────────────
   return (
     <div className="flex flex-col h-full">
+      <TechniqueModal attackId={techModalId} onClose={() => setTechModalId(null)} />
       <Header title="Group vs Group" />
 
       <div className="flex flex-1 overflow-hidden">
@@ -246,6 +249,7 @@ export function GroupCompare() {
                     techSort={techSort}
                     onSort={handleSortTech}
                     sortDir={sortDir}
+                    onTechClick={setTechModalId}
                   />
                 )}
               </div>
@@ -480,6 +484,7 @@ function TechniqueTableView({
   groups, techs, allCount,
   techFilter, setTechFilter,
   techSort, onSort, sortDir,
+  onTechClick,
 }: {
   groups: LoadedGroup[];
   techs: { id: string; name: string; tactic: string }[];
@@ -489,6 +494,7 @@ function TechniqueTableView({
   techSort: string;
   onSort: (col: string) => void;
   sortDir: 1 | -1;
+  onTechClick: (id: string) => void;
 }) {
   const sets = groups.map(getIds);
 
@@ -559,7 +565,11 @@ function TechniqueTableView({
               const useCount = usedBy.filter(Boolean).length;
               return (
                 <tr key={t.id} className="border-b border-gray-800/60 hover:bg-gray-800/30 transition-colors">
-                  <td className="py-1.5 pr-3 font-mono text-blue-400">{t.id}</td>
+                  <td className="py-1.5 pr-3">
+                    <button onClick={() => onTechClick(t.id)}
+                      className="font-mono text-blue-400 hover:underline hover:text-blue-300 transition-colors text-left"
+                    >{t.id}</button>
+                  </td>
                   <td className="py-1.5 pr-3 text-gray-300">{t.name}</td>
                   <td className="py-1.5 pr-3 text-gray-500 text-[10px]">{t.tactic}</td>
                   {groups.map((g, i) => (

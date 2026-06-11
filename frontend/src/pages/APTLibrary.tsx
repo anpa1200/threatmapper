@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useAppStore } from '@/store';
 import { aptApi } from '@/api/client';
 import { Header } from '@/components/Layout/Header';
+import { TechniqueModal } from '@/components/TechniqueModal';
 import type { CampaignListItem } from '@/types/attack';
 
 type GroupTab = 'techniques' | 'campaigns';
@@ -13,6 +14,7 @@ export function APTLibrary() {
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
   const [groupTab, setGroupTab] = useState<GroupTab>('techniques');
   const [expandedCampaign, setExpandedCampaign] = useState<string | null>(null);
+  const [techModalId, setTechModalId] = useState<string | null>(null);
 
   const { data: groups = [], isLoading } = useQuery({
     queryKey: ['apt-groups', domain, version, search],
@@ -42,6 +44,7 @@ export function APTLibrary() {
 
   return (
     <div className="flex flex-col h-full">
+      <TechniqueModal attackId={techModalId} onClose={() => setTechModalId(null)} />
       <Header title="APT Library" />
       <div className="flex flex-1 overflow-hidden">
 
@@ -178,9 +181,13 @@ export function APTLibrary() {
                       key={tech.attack_id}
                       className="flex items-start gap-3 p-2 rounded hover:bg-gray-800 transition-colors"
                     >
-                      <span className="font-mono text-xs text-mitre-accent pt-0.5 shrink-0 w-20">
+                      <button
+                        onClick={() => setTechModalId(tech.attack_id)}
+                        className="font-mono text-xs text-mitre-accent pt-0.5 shrink-0 w-20 text-left hover:underline hover:text-red-400 transition-colors"
+                        title="View technique details"
+                      >
                         {tech.attack_id}
-                      </span>
+                      </button>
                       <div className="flex-1 min-w-0">
                         <div className="text-sm text-white">{tech.name}</div>
                         <div className="flex gap-1 mt-0.5 flex-wrap">
