@@ -63,6 +63,25 @@ export function Sidebar() {
         </a>
       </nav>
 
+      {/* Ecosystem links */}
+      <div className="px-3 pb-3 space-y-1">
+        {[
+          { href: 'https://1200km.com/threat-matrix/', label: '◈ Web Tool (no Docker)' },
+          { href: 'https://1200km.com/cti.html',      label: '↗ CTI Knowledge Base' },
+          { href: 'https://1200km.com',               label: '↗ 1200km.com' },
+        ].map(({ href, label }) => (
+          <a
+            key={href}
+            href={href}
+            target="_blank"
+            rel="noreferrer"
+            className="flex items-center px-3 py-1.5 rounded-lg text-[11px] text-gray-500 hover:text-gray-300 hover:bg-gray-700/40 transition-colors"
+          >
+            {label}
+          </a>
+        ))}
+      </div>
+
       {/* Footer — ATT&CK sync status */}
       <div className="px-4 py-3 border-t border-gray-700">
         {hasUpdate ? (
