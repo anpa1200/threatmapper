@@ -202,7 +202,7 @@ export function GroupCompare() {
           {selectedIds.length < 2 ? (
             <div className="flex-1 flex flex-col items-center justify-center text-gray-600">
               <div className="text-5xl mb-4">⬡</div>
-              <p className="text-gray-400 mb-1.5">Select 2–{MAX_GROUPS} APT groups to compare</p>
+              <p className="text-gray-400 mb-1.5">Select 2–{MAX_GROUPS} ATT&CK group profiles to compare</p>
               <p className="text-gray-600 text-xs">Search and click groups on the left</p>
             </div>
           ) : (

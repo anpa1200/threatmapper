@@ -2,7 +2,7 @@
 
 **AI-assisted CTI-to-detection workbench for MITRE ATT&CK mapping and detection-gap analysis.**
 
-**Current release: v0.8.3 · [Live Intelligence Workspace](https://1200km.com/threat-matrix/) · [Documentation & Usage Guide](https://1200km.com/threatmapper-docs/) · [Medium Walkthrough](https://medium.com/@1200km/threatmapper-i-built-a-self-hosted-ai-threat-intelligence-platform-heres-how-to-use-it-0aa7673e6bd8)**
+**Current release: v0.8.4 · [Live Intelligence Workspace](https://1200km.com/threat-matrix/) · [Documentation & Usage Guide](https://1200km.com/threatmapper-docs/) · [Medium Walkthrough](https://medium.com/@1200km/threatmapper-i-built-a-self-hosted-ai-threat-intelligence-platform-heres-how-to-use-it-0aa7673e6bd8)**
 
 ThreatMapper AI is a self-hosted CTI-to-detection workbench for mapping threat reports to MITRE ATT&CK, comparing TTP overlap with known groups and campaigns, identifying detection gaps, and exporting analyst-ready outputs.
 
@@ -120,7 +120,7 @@ User uploads report
   AnalysisResult → DB 2  ← session + name, techniques, similarity leads, domain
         │
         ▼
-  Frontend renders       ← techniques table, APT ranking, Navigator injection
+  Frontend renders       ← techniques table, group similarity ranking, Navigator injection
 ```
 
 ### Two-database model
@@ -200,8 +200,8 @@ Parsing enterprise-attack-19.1.json ...
   Parsed: current tactics, techniques, groups, campaigns, and relationships
   Ingested 15 tactics
   Ingested techniques from the selected ATT&CK release
-  Ingested 174 APT groups
-  Ingested 56 campaigns
+  Ingested groups from the selected ATT&CK release
+  Ingested campaigns from the selected ATT&CK release
   Ingested campaign-technique and group-campaign attribution links
 Finished ingesting enterprise-attack v19.1
 ```
@@ -244,14 +244,14 @@ The central workspace. The full ATT&CK matrix renders as a colour-coded heatmap.
 | ↓ PDF | Export current layer as a formatted PDF report |
 | Expand all / Collapse all | Toggle sub-technique visibility |
 | Clear my TTPs | Reset your selection |
-| Clear overlay | Remove the APT group overlay |
+| Clear overlay | Remove the group-profile overlay |
 
 #### Colour coding
 
 | Colour | Meaning |
 |---|---|
 | Red `#e94560` | In your TTP layer |
-| Blue `#3b82f6` | In the APT overlay only |
+| Blue `#3b82f6` | In the group-profile overlay only |
 | Amber `#f59e0b` | In both layers (shared TTPs) |
 | Dark | Not selected |
 
@@ -261,7 +261,7 @@ Click any technique to open the detail panel with an embedded chat. The full ATT
 
 - *"What are the most common detections for this technique?"*
 - *"Write a SIGMA rule skeleton for T1059.001"*
-- *"What APT groups use this in combination with lateral movement?"*
+- *"What ATT&CK groups use this in combination with lateral movement?"*
 
 ### Reference Book and Exact TTP Crosslinks
 
@@ -393,7 +393,7 @@ The detail panel shows:
 
 #### Mode: Reports (DB 2)
 
-Browse your stored AI analysis sessions. Click any report body to see which APT groups best match its extracted TTP profile — without re-running the expensive LLM call.
+Browse your stored AI analysis sessions. Click any report body to see which group and campaign profiles have the strongest TTP overlap with its extracted profile — without re-running the expensive LLM call.
 
 Use cases:
 - **Retrospective TTP-overlap review** after a new ATT&CK version is released
@@ -503,7 +503,7 @@ GET  /api/attack/techniques?domain=enterprise-attack[&tactic=initial-access&sear
 GET  /api/attack/techniques/{attack_id}?domain=enterprise-attack
 ```
 
-### APT Groups (DB 1)
+### ATT&CK Group Profiles (DB 1)
 
 ```
 GET  /api/apt/groups?domain=enterprise-attack[&search=APT29&version=19.1]
@@ -806,7 +806,7 @@ class MyProviderAdapter(LLMAdapter):
 ### v0.4.0 (2026-06-11)
 
 **Group vs Group comparison:**
-- New **Group vs Group** page (sidebar → ◉ Group vs Group): compare up to 6 APT groups simultaneously
+- New **Group vs Group** page (sidebar → ◉ Group vs Group): compare up to 6 ATT&CK group profiles simultaneously
 - **Overlap Matrix** tab — N×N Jaccard similarity table; pairwise shared-technique cards with amber badges
 - **ATT&CK View** tab — compact combined matrix filtered to techniques used by ≥ 1 selected group; each cell shows coloured dots for every group that uses the technique
 - **Technique Table** tab — sortable by ID or per-group column, filterable (All / Shared 2+ / Exclusive), ✓ checkmarks per group, count column

@@ -113,7 +113,7 @@ class AptGroup(Base):
 
 
 class AptGroupTechnique(Base):
-    """Maps an APT group to the techniques it uses, with usage context."""
+    """Maps an ATT&CK group profile to the techniques it uses, with usage context."""
 
     __tablename__ = "apt_group_techniques"
     __table_args__ = (

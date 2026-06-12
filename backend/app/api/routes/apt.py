@@ -10,7 +10,7 @@ from app.models.attack import (
     AttackVersion, Campaign, CampaignTechnique, Technique,
 )
 
-router = APIRouter(prefix="/apt", tags=["APT Groups"])
+router = APIRouter(prefix="/apt", tags=["ATT&CK Group Profiles"])
 
 
 # ── Pydantic schemas ──────────────────────────────────────────────────────────
@@ -161,7 +161,7 @@ async def compare_ttps(
     session: AsyncSession = Depends(get_session),
 ):
     """
-    Given a list of ATT&CK technique IDs, return the top-N APT groups
+    Given a list of ATT&CK technique IDs, return the top-N group profiles
     ranked by Jaccard similarity.
     """
     technique_ids = req.technique_ids

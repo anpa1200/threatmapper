@@ -53,7 +53,7 @@ export function MatrixDiff({ tactics, techniquesByTactic, userIds, aptIds, diffO
       {/* Legend */}
       <div className="flex gap-4 mb-3 text-[10px] text-gray-400">
         <LegendDot color="#e94560" label="Your TTPs" />
-        <LegendDot color="#3b82f6" label="APT group" />
+        <LegendDot color="#3b82f6" label="Group profile" />
         <LegendDot color="#f59e0b" label="Shared" />
         {!diffOnly && <LegendDot color="#111827" label="Neither" />}
       </div>

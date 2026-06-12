@@ -257,7 +257,7 @@ async def compare_session(
     db: AsyncSession = Depends(get_session),
 ):
     """
-    Re-run Jaccard comparison for a stored report session against all APT groups
+    Re-run Jaccard comparison for a stored report session against all group profiles
     and campaigns for the session's domain.  Returns merged results.
     """
     try:
@@ -429,7 +429,7 @@ async def _rank_apt_groups(
     session: AsyncSession,
     top_n: int = 10,
 ) -> list[AptMatch]:
-    """Jaccard-rank all APT groups against the extracted techniques."""
+    """Jaccard-rank all ATT&CK group profiles against the extracted techniques."""
     if not result.techniques:
         return []
 

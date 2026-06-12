@@ -44,7 +44,7 @@ export function Navigator() {
   const matrixData = useAttackMatrix(domain, version);
   const { tactics, techniquesByTactic, subtechsByParent, parentsWithSubs, isLoading, hasData } = matrixData;
 
-  // ── APT overlay sync ───────────────────────────────────────────────────────
+  // ── Group-profile overlay sync ─────────────────────────────────────────────
   const { data: overlayGroup } = useQuery({
     queryKey: ['overlay-group', overlayGroupId, domain, version],
     queryFn: () => aptApi.group(overlayGroupId!, domain, version ?? undefined),
@@ -274,7 +274,7 @@ function buildNavigatorLayer(
     gradient: { colors: ['#ffffff', '#e94560'], minValue: 0, maxValue: 1 },
     legendItems: [
       { color: '#e94560', label: 'My TTP' },
-      { color: '#3b82f6', label: 'APT overlay' },
+      { color: '#3b82f6', label: 'Group-profile overlay' },
       { color: '#f59e0b', label: 'Shared' },
     ],
     metadata: [],

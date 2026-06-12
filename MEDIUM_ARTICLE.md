@@ -190,7 +190,7 @@ A match above 25–30% is worth investigating. Don't treat this as definitive at
 Click **→ Inject into Navigator** to push all extracted techniques into your live Navigator layer. You can then:
 
 - See the techniques highlighted on the full ATT&CK matrix
-- Overlay an APT group to visualise the behavioural overlap
+- Overlay a group profile to visualise the behavioural overlap
 - Export as an ATT&CK Navigator JSON layer
 
 ---
@@ -213,20 +213,20 @@ Click any technique cell to add it to your layer (it turns red). Click again to 
 
 The matrix now uses three colours:
 - **Red** — in your layer only
-- **Blue** — in the APT group's profile only
+- **Blue** — in the group profile only
 - **Amber** — in both (the overlap)
 
 This visual immediately answers: *"Which of this group's known techniques am I not already detecting?"*
 
 ### Importing an existing layer
 
-If you already have ATT&CK Navigator layers from previous work, click **↑ Import layer** and upload the JSON. ThreatMapper will load it as your active layer, which you can then enrich with AI analysis or compare against APT groups.
+If you already have ATT&CK Navigator layers from previous work, click **↑ Import layer** and upload the JSON. ThreatMapper will load it as your active layer, which you can then enrich with AI analysis or compare against ATT&CK group profiles.
 
 ---
 
 ## Saving and Loading Named Layers
 
-Once you have built a TTP layer — whether through AI analysis, manual selection, or an APT campaign overlay — you can save it to the database with a name and reload it in any future session.
+Once you have built a TTP layer — whether through AI analysis, manual selection, or a group/campaign overlay — you can save it to the database with a name and reload it in any future session.
 
 ### Why this matters
 
@@ -461,13 +461,13 @@ ThreatMapper supports Enterprise, Mobile, and ICS ATT&CK out of the box.
 
 Switch domains using the **Domain** dropdown in the Navigator toolbar or the Analyze page.
 
-**Enterprise ATT&CK** — 641 techniques, 163 groups. Use for traditional IT infrastructure incidents: Windows/Linux/macOS endpoints, cloud workloads, Active Directory environments.
+**Enterprise ATT&CK** — use the currently ingested ATT&CK dataset for traditional IT infrastructure incidents: Windows/Linux/macOS endpoints, cloud workloads, Active Directory environments. Counts depend on the selected ATT&CK domain and release.
 
-**Mobile ATT&CK** — covers Android and iOS threat behaviours. Useful for incidents involving mobile device management (MDM) bypass, spyware, or mobile-targeting APT campaigns.
+**Mobile ATT&CK** — covers Android and iOS threat behaviours. Useful for incidents involving mobile device management (MDM) bypass, spyware, or mobile-targeting campaigns.
 
 **ICS ATT&CK** — covers operational technology and industrial control systems. Use for incidents involving SCADA, PLCs, HMIs, or critical infrastructure.
 
-Each domain has its own set of tactics, techniques, and APT groups. When you run an AI analysis, select the appropriate domain so the Jaccard comparison runs against groups known for activity in that domain.
+Each domain has its own set of tactics, techniques, and group profiles. When you run an AI analysis, select the appropriate domain so the Jaccard comparison runs against groups known for activity in that domain.
 
 ---
 
@@ -592,13 +592,13 @@ The sync downloads only the new bundle version and ingests it alongside the exis
 
 **Calibrate your confidence threshold.** I recommend treating < 50% confidence as noise until you validate it manually. The LLM is trying hard to find ATT&CK mappings, which means it will sometimes stretch an inference. Use the evidence snippet to sanity-check every mapping.
 
-**Use the Gap Analysis as a hunt checklist.** When you match against an APT group in Compare, the Gap Analysis tab shows every technique in their known profile that you haven't covered. This is an excellent input for a structured hunt — you're essentially asking *"what would we need to observe to confirm this attribution?"*
+**Use the Gap Analysis as a hunt checklist.** When you compare against a group profile, the Gap Analysis tab shows every technique in its known profile that you have not covered. This is useful input for a structured hunt: ask what additional observations would support or challenge the current hypothesis.
 
-**Chain features for maximum value.** The best workflow is: AI Analysis → inject into Navigator → Compare against APT groups → Gap Analysis → export PDF. Each step builds on the last.
+**Chain features for maximum value.** The best workflow is: AI Analysis → inject into Navigator → compare against group and campaign profiles → Gap Analysis → export PDF. Each step builds on the last.
 
 **Chat is good for detection rules.** The AI assistant is particularly strong at generating SIGMA rules, KQL queries, and Splunk SPL from ATT&CK technique IDs. Give it the full ATT&CK technique description plus any specific context from your environment (OS, logging stack) and you'll get useful starting points rather than generic templates.
 
-**Import your existing layers.** If your team already maintains ATT&CK Navigator layers for your environment (e.g. a "what we detect" layer and a "what we've seen" layer), import them via the ↑ Import button. ThreatMapper will let you compare them against APT profiles and run AI chat against the techniques in the layer.
+**Import your existing layers.** If your team already maintains ATT&CK Navigator layers for your environment (e.g. a "what we detect" layer and a "what we've seen" layer), import them via the ↑ Import button. ThreatMapper will let you compare them against group profiles and run AI chat against the techniques in the layer.
 
 **Save named layers as investigation checkpoints.** After any significant piece of work — a completed AI analysis, a finished APT comparison session, a purple-team prep layer — click **↓ Save layer** and give it a meaningful name. This takes 10 seconds and means you never lose work between sessions. You can reload any saved layer instantly from **📂 Load layer** without re-running analysis.
 

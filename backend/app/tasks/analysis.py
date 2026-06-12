@@ -48,7 +48,7 @@ def run_analysis_task(
 ) -> dict:
     """
     1. Call the LLM adapter (async, isolated event loop).
-    2. Compute Jaccard APT ranking (sync SQL).
+    2. Compute Jaccard group-similarity ranking (sync SQL).
     3. Persist result to DB (sync SQL).
     """
     logger.info("Analysis task started: session=%s provider=%s", session_id, provider)
@@ -57,7 +57,7 @@ def run_analysis_task(
         # Step 1 — LLM extraction (async in isolated loop)
         result: ExtractionResult = asyncio.run(_llm_extract(text, provider, model))
 
-        # Step 2 — APT ranking + DB storage (sync)
+        # Step 2 — group-similarity ranking + DB storage (sync)
         _persist_result(session_id, result, domain)
 
         logger.info(

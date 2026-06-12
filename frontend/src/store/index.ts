@@ -17,7 +17,7 @@ interface AppState {
   replaceTechniques: (ids: string[]) => void;
   clearTechniques: () => void;
 
-  // ── APT overlay layer ───────────────────────────────────────────────────
+  // ── Group-profile overlay layer ─────────────────────────────────────────
   overlayGroupId: string | null;
   overlayGroupName: string;
   setOverlayGroup: (id: string | null, name?: string) => void;
@@ -101,7 +101,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ selectedTechniques: new Set(ids) }),
   clearTechniques: () => set({ selectedTechniques: new Set() }),
 
-  // APT overlay
+  // Group-profile overlay
   overlayGroupId: null,
   overlayGroupName: '',
   setOverlayGroup: (id, name = '') =>

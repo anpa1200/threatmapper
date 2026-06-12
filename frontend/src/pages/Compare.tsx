@@ -45,7 +45,7 @@ export function Compare() {
   // Matrix data (groups mode visual diff)
   const { tactics, techniquesByTactic } = useAttackMatrix(domain, version);
 
-  // APT group detail for visual diff
+  // Group-profile detail for visual diff
   const { data: groupDetail } = useQuery({
     queryKey: ['compare-group-detail', activeGroup?.group_attack_id, domain, version],
     queryFn: () => aptApi.group(activeGroup!.group_attack_id, domain, version ?? undefined),
@@ -615,7 +615,7 @@ export function Compare() {
                     <div className="mb-2">
                       <div className="text-xs text-gray-500 mb-1">
                         Report: <span className="text-gray-300">{selectedReport.name || selectedReport.filename || selectedReport.session_id.slice(0, 8)}</span>
-                        {' '}vs APT Group
+                        {' '}vs Group Profile
                       </div>
                       <h2 className="text-xl font-bold text-white">{activeReportMatch.group_name}</h2>
                       <div className="flex items-center gap-3 mt-1">

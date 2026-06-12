@@ -319,7 +319,7 @@ def ingest_domain(domain: str, bundle_path: Path, version: str) -> None:
 
         logger.info("  Ingested %d technique-tactic links", tt_count)
 
-        # ── APT Groups ────────────────────────────────────────────────────────
+        # ── ATT&CK Group Profiles ─────────────────────────────────────────────
         group_stix_to_db_id: dict[str, int] = {}
         for g in data["groups"]:
             stmt = (
@@ -343,7 +343,7 @@ def ingest_domain(domain: str, bundle_path: Path, version: str) -> None:
             if db_id:
                 group_stix_to_db_id[g["stix_id"]] = db_id
 
-        logger.info("  Ingested %d APT groups", len(group_stix_to_db_id))
+        logger.info("  Ingested %d ATT&CK group profiles", len(group_stix_to_db_id))
 
         # ── Group → Technique usages ──────────────────────────────────────────
         usage_count = 0

@@ -37,7 +37,7 @@ export const attackApi = {
     http.get(`/attack/techniques/${id}`, { params: { domain, ...(version && { version }) } }).then(r => r.data),
 };
 
-// ── APT Groups ────────────────────────────────────────────────────────────────
+// ── ATT&CK Group Profiles ────────────────────────────────────────────────────
 
 export const aptApi = {
   groups: (params: { domain: string; version?: string; search?: string }): Promise<GroupListItem[]> =>
