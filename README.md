@@ -2,7 +2,7 @@
 
 **AI-assisted CTI-to-detection workbench for MITRE ATT&CK mapping and detection-gap analysis.**
 
-**Current release: v0.8.4 · [Live Intelligence Workspace](https://1200km.com/threat-matrix/) · [Documentation & Usage Guide](https://1200km.com/threatmapper-docs/) · [Medium Walkthrough](https://medium.com/@1200km/threatmapper-i-built-a-self-hosted-ai-threat-intelligence-platform-heres-how-to-use-it-0aa7673e6bd8)**
+**Current release: v0.8.5 · [Live Intelligence Workspace](https://1200km.com/threat-matrix/) · [Documentation & Usage Guide](https://1200km.com/threatmapper-docs/) · [Medium Walkthrough](https://medium.com/@1200km/threatmapper-i-built-a-self-hosted-ai-threat-intelligence-platform-heres-how-to-use-it-0aa7673e6bd8)**
 
 ThreatMapper AI is a self-hosted CTI-to-detection workbench for mapping threat reports to MITRE ATT&CK, comparing TTP overlap with known groups and campaigns, identifying detection gaps, and exporting analyst-ready outputs.
 
@@ -24,7 +24,16 @@ The public Web workspace is intended for exploration. Do not upload confidential
 
 ThreatMapper assists analysts but does not replace analyst validation. LLM-generated ATT&CK mappings may include false positives, false negatives, or ambiguous technique assignments. Group and campaign similarity is based on TTP overlap and should be treated as an investigation lead, not attribution proof.
 
-Screenshot backlog: `docs/static/img/threatmapper-web-matrix.png`, `threatmapper-group-overlay.png`, `threatmapper-compare.png`, `threatmapper-detection-backlog.png`, `threatmapper-docker-ai-analysis.png`, and `threatmapper-report-export.png`.
+## Screenshots
+
+Screenshots are planned for the following paths:
+
+- `docs/static/img/threatmapper-web-matrix.png`
+- `docs/static/img/threatmapper-group-overlay.png`
+- `docs/static/img/threatmapper-compare.png`
+- `docs/static/img/threatmapper-detection-backlog.png`
+- `docs/static/img/threatmapper-docker-ai-analysis.png`
+- `docs/static/img/threatmapper-report-export.png`
 
 ---
 
@@ -729,12 +738,22 @@ class MyProviderAdapter(LLMAdapter):
 
 ## Deployment
 
+### Production and Security Note
+
+ThreatMapper is suitable for local labs, private analyst workstations, internal CTI workflows, and controlled self-hosted deployments. Internet-facing deployments require additional access control and hardening.
+
 ### Security checklist
 
 - [ ] Set a strong `DB_PASS` in `.env`
 - [ ] Never commit `.env` to git (it is in `.gitignore`)
-- [ ] For any internet-facing deployment, place ThreatMapper behind nginx or Caddy with TLS and authentication (HTTP Basic Auth, OAuth proxy, or VPN)
-- [ ] ThreatMapper has no built-in user authentication — all endpoints are open on the Docker network
+- [ ] Do not expose PostgreSQL publicly; bind it to an internal network or localhost only
+- [ ] Protect the API with a VPN, SSO, OAuth proxy, authenticating reverse proxy, or internal network controls
+- [ ] Use TLS for browser and API traffic
+- [ ] Restrict CORS to approved origins
+- [ ] Use strong, unique secrets and rotate LLM API keys regularly
+- [ ] Configure PostgreSQL backups, restore testing, retention, and deletion controls
+- [ ] For any internet-facing deployment, place ThreatMapper behind nginx or Caddy with TLS and authentication
+- [ ] Review trusted-header authentication and role configuration before team deployment
 - [ ] API keys are read from environment variables and never stored in the database
 
 ### Scaling

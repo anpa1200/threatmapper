@@ -1,6 +1,8 @@
-# ThreatMapper: I Built a Self-Hosted AI Threat Intelligence Platform — Here's How to Use It
+# ThreatMapper AI: A Self-Hosted CTI-to-Detection Workbench — Here's How to Use It
 
-*Map adversary behaviour to MITRE ATT&CK in seconds, compare against the currently ingested ATT&CK group profiles, and generate PDF reports — self-hosted, with report content sent only to the LLM provider you configure.*
+*Map adversary behaviour to MITRE ATT&CK in seconds, compare against the currently ingested ATT&CK group and campaign profiles, and generate analyst-ready outputs — self-hosted, with report content sent only to the LLM provider you configure.*
+
+> **Editor's note:** ThreatMapper now uses “Group & Campaign Similarity” terminology instead of “APT attribution.” TTP overlap and Jaccard similarity are analytical leads for hypothesis generation and prioritization, not attribution proof. In Docker mode, report content is sent only to the LLM provider configured by the operator unless a local/private LLM gateway is used. The public Web workspace does not perform LLM report extraction or backend private report storage.
 
 ---
 
@@ -175,13 +177,13 @@ When the stream completes, three tabs appear:
 
 The evidence field is a direct quote or paraphrase from your source document — you can use it to trace every mapping back to its origin in the text. High confidence (≥ 80%) means the text explicitly described the behaviour; lower scores mean it was inferred.
 
-**Group Similarity Leads tab** — the attribution layer. Computed locally using Jaccard similarity between your extracted techniques and every named ATT&CK group's known TTP set. The top 10 are shown with:
+**Group Similarity Leads tab** — the overlap-analysis layer. The Docker backend computes Jaccard similarity between your extracted techniques and every named ATT&CK group's known TTP set. The top 10 are shown with:
 
 - Similarity score (0–100%)
 - Shared technique count
 - List of the overlapping technique IDs
 
-A match above 25–30% is worth investigating. Don't treat this as definitive attribution — use it as a lead for further research.
+A similarity score above 25–30% may be worth investigating, but the threshold is contextual. Treat it as a lead for further research, not attribution proof.
 
 **Raw Response** — the LLM's full JSON output. Useful for debugging when the model outputs something unexpected.
 
@@ -600,7 +602,7 @@ The sync downloads only the new bundle version and ingests it alongside the exis
 
 **Import your existing layers.** If your team already maintains ATT&CK Navigator layers for your environment (e.g. a "what we detect" layer and a "what we've seen" layer), import them via the ↑ Import button. ThreatMapper will let you compare them against group profiles and run AI chat against the techniques in the layer.
 
-**Save named layers as investigation checkpoints.** After any significant piece of work — a completed AI analysis, a finished APT comparison session, a purple-team prep layer — click **↓ Save layer** and give it a meaningful name. This takes 10 seconds and means you never lose work between sessions. You can reload any saved layer instantly from **📂 Load layer** without re-running analysis.
+**Save named layers as investigation checkpoints.** After any significant piece of work — a completed AI analysis, a finished group-comparison session, a purple-team prep layer — click **↓ Save layer** and give it a meaningful name. This takes 10 seconds and means you never lose work between sessions. You can reload any saved layer instantly from **📂 Load layer** without re-running analysis.
 
 **Use text paste for quick triage.** You don't need a formatted document. Paste raw Slack thread text, a SIEM alert body, or a vendor advisory into the text box. The AI is good at extracting signal from noisy, informal text.
 
@@ -628,7 +630,7 @@ The tool is functional but there is plenty of room to grow. Things I'm actively 
 - **TAXII/STIX import** — accept threat intelligence directly from TAXII feeds (MISP, OpenCTI, commercial CTI platforms)
 - **Team collaboration** — shared TTP layers with user namespacing
 - **Detection coverage overlay** — import your existing SIGMA rule library and visualise which ATT&CK techniques you have coverage for vs which are blind spots
-- **Automatic APT tracking** — when ATT&CK releases a new version that adds techniques to a group you're tracking, send a notification
+- **Automatic group-profile tracking** — when ATT&CK releases a new version that adds techniques to a group you are tracking, send a notification
 
 ---
 
