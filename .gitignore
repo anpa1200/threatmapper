@@ -1,6 +1,7 @@
 .env
 *.pyc
 __pycache__/
+celerybeat-schedule*
 .pytest_cache/
 *.egg-info/
 dist/

@@ -9,6 +9,7 @@ import { GroupCompare } from '@/pages/GroupCompare';
 import { Discover } from '@/pages/Discover';
 import { InvestigationReport } from '@/pages/InvestigationReport';
 import { Operations } from '@/pages/Operations';
+import { Pipeline } from '@/pages/Pipeline';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -36,6 +37,7 @@ export default function App() {
               <Route path="/group-compare" element={<GroupCompare />} />
               <Route path="/report" element={<InvestigationReport />} />
               <Route path="/operations" element={<Operations />} />
+              <Route path="/pipeline" element={<Pipeline />} />
             </Routes>
           </main>
         </div>

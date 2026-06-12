@@ -18,6 +18,10 @@ class Settings(BaseSettings):
     attck_domains: str = "enterprise-attack,mobile-attack,ics-attack"
     attck_data_dir: str = "/app/data/attck"
 
+    # Optional trusted-proxy team authentication. Keep disabled for local use.
+    auth_enabled: bool = False
+    auth_default_role: str = "admin"
+
     log_level: str = "info"
 
     @property

@@ -10,6 +10,7 @@ celery_app = Celery(
     include=[
         "app.tasks.analysis",
         "app.tasks.sync",
+        "app.tasks.pipeline",
     ],
 )
 
@@ -32,5 +33,10 @@ celery_app.conf.beat_schedule = {
         "task":     "sync.check_and_sync",
         "schedule": crontab(hour=3, minute=0),
         "options":  {"queue": "celery"},
+    },
+    "discover-enabled-collection-sources": {
+        "task": "pipeline.collect_enabled_sources",
+        "schedule": crontab(minute="*/15"),
+        "options": {"queue": "celery"},
     },
 }

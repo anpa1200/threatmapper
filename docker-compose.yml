@@ -43,6 +43,8 @@ services:
       ATTCK_DOMAINS: ${ATTCK_DOMAINS:-enterprise-attack,mobile-attack,ics-attack}
       ATTCK_DATA_DIR: /app/data/attck
       LOG_LEVEL: ${LOG_LEVEL:-info}
+      AUTH_ENABLED: ${AUTH_ENABLED:-false}
+      AUTH_DEFAULT_ROLE: ${AUTH_DEFAULT_ROLE:-admin}
     depends_on:
       postgres:
         condition: service_healthy
@@ -67,6 +69,27 @@ services:
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       ATTCK_DATA_DIR: /app/data/attck
+      AUTH_ENABLED: ${AUTH_ENABLED:-false}
+      AUTH_DEFAULT_ROLE: ${AUTH_DEFAULT_ROLE:-admin}
+    depends_on:
+      - redis
+      - postgres
+
+  beat:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    command: celery -A app.tasks.celery_app beat --loglevel=info
+    volumes:
+      - ./backend:/app
+      - attck_data:/app/data/attck
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${DB_USER:-tm_user}:${DB_PASS:-changeme}@postgres:5432/${DB_NAME:-threatmapper}
+      REDIS_URL: redis://redis:6379/0
+      ATTCK_DATA_DIR: /app/data/attck
+      AUTH_ENABLED: ${AUTH_ENABLED:-false}
+      AUTH_DEFAULT_ROLE: ${AUTH_DEFAULT_ROLE:-admin}
     depends_on:
       - redis
       - postgres

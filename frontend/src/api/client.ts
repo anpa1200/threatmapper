@@ -225,3 +225,42 @@ export const operationsApi = {
   trackActor: (body: { actor_id: string; actor_name: string; snapshot: Record<string, unknown> }): Promise<TrackedActor> => http.post(`${operations}/tracked-actors`, body).then(r => r.data),
   removeTrackedActor: (id: string): Promise<void> => http.delete(`${operations}/tracked-actors/${id}`).then(() => {}),
 };
+
+// ── Collection, Enrichment, and Detection Pipeline ───────────────────────────
+
+export interface CollectionSource {
+  id: string; name: string; kind: 'rss' | 'taxii' | 'misp' | 'atlas'; url: string; enabled: boolean;
+  interval_minutes: number; config: Record<string, unknown>; last_run_at: string | null; created_at: string; updated_at: string;
+}
+export interface CollectionRun {
+  id: string; source_id: string | null; status: string; items_seen: number; items_created: number;
+  observables_created: number; error: string; started_at: string; completed_at: string | null;
+}
+export interface Observable {
+  id: string; type: string; value: string; normalized_value: string; status: string; confidence: number;
+  tags: string[]; source_refs: string[]; first_seen_at: string; last_seen_at: string;
+}
+export interface DetectionVersion {
+  id: string; title: string; technique_id: string; format: string; content: string;
+  validation: { valid: boolean; errors: string[]; warnings: string[] }; created_by: string; created_at: string;
+}
+export interface AuditEvent {
+  id: string; actor: string; action: string; object_type: string; object_id: string;
+  details: Record<string, unknown>; created_at: string;
+}
+const pipeline = '/pipeline';
+export const pipelineApi = {
+  me: (): Promise<{name: string; roles: string[]}> => http.get(`${pipeline}/me`).then(r => r.data),
+  sources: (): Promise<CollectionSource[]> => http.get(`${pipeline}/sources`).then(r => r.data),
+  createSource: (body: Omit<CollectionSource, 'id'|'last_run_at'|'created_at'|'updated_at'>): Promise<CollectionSource> => http.post(`${pipeline}/sources`, body).then(r => r.data),
+  runSource: (id: string): Promise<CollectionRun> => http.post(`${pipeline}/sources/${id}/run`).then(r => r.data),
+  runs: (): Promise<CollectionRun[]> => http.get(`${pipeline}/runs`).then(r => r.data),
+  observables: (): Promise<Observable[]> => http.get(`${pipeline}/observables`).then(r => r.data),
+  createObservable: (body: {type:string;value:string;status:string;confidence:number;tags:string[];source_refs:string[]}): Promise<Observable> => http.post(`${pipeline}/observables`, body).then(r => r.data),
+  enrich: (id: string): Promise<Record<string, unknown>> => http.post(`${pipeline}/observables/${id}/enrich`).then(r => r.data),
+  generate: (body: {title:string;technique_id:string;format:string;telemetry:string[]}): Promise<DetectionVersion> => http.post(`${pipeline}/detections/generate`, body).then(r => r.data),
+  validate: (format: string, content: string): Promise<{valid:boolean;errors:string[];warnings:string[]}> => http.post(`${pipeline}/detections/validate`, {format,content}).then(r => r.data),
+  versions: (): Promise<DetectionVersion[]> => http.get(`${pipeline}/detections/versions`).then(r => r.data),
+  audit: (): Promise<AuditEvent[]> => http.get(`${pipeline}/audit`).then(r => r.data),
+  importJson: (kind: 'stix'|'misp'|'atlas', body: Record<string, unknown>): Promise<Record<string, unknown>> => http.post(`${pipeline}/import/${kind}`, body).then(r => r.data),
+};
