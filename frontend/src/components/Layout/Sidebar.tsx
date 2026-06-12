@@ -10,7 +10,7 @@ import { useState } from 'react';
 const nav = [
   { to: '/discover',      label: 'Discover',      icon: '⌕' },
   { to: '/navigator',     label: 'Navigator',     icon: '⬡' },
-  { to: '/apt',           label: 'APT Library',   icon: '◈' },
+  { to: '/apt',           label: 'ATT&CK Group Library', icon: '◈' },
   { to: '/analyze',       label: 'AI Analysis',   icon: '⬢' },
   { to: '/compare',       label: 'Compare',       icon: '⬡' },
   { to: '/group-compare', label: 'Group vs Group', icon: '◉' },
@@ -113,7 +113,7 @@ export function Sidebar() {
             <span className="text-[10px] text-gray-500">ATT&CK up to date</span>
           </div>
         )}
-        <div className="text-[10px] text-gray-600 mt-0.5">ThreatMapper v0.8.2</div>
+        <div className="text-[10px] text-gray-600 mt-0.5">ThreatMapper v0.8.3</div>
       </div>
     </aside>
   );

@@ -1,6 +1,6 @@
 # ThreatMapper: I Built a Self-Hosted AI Threat Intelligence Platform — Here's How to Use It
 
-*Map adversary behaviour to MITRE ATT&CK in seconds, compare against 174+ APT groups, and generate PDF reports — all running locally with your own LLM keys.*
+*Map adversary behaviour to MITRE ATT&CK in seconds, compare against the currently ingested ATT&CK group profiles, and generate PDF reports — self-hosted, with report content sent only to the LLM provider you configure.*
 
 ---
 
@@ -13,7 +13,7 @@
 - [Core Workflow: Analysing a Threat Report](#core-workflow-analysing-a-threat-report)
 - [The Navigator: Your ATT&CK Workspace](#the-navigator-your-attck-workspace)
 - [Saving and Loading Named Layers](#saving-and-loading-named-layers)
-- [APT Attribution Deep-Dive: Three Compare Modes](#apt-attribution-deep-dive-three-compare-modes)
+- [Group & Campaign Similarity Deep-Dive: Three Compare Modes](#group--campaign-similarity-deep-dive-three-compare-modes)
 - [Two Databases: Actor Profiles and Your Report Library](#two-databases-actor-profiles-and-your-report-library)
 - [Generating Reports](#generating-reports)
 - [Using the AI Chat Assistant](#using-the-ai-chat-assistant)
@@ -33,25 +33,25 @@ Every threat intelligence analyst knows the workflow: you receive a malware repo
 
 Doing this manually is slow. You read the report, recognise a behaviour ("the implant used scheduled tasks for persistence"), pull up the ATT&CK website, search for the technique, copy the ID. Repeat 20 times for a single report. Then someone asks: *"Does this look like APT29?"* — and you start manually cross-referencing technique lists.
 
-There are commercial platforms that do this — but they are expensive, require data to leave your environment, and often treat ATT&CK as a secondary feature behind proprietary kill-chains.
+There are commercial platforms that do this, but analysts may also need a self-hosted control plane with explicit storage, networking, and provider choices.
 
-**ThreatMapper** is my attempt to solve this for analysts who want a self-hosted, privacy-first, open-source option that uses the LLM API keys they already have.
+**ThreatMapper** is my attempt to provide that analyst-assisted workflow using operator-configured LLM providers.
 
 ---
 
 ## What ThreatMapper Does
 
-In one sentence: **you give it a threat report, it gives you ATT&CK technique IDs, APT group matches, confidence scores, and a PDF.**
+In one sentence: **you give it a threat report, it returns ATT&CK mapping candidates, group-similarity leads, extraction-confidence scores, and a PDF for analyst review.**
 
 Concretely:
 
 - **AI Analysis** — upload a PDF, DOCX, or TXT file (or paste text), pick Claude, GPT-4o, or Gemini, and get a streamed extraction of every ATT&CK technique the LLM identifies with evidence snippets and confidence scores
 - **ATT&CK Navigator** — an interactive heatmap of the full ATT&CK matrix (Enterprise, Mobile, ICS) where you build, save, and reload named TTP layers
-- **APT Attribution** — automatic Jaccard similarity ranking of every extraction against 174+ named ATT&CK threat groups and 56+ named campaigns (e.g. "Operation Ghost", "SolarWinds Compromise")
+- **Group & Campaign Similarity** — Jaccard TTP-overlap ranking against currently ingested ATT&CK group and campaign profiles
 - **Compare** — deep side-by-side comparison of your TTP set against groups, MITRE named campaigns, or your own stored report library; with visual matrix diff, tactic breakdown chart, and gap analysis
 - **Export** — ATT&CK Navigator-compatible JSON layers and multi-page PDF reports suitable for executive briefings
 
-Everything runs locally in Docker. Your threat reports never leave your machine.
+ThreatMapper is self-hosted. In Docker mode, report content is sent only to the LLM provider configured by the operator. For fully private analysis, deploy with a local or private LLM gateway. The public Web workspace does not perform LLM report extraction or backend private report storage.
 
 ---
 
@@ -123,7 +123,7 @@ You'll see something like:
 
 ```
 Parsing enterprise-attack-19.1.json ...
-  Parsed: 15 tactics, 760 techniques, 174 groups, 56 campaigns, 9100+ usages
+  Parsed: current tactics, techniques, groups, campaigns, and relationships
 Finished ingesting enterprise-attack v19.1
 INFO:     Application startup complete.
 ```
@@ -175,7 +175,7 @@ When the stream completes, three tabs appear:
 
 The evidence field is a direct quote or paraphrase from your source document — you can use it to trace every mapping back to its origin in the text. High confidence (≥ 80%) means the text explicitly described the behaviour; lower scores mean it was inferred.
 
-**APT Matches tab** — the attribution layer. Computed locally using Jaccard similarity between your extracted techniques and every named ATT&CK group's known TTP set. The top 10 are shown with:
+**Group Similarity Leads tab** — the attribution layer. Computed locally using Jaccard similarity between your extracted techniques and every named ATT&CK group's known TTP set. The top 10 are shown with:
 
 - Similarity score (0–100%)
 - Shared technique count
@@ -205,9 +205,9 @@ Click any technique cell to add it to your layer (it turns red). Click again to 
 
 **Practical tip:** use the search box to find techniques by name or ID without manually scanning the matrix. Type `T1059` to jump to all Command and Scripting Interpreter techniques, or type `phish` to find all phishing-related techniques.
 
-### Overlaying an APT group
+### Overlaying a Group Profile
 
-1. Go to **APT Library** and find your group of interest
+1. Go to **ATT&CK Group Library** and find your group of interest
 2. Click **Overlay on Navigator**
 3. Return to **Navigator**
 
@@ -256,19 +256,21 @@ To delete a layer you no longer need, click the **✕** button next to it in the
 
 ---
 
-## APT Attribution Deep-Dive: Three Compare Modes
+## Group & Campaign Similarity Deep-Dive: Three Compare Modes
 
-The Compare view has three modes — **Groups**, **Campaigns**, and **Reports** — selectable from a switcher at the top of the page. Each answers a different attribution question.
+The Compare view has three modes — **Groups**, **Campaigns**, and **Reports** — selectable from a switcher at the top of the page. Each answers a different similarity or overlap question.
+
+> TTP overlap is not attribution evidence by itself. ThreatMapper uses overlap as an analytical lead for triage, prioritization, and investigation. Attribution requires additional evidence such as malware, infrastructure, victimology, timing, procedure detail, and external intelligence.
 
 ### Mode 1 — Groups (DB 1)
 
-With techniques selected in Navigator (or injected from an AI analysis), navigate to **Compare**, make sure **Groups (DB 1)** is selected, and click **Compare vs APT Groups**. This ranks all 174+ threat groups by Jaccard similarity.
+With techniques selected in Navigator (or injected from an AI analysis), navigate to **Compare**, make sure **Groups (DB 1)** is selected, and click **Compare vs Groups**. This ranks the currently ingested group profiles by Jaccard similarity.
 
 Click any group to open the four-tab detail view:
 
 **Overview** — similarity score, shared technique chips (amber), techniques only in your layer (red). Answers: *"How much of our observed behaviour matches this group's known playbook?"*
 
-**Tactic Breakdown** — stacked bar per kill-chain phase: shared / user-only / APT-only. Reveals *where* in the kill chain the overlap is concentrated.
+**Tactic Breakdown** — stacked bar per kill-chain phase: shared / user-only / group-only. Reveals *where* in the kill chain the overlap is concentrated.
 
 **Visual Diff** — compact colour-strip matrix. Best for presentations.
 
@@ -276,22 +278,22 @@ Click any group to open the four-tab detail view:
 
 ### Mode 2 — Campaigns (DB 1)
 
-Switch to **Campaigns (DB 1)** and click **Compare vs Campaigns**. This ranks all 56+ named MITRE operations by Jaccard similarity.
+Switch to **Campaigns (DB 1)** and click **Compare vs Campaigns**. This ranks named operations from the currently ingested ATT&CK release by Jaccard similarity.
 
 **Why this is more precise than group comparison:** A group's aggregate profile spans years. A campaign profile is one specific attack. Matching your TTPs against C0024 (SolarWinds Compromise) at 40% is a sharper lead than matching against G0016 (APT29) at 15%.
 
 ### Mode 3 — Reports (DB 2)
 
-Switch to **Reports (DB 2)**. The left panel lists every AI analysis you have ever run. Click any report body to re-run Jaccard comparison against all ATT&CK groups — without re-calling the LLM.
+Switch to **Reports (DB 2)**. The left panel lists stored AI analyses. Click a report body to re-run Jaccard comparison against the currently ingested group profiles without re-calling the LLM.
 
 Each report entry also has two action buttons directly below the session info:
 
-- **↓ PDF** — download the full multi-page analysis report (cover, summary, techniques table, APT attribution, tactic coverage) directly from the browser without re-running analysis
+- **↓ PDF** — download the full multi-page analysis report (cover, summary, techniques table, TTP-overlap analysis, tactic coverage) directly from the browser without re-running analysis
 - **✕ Remove** — permanently delete the session from DB 2; a browser confirmation prompt guards against accidents, and the list refreshes automatically; if the deleted session was selected, the comparison results are cleared
 
-Use this for retrospective attribution after ATT&CK releases new group data, or to cluster multiple incidents under a common actor.
+Use this for retrospective TTP-overlap review after ATT&CK releases new group data, or to cluster multiple incidents under a common actor.
 
-### Practical attribution workflow
+### Practical similarity-review workflow
 
 1. Run AI analysis on your incident data (give it a descriptive name)
 2. Inject extracted techniques into Navigator
@@ -304,7 +306,7 @@ Use this for retrospective attribution after ATT&CK releases new group data, or 
 
 ## Two Databases: Actor Profiles and Your Report Library
 
-When you dig into attribution you quickly realise there are two different things you want to compare against:
+When you investigate similarity leads, there are two different things you may want to compare against:
 
 1. **What MITRE says groups have done** — the curated ATT&CK dataset of group TTP profiles, including named campaigns (specific operations like "Operation Ghost")
 2. **What you have actually observed** — your own library of analysed reports, each with its own extracted TTP mapping
@@ -323,14 +325,14 @@ ThreatMapper parses all of this during ATT&CK ingestion. The result is two searc
 
 | Dataset | What it contains | ID format |
 |---|---|---|
-| APT Groups | Aggregate TTP profile of each named threat group | G0001 – G0174+ |
-| Campaigns | TTP profile of each named operation/campaign | C0001 – C0063+ |
+| Threat Groups | Aggregate TTP profile of each named threat group | Current ingested ATT&CK release |
+| Campaigns | TTP profile of each named operation/campaign | Current ingested ATT&CK release |
 
 **Why campaigns matter:** A group's aggregate profile is the union of everything ever attributed to them across all operations and years. A campaign profile is specific to one attack. Comparing your incident TTPs against campaigns is often more discriminating than comparing against the full group — an incident that matches C0023 (Operation Ghost) at 45% similarity is a more specific lead than a match against G0016 (APT29) at 15%.
 
-### Viewing campaigns in the APT Library
+### Viewing campaigns in the ATT&CK Group Library
 
-The APT Library now has two tabs per group:
+The ATT&CK Group Library now has two tabs per group:
 
 - **Techniques** — the full aggregate TTP list (existing behaviour)
 - **Campaigns (DB 1)** — all named operations attributed to this group
@@ -341,7 +343,7 @@ The **"Add to my TTPs"** button on each campaign card pushes all of that campaig
 
 ### DB 2: Your Report Library
 
-Every time you run an AI analysis in ThreatMapper, the result is stored: the extracted techniques, the summary, the APT matches, and the provider/model used. DB 2 is this library of past analyses.
+Every time you run an AI analysis in ThreatMapper, the result is stored: the extracted techniques, the summary, the group similarity leads, and the provider/model used. DB 2 is this library of past analyses.
 
 Access it via **Compare → Reports (DB 2)**.
 
@@ -352,7 +354,7 @@ The left panel lists every completed report session with:
 - Provider and model used
 - Date
 
-Click any report body to run a fresh Jaccard comparison of that report's extracted techniques against all ATT&CK groups. This answers: *"If I come back to this report from three months ago — which groups match its TTP profile?"*
+Click any report body to run a fresh Jaccard comparison of that report's extracted techniques against the currently ingested ATT&CK group profiles. This answers: *"If I return to this report later, which group profiles share the most documented behavior?"*
 
 Each row also exposes two action buttons:
 
@@ -361,9 +363,9 @@ Each row also exposes two action buttons:
 
 This is useful in a few scenarios:
 
-**Retrospective attribution:** You analysed a report before you had a strong hypothesis about the actor. A new ATT&CK version was released that added new groups or techniques. Rerun the comparison against the updated ATT&CK data without re-running the expensive LLM analysis.
+**Retrospective TTP-overlap review:** You analysed a report before you had a strong hypothesis about the actor. A new ATT&CK version was released that added new groups or techniques. Rerun the comparison against the updated ATT&CK data without re-running the expensive LLM analysis.
 
-**Cross-incident correlation:** If two reports from different incidents both have high similarity to the same APT group, that's a data point for clustering the incidents under the same actor.
+**Cross-incident correlation:** If two reports from different incidents both have high similarity to the same group profile, that is a lead for further clustering analysis, not attribution proof.
 
 **Building a baseline:** Accumulate 20 reports over a quarter. In the Reports library you can see at a glance which groups are recurring themes across your incident set — a form of environmental threat profiling.
 
@@ -371,9 +373,9 @@ This is useful in a few scenarios:
 
 | Mode | What you compare | Against |
 |---|---|---|
-| **Groups (DB 1)** | Your selected TTPs (from Navigator) | All 174+ ATT&CK groups |
-| **Campaigns (DB 1)** | Your selected TTPs (from Navigator) | All named MITRE campaigns |
-| **Reports (DB 2)** | A stored report's extracted TTPs | All 174+ ATT&CK groups |
+| **Groups (DB 1)** | Your selected TTPs (from Navigator) | Currently ingested ATT&CK group profiles |
+| **Campaigns (DB 1)** | Your selected TTPs (from Navigator) | Named campaigns from the ingested release |
+| **Reports (DB 2)** | A stored report's extracted TTPs | Currently ingested ATT&CK group profiles |
 
 Use the mode switcher at the top of the Compare page to move between them.
 
@@ -419,7 +421,7 @@ From the **Analyze** page, after a completed analysis, click **Download PDF**. T
 - Cover page with provider, model, domain, session ID, and timestamp
 - Executive summary (the AI-generated TL;DR)
 - Extracted techniques table sorted by confidence descending
-- APT attribution section with the top 10 Jaccard matches
+- TTP-overlap analysis section with the top Jaccard-overlap leads
 - Tactic coverage breakdown showing how the techniques distribute across the kill chain
 
 ### Navigator layer report

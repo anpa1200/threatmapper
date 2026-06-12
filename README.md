@@ -2,9 +2,9 @@
 
 **AI-assisted CTI-to-detection workbench for MITRE ATT&CK mapping and detection-gap analysis.**
 
-**Current release: v0.8.2 · [Live Intelligence Workspace](https://1200km.com/threat-matrix/) · [Documentation & Usage Guide](https://1200km.com/threatmapper-docs/) · [Medium Walkthrough](https://medium.com/@1200km/threatmapper-i-built-a-self-hosted-ai-threat-intelligence-platform-heres-how-to-use-it-0aa7673e6bd8)**
+**Current release: v0.8.3 · [Live Intelligence Workspace](https://1200km.com/threat-matrix/) · [Documentation & Usage Guide](https://1200km.com/threatmapper-docs/) · [Medium Walkthrough](https://medium.com/@1200km/threatmapper-i-built-a-self-hosted-ai-threat-intelligence-platform-heres-how-to-use-it-0aa7673e6bd8)**
 
-Map adversary behavior to ATT&CK, compare TTP overlap with currently ingested group and campaign profiles, analyze incident reports with the configured Claude / OpenAI / Gemini provider, and export analyst-ready outputs.
+ThreatMapper AI is a self-hosted CTI-to-detection workbench for mapping threat reports to MITRE ATT&CK, comparing TTP overlap with known groups and campaigns, identifying detection gaps, and exporting analyst-ready outputs.
 
 **Live Web Workspace:** https://1200km.com/threat-matrix/
 
@@ -16,6 +16,16 @@ Map adversary behavior to ATT&CK, compare TTP overlap with currently ingested gr
 
 > **Validation and attribution limitation:** ThreatMapper assists analysts but does not replace analyst validation. LLM-generated mappings may contain false positives, false negatives, or ambiguous technique assignments. Group/campaign similarity is based on TTP overlap and is an investigation lead, not attribution proof.
 
+## Public Demo Privacy Note
+
+The public Web workspace is intended for exploration. Do not upload confidential, customer-sensitive, classified, or internal reports into public demos or third-party environments. Use the self-hosted Docker deployment for private analysis.
+
+## Validation and Limitations
+
+ThreatMapper assists analysts but does not replace analyst validation. LLM-generated ATT&CK mappings may include false positives, false negatives, or ambiguous technique assignments. Group and campaign similarity is based on TTP overlap and should be treated as an investigation lead, not attribution proof.
+
+Screenshot backlog: `docs/static/img/threatmapper-web-matrix.png`, `threatmapper-group-overlay.png`, `threatmapper-compare.png`, `threatmapper-detection-backlog.png`, `threatmapper-docker-ai-analysis.png`, and `threatmapper-report-export.png`.
+
 ---
 
 ## Contents
@@ -26,7 +36,7 @@ Map adversary behavior to ATT&CK, compare TTP overlap with currently ingested gr
 - [Usage Guide](#usage-guide)
   - [Navigator](#navigator)
   - [AI Analysis](#ai-analysis)
-  - [APT Library](#apt-library)
+  - [ATT&CK Group Library](#attck-group-library)
   - [Compare](#compare)
   - [Export](#export)
   - [MITRE Sync](#mitre-sync)
@@ -48,7 +58,7 @@ Map adversary behavior to ATT&CK, compare TTP overlap with currently ingested gr
 | **Navigator** | Full ATT&CK matrix (Enterprise, Mobile, ICS) with D3.js zoom/pan, sub-technique expansion, dual-layer colouring |
 | **Threat Actor Library** | Currently ingested MITRE ATT&CK group profiles, aliases, techniques, and named campaign relationships |
 | **AI Analysis** | Upload PDF/DOCX/TXT or paste text → streamed LLM extraction of ATT&CK mapping candidates; results saved to Reports Library (DB 2) |
-| **Compare — Groups** | Jaccard similarity ranking of your TTPs vs every APT group; visual matrix diff, tactic breakdown, gap analysis |
+| **Compare — Groups** | Jaccard similarity ranking of your TTPs vs currently ingested group profiles; visual matrix diff, tactic breakdown, gap analysis |
 | **Compare — Campaigns** | Jaccard similarity ranking of your TTPs vs every named MITRE campaign (e.g. SolarWinds C0024, Operation Ghost C0023) |
 | **Compare — Reports** | Browse stored AI analyses (DB 2); re-run group-similarity comparison without re-calling the LLM |
 | **Export** | ATT&CK Navigator JSON layers, PDF threat intelligence reports, plain JSON |
@@ -324,7 +334,7 @@ Files are truncated at 120,000 characters before being sent to the LLM.
 
 ---
 
-### APT Library
+### ATT&CK Group Library
 
 Browse the threat groups in the currently ingested ATT&CK release. Each group has two tabs:
 
@@ -373,7 +383,7 @@ Rank every ATT&CK group against your current Navigator selection.
 
 #### Mode: Campaigns (DB 1)
 
-Rank every named MITRE campaign (56+ in Enterprise) against your current Navigator selection.
+Rank named campaigns from the currently ingested ATT&CK release against your current Navigator selection.
 
 The detail panel shows:
 - Similarity score, shared techniques highlighted in purple
@@ -450,7 +460,7 @@ curl http://localhost:8000/api/sync/status
 Populated from MITRE's official STIX 2.1 bundles on startup and on each sync. Contains:
 
 - **Groups** — named threat actors with aggregate TTP profiles from the ingested release
-- **Campaigns** (C0001–C0063+) — named operations with per-operation TTP profiles
+- **Campaigns** — named operations with per-operation TTP profiles from the ingested release
 - **Attribution links** — which group conducted which campaign (`attributed-to` relationships)
 - **Technique usage** — the specific techniques observed in each group/campaign with use descriptions
 
@@ -805,7 +815,7 @@ class MyProviderAdapter(LLMAdapter):
 - Every technique ID throughout the UI is now a clickable link — click to open a slide-in detail panel
 - Panel shows: technique name and ID, tactics, platforms, full description, detection guidance, Anomaly Detection Atlas cross-references, Ecosystem Resources section
 - **Ecosystem Resources** links: Anomaly Detection Atlas (per-technique deep links), ITDR Handbook (auto-linked for identity techniques: T1078, T1098, T1110, T1111, T1136, T1531, T1539, T1550, T1552, T1555, T1556, T1558, T1606, T1621), CTI Analyst Field Manual, ThreatMapper Web Tool
-- Wired in: Navigator matrix cells, APT Library technique list, Compare (shared/gap/overview badges), Group vs Group (overlap badges and technique table)
+- Wired in: Navigator matrix cells, ATT&CK Group Library technique list, Compare (shared/gap/overview badges), Group vs Group (overlap badges and technique table)
 - Close with **Esc** or click outside
 
 **Ecosystem integration:**
@@ -816,7 +826,7 @@ class MyProviderAdapter(LLMAdapter):
 
 **Two-database architecture:**
 - Added `Campaign`, `CampaignTechnique`, `AptGroupCampaign` SQLAlchemy models
-- STIX ingestor now parses `campaign` objects and `attributed-to` / `uses` relationships; 56+ named campaigns ingested for Enterprise ATT&CK v19.1
+- STIX ingestor parses `campaign` objects and `attributed-to` / `uses` relationships from the selected ATT&CK release
 - New API endpoints:
   - `GET /api/apt/campaigns` — list all campaigns, filterable by domain, group, search, version
   - `GET /api/apt/campaigns/{attack_id}` — full campaign detail with technique list
@@ -824,7 +834,7 @@ class MyProviderAdapter(LLMAdapter):
   - `GET /api/analyze/sessions` — DB 2 report library (all completed analysis sessions)
   - `POST /api/analyze/sessions/{id}/compare` — re-run Jaccard for a stored report
 - `AnalysisSession` gains `name VARCHAR(255)` column; name is set from the `name` form field or filename
-- **APT Library** — new Campaigns tab per group: expandable campaign cards with technique list, date range, "Add to my TTPs" action
+- **ATT&CK Group Library** — Campaigns tab per group: expandable campaign cards with technique list, date range, "Add to my TTPs" action
 - **Compare page** — three-mode switcher: Groups (DB 1) / Campaigns (DB 1) / Reports (DB 2)
 
 **Bug fix:**
@@ -849,7 +859,7 @@ class MyProviderAdapter(LLMAdapter):
 
 ### v0.2.0 (2026-06-06)
 
-- Initial release: Navigator, AI Analysis, APT Library, Compare, Export, MITRE Sync
+- Initial release: Navigator, AI Analysis, ATT&CK Group Library, Compare, Export, MITRE Sync
 - STIX bundle parsing rewritten to use stdlib `json` only (Python 3.12, drops `mitreattack-python`)
 - Fixed tactic matrix ordering: canonical ATT&CK kill-chain sort
 

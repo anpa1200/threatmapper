@@ -53,7 +53,7 @@ export function APTLibrary() {
   return (
     <div className="flex flex-col h-full">
       <TechniqueModal attackId={techModalId} onClose={() => setTechModalId(null)} />
-      <Header title="APT Library" />
+      <Header title="ATT&CK Group Library" />
       <div className="flex flex-1 overflow-hidden">
 
         {/* Group list */}
