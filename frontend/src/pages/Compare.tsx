@@ -162,7 +162,7 @@ export function Compare() {
   return (
     <div className="flex flex-col h-full">
       <TechniqueModal attackId={techModalId} onClose={() => setTechModalId(null)} />
-      <Header title="APT Comparison" />
+      <Header title="Group & Campaign Similarity" />
 
       {/* ── My TTPs summary + mode switcher bar ────────────────────────────── */}
       <div className="flex items-center gap-4 px-6 py-3 bg-gray-900 border-b border-gray-700 shrink-0 flex-wrap gap-y-2">
@@ -222,7 +222,7 @@ export function Compare() {
               {(compareGroupsMutation.isPending || compareCampaignsMutation.isPending)
                 ? 'Comparing…'
                 : mode === 'groups'
-                  ? 'Compare vs APT Groups'
+                  ? 'Compare vs Groups'
                   : 'Compare vs Campaigns'
               }
             </button>
@@ -481,7 +481,7 @@ export function Compare() {
             <div className="p-3 border-b border-gray-800">
               <div className="text-xs text-gray-400 font-medium mb-1">DB 2 — Stored Report Sessions</div>
               <div className="text-[10px] text-gray-600">
-                Click a report to compare its TTP mapping against all APT groups.
+                Click a report to compare its TTP mapping against known group profiles.
               </div>
             </div>
             <div className="flex-1 overflow-y-auto">
@@ -551,18 +551,18 @@ export function Compare() {
             </div>
           </div>
 
-          {/* Report APT match results */}
+          {/* Report group-similarity results */}
           <div className="flex flex-1 overflow-hidden">
             {!selectedReport ? (
               <div className="flex-1 flex items-center justify-center text-gray-600">
                 <div className="text-center">
                   <div className="text-4xl mb-3">📋</div>
-                  <p>Select a report to see which APT groups match its TTP profile.</p>
+                  <p>Select a report to review group profiles with overlapping TTPs.</p>
                 </div>
               </div>
             ) : compareReportMutation.isPending ? (
               <div className="flex-1 flex items-center justify-center text-gray-500">
-                Comparing report against all APT groups…
+                Comparing report against group profiles…
               </div>
             ) : reportMatches.length === 0 ? (
               <div className="flex-1 flex items-center justify-center text-gray-600">
@@ -579,7 +579,7 @@ export function Compare() {
                       className="w-full bg-gray-800 text-xs text-gray-200 px-3 py-2 rounded border border-gray-700 focus:border-mitre-accent outline-none"
                     />
                     <div className="text-[10px] text-gray-600 mt-1.5">
-                      {filteredReportMatches.length} / {reportMatches.length} APT groups
+                      {filteredReportMatches.length} / {reportMatches.length} group profiles
                     </div>
                   </div>
                   <div className="flex-1 overflow-y-auto">
@@ -667,7 +667,7 @@ function EmptyState({
       <div className="text-5xl mb-5">◈</div>
       {canRun ? (
         <>
-          <p className="text-gray-400 mb-4">{label ?? 'Run comparison to rank all APT groups against your TTP selection.'}</p>
+          <p className="text-gray-400 mb-4">{label ?? 'Run comparison to rank group profiles against your TTP selection.'}</p>
           <button onClick={onRun} disabled={isPending}
             className="bg-mitre-accent hover:bg-red-600 disabled:opacity-40 text-white px-6 py-2 rounded font-medium text-sm transition-colors"
           >

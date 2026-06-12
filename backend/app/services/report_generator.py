@@ -5,7 +5,7 @@ Output sections:
   1. Cover page — metadata + statistics
   2. Executive summary — AI-generated summary text
   3. Extracted techniques — table sorted by confidence desc
-  4. APT attribution — top matches with shared-technique breakdown
+  4. Group similarity leads — top TTP-overlap results with shared-technique breakdown
   5. Tactic coverage — per-tactic counts
 """
 
@@ -76,7 +76,7 @@ def generate_analysis_report(data: dict[str, Any]) -> bytes:
 
     apt_matches = data.get("apt_matches", [])
     if apt_matches:
-        _apt_attribution(pdf, apt_matches, techniques)
+        _group_similarity(pdf, apt_matches, techniques)
 
     tactic_data = _compute_tactic_coverage(techniques)
     if tactic_data:
@@ -168,10 +168,10 @@ def _cover(pdf: _Report, data: dict) -> None:
     _stat_box(pdf, str(len(techniques)),
               "Techniques\nextracted")
     _stat_box(pdf, str(len(apt_matches)),
-              "APT groups\nmatched")
+              "Group similarity\nleads")
     top_sim = f"{apt_matches[0]['similarity']*100:.0f}%" if apt_matches else "N/A"
     _stat_box(pdf, top_sim,
-              "Top APT\nsimilarity")
+              "Top group\nsimilarity")
     high_conf = sum(1 for t in techniques if t.get("confidence", 0) >= 0.8)
     _stat_box(pdf, str(high_conf),
               "High-confidence\nfindings")
@@ -214,13 +214,13 @@ def _techniques_table(pdf: _Report, techniques: list[dict]) -> None:
     _table(pdf, rows, col_widths=[22, 52, 30, 14, 64])
 
 
-def _apt_attribution(
+def _group_similarity(
     pdf: _Report,
     apt_matches: list[dict],
     techniques: list[dict],
 ) -> None:
     pdf.add_page()
-    _heading(pdf, f"APT Group Attribution (top {min(len(apt_matches), 10)})")
+    _heading(pdf, f"Group Similarity Leads (top {min(len(apt_matches), 10)})")
     user_ids = {t.get("attack_id", "") for t in techniques}
 
     for i, m in enumerate(apt_matches[:10], start=1):

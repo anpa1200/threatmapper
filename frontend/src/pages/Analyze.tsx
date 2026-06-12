@@ -23,7 +23,7 @@ export function Analyze() {
   const [text,     setText]     = useState('');
   const [file,     setFile]     = useState<File | null>(null);
 
-  // result: populated by the server-side "result" SSE event (includes APT matches)
+  // result: populated by the server-side "result" SSE event (includes group-similarity leads)
   // tokens: raw LLM token stream shown live while waiting
   const { tokens, result, error, streaming, run, abort, reset } = useSseStream<AnalysisResult>();
 
@@ -163,7 +163,7 @@ export function Analyze() {
             </div>
           )}
 
-          {/* Full parsed result from server (includes APT matches) */}
+          {/* Full parsed result from server (includes group-similarity leads) */}
           {result && (
             <ResultsView
               result={result}
@@ -245,7 +245,7 @@ function ResultsView({
           Techniques ({result.techniques.length})
         </TabBtn>
         <TabBtn active={tab === 'groups'} onClick={() => setTab('groups')}>
-          APT Matches ({result.apt_matches.length})
+          Group Similarity Leads ({result.apt_matches.length})
         </TabBtn>
         <TabBtn active={tab === 'raw'} onClick={() => setTab('raw')}>
           Raw response
@@ -274,7 +274,7 @@ function ResultsView({
 
         {tab === 'groups' && (
           <div className="space-y-2">
-            {result.apt_matches.length === 0 && <p className="text-gray-500 text-sm">No APT group matches.</p>}
+            {result.apt_matches.length === 0 && <p className="text-gray-500 text-sm">No group-similarity leads.</p>}
             {result.apt_matches.map((m, i) => (
               <div key={m.group_attack_id} className="p-3 bg-gray-800 rounded-lg">
                 <div className="flex items-center gap-3">

@@ -1,10 +1,20 @@
 # ThreatMapper
 
-**AI-powered MITRE ATT&CK threat intelligence platform.**
+**AI-assisted CTI-to-detection workbench for MITRE ATT&CK mapping and detection-gap analysis.**
 
-**Current release: v0.8.1 · [Live Intelligence Workspace](https://1200km.com/threat-matrix/) · [Documentation & Usage Guide](https://1200km.com/threatmapper-docs/) · [Medium Walkthrough](https://medium.com/@1200km/threatmapper-i-built-a-self-hosted-ai-threat-intelligence-platform-heres-how-to-use-it-0aa7673e6bd8)**
+**Current release: v0.8.2 · [Live Intelligence Workspace](https://1200km.com/threat-matrix/) · [Documentation & Usage Guide](https://1200km.com/threatmapper-docs/) · [Medium Walkthrough](https://medium.com/@1200km/threatmapper-i-built-a-self-hosted-ai-threat-intelligence-platform-heres-how-to-use-it-0aa7673e6bd8)**
 
-Map adversary behaviours to ATT&CK, compare against 174+ APT group profiles and 56+ named campaigns, analyse incident reports with Claude / GPT-4o / Gemini, and export Navigator-compatible layers — all in one self-hosted tool.
+Map adversary behavior to ATT&CK, compare TTP overlap with currently ingested group and campaign profiles, analyze incident reports with the configured Claude / OpenAI / Gemini provider, and export analyst-ready outputs.
+
+**Live Web Workspace:** https://1200km.com/threat-matrix/
+
+**Project Hub:** https://1200km.com/threatmapper/
+
+**Documentation:** https://1200km.com/threatmapper-docs/
+
+**Medium Walkthrough:** https://medium.com/@1200km/threatmapper-i-built-a-self-hosted-ai-threat-intelligence-platform-heres-how-to-use-it-0aa7673e6bd8
+
+> **Validation and attribution limitation:** ThreatMapper assists analysts but does not replace analyst validation. LLM-generated mappings may contain false positives, false negatives, or ambiguous technique assignments. Group/campaign similarity is based on TTP overlap and is an investigation lead, not attribution proof.
 
 ---
 
@@ -36,11 +46,11 @@ Map adversary behaviours to ATT&CK, compare against 174+ APT group profiles and 
 | Module | Capability |
 |---|---|
 | **Navigator** | Full ATT&CK matrix (Enterprise, Mobile, ICS) with D3.js zoom/pan, sub-technique expansion, dual-layer colouring |
-| **APT Library** | 174+ named threat groups from MITRE ATT&CK; full TTP profiles, aliases, overlay-to-Navigator; **Campaigns tab** shows named operations per group |
-| **AI Analysis** | Upload PDF/DOCX/TXT or paste text → streamed LLM extraction of ATT&CK techniques + APT attribution; results saved to Reports Library (DB 2) |
+| **Threat Actor Library** | Currently ingested MITRE ATT&CK group profiles, aliases, techniques, and named campaign relationships |
+| **AI Analysis** | Upload PDF/DOCX/TXT or paste text → streamed LLM extraction of ATT&CK mapping candidates; results saved to Reports Library (DB 2) |
 | **Compare — Groups** | Jaccard similarity ranking of your TTPs vs every APT group; visual matrix diff, tactic breakdown, gap analysis |
 | **Compare — Campaigns** | Jaccard similarity ranking of your TTPs vs every named MITRE campaign (e.g. SolarWinds C0024, Operation Ghost C0023) |
-| **Compare — Reports** | Browse your stored AI analyses (DB 2); re-run attribution against any saved report without re-calling the LLM |
+| **Compare — Reports** | Browse stored AI analyses (DB 2); re-run group-similarity comparison without re-calling the LLM |
 | **Export** | ATT&CK Navigator JSON layers, PDF threat intelligence reports, plain JSON |
 | **MITRE Sync** | Auto-detects new ATT&CK releases daily (Celery beat), manual sync via API; sidebar shows staleness indicator |
 | **Anomaly Detection Reference Book** | Docker-served, autonomously synchronized reference catalogs with exact paragraph-level links from every mapped matrix TTP |
@@ -51,6 +61,16 @@ Map adversary behaviours to ATT&CK, compare against 174+ APT group profiles and 
 ---
 
 ## Architecture
+
+## Web vs Docker
+
+**ThreatMapper Web** is the public browser-native workspace for ATT&CK exploration, manual layers, group overlays and comparisons, local workspaces, ecosystem research, coverage-gap analysis, and browser-generated exports. It does not perform LLM report extraction or backend private-report storage.
+
+**ThreatMapper Docker** is the full self-hosted platform for provider-configured AI extraction, private PostgreSQL-backed analyses, campaigns, APIs, PDF reports, detection-rule workflows, and scheduled ATT&CK synchronization.
+
+ThreatMapper is self-hosted. In Docker mode, report content is sent only to the LLM provider configured by the operator. For fully private analysis, use a local or private LLM gateway. The public Web workspace does not perform LLM report extraction or backend report storage.
+
+The Docker deployment gives the operator control over storage, networking, and provider configuration. Trusted-header authentication and roles are available when configured, but internet-facing deployments still require TLS, an authenticating reverse proxy, restricted network exposure, backups, retention controls, and secrets management.
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
@@ -84,10 +104,10 @@ User uploads report
   _parse_response()      ← JSON extraction with raw_decode fallback
         │
         ▼
-  _rank_apt_groups()     ← Jaccard similarity vs every APT group in DB 1
+  _rank_apt_groups()     ← Jaccard TTP overlap vs group profiles in DB 1
         │
         ▼
-  AnalysisResult → DB 2  ← session + name, techniques, APT matches, domain
+  AnalysisResult → DB 2  ← session + name, techniques, similarity leads, domain
         │
         ▼
   Frontend renders       ← techniques table, APT ranking, Navigator injection
@@ -98,7 +118,7 @@ User uploads report
 | Database | What it holds | Key tables |
 |---|---|---|
 | **DB 1 (MITRE)** | ATT&CK groups, campaigns, techniques, relationships — ingested from official STIX bundles | `apt_groups`, `campaigns`, `campaign_techniques`, `apt_group_campaigns`, `techniques` |
-| **DB 2 (Reports)** | Every AI analysis you run: extracted techniques, summary, APT matches, name, domain | `analysis_sessions`, `analysis_results` |
+| **DB 2 (Reports)** | Every AI analysis you run: extracted techniques, summary, group-similarity leads, name, domain | `analysis_sessions`, `analysis_results` |
 
 ---
 
@@ -167,9 +187,9 @@ Expected output (v19.1):
 
 ```
 Parsing enterprise-attack-19.1.json ...
-  Parsed: 15 tactics, 760 techniques, 174 groups, 56 campaigns, 9100+ usages
+  Parsed: current tactics, techniques, groups, campaigns, and relationships
   Ingested 15 tactics
-  Ingested 760 techniques
+  Ingested techniques from the selected ATT&CK release
   Ingested 174 APT groups
   Ingested 56 campaigns
   Ingested campaign-technique and group-campaign attribution links
@@ -278,7 +298,7 @@ Analyse threat intelligence documents and automatically map every observable beh
 | Tab | Content |
 |---|---|
 | **Techniques** | ATT&CK technique mappings with confidence score, tactic, and evidence snippet |
-| **APT Matches** | Top 10 APT groups ranked by Jaccard similarity |
+| **Group Similarity Leads** | Top group profiles ranked by Jaccard TTP overlap |
 | **Raw Response** | Full LLM JSON output for debugging |
 
 9. Click **→ Inject into Navigator** to push all extracted techniques into your layer
@@ -306,7 +326,7 @@ Files are truncated at 120,000 characters before being sent to the LLM.
 
 ### APT Library
 
-Browse all 174+ ATT&CK threat groups. Each group has two tabs:
+Browse the threat groups in the currently ingested ATT&CK release. Each group has two tabs:
 
 #### Techniques tab
 
@@ -366,7 +386,7 @@ The detail panel shows:
 Browse your stored AI analysis sessions. Click any report body to see which APT groups best match its extracted TTP profile — without re-running the expensive LLM call.
 
 Use cases:
-- **Retrospective attribution** after a new ATT&CK version is released
+- **Retrospective TTP-overlap review** after a new ATT&CK version is released
 - **Cross-incident correlation** across multiple saved reports
 - **Environmental profiling** — which groups keep appearing across your incident set
 
@@ -384,7 +404,7 @@ From **Analyze**, click **Download PDF** on any completed analysis. Includes:
 - Cover page with provider, model, domain, session ID, timestamp
 - Executive summary (AI-generated)
 - Extracted techniques table sorted by confidence
-- APT attribution section with top 10 Jaccard matches
+- Group-similarity section with top Jaccard-overlap leads
 - Tactic coverage breakdown
 
 #### Navigator layer PDF
@@ -429,7 +449,7 @@ curl http://localhost:8000/api/sync/status
 
 Populated from MITRE's official STIX 2.1 bundles on startup and on each sync. Contains:
 
-- **Groups** (G0001–G0174+) — named threat actors with aggregate TTP profiles
+- **Groups** — named threat actors with aggregate TTP profiles from the ingested release
 - **Campaigns** (C0001–C0063+) — named operations with per-operation TTP profiles
 - **Attribution links** — which group conducted which campaign (`attributed-to` relationships)
 - **Technique usage** — the specific techniques observed in each group/campaign with use descriptions
@@ -438,7 +458,7 @@ Populated from MITRE's official STIX 2.1 bundles on startup and on each sync. Co
 
 | Domain | Groups | Campaigns | Techniques |
 |---|---|---|---|
-| Enterprise | 174 | 56 | 760+ |
+| Enterprise | Dynamic | Dynamic | Dynamic |
 | ICS | 14 | 8 | 80+ |
 | Mobile | 20 | 3 | 70+ |
 
@@ -767,7 +787,7 @@ class MyProviderAdapter(LLMAdapter):
 
 **Public intelligence and ecosystem release:**
 - ThreatMapper Web promoted as the public intelligence workspace and primary ecosystem entry point
-- Permanent crawlable pages for 160 threat actors and 656 ATT&CK techniques
+- Permanent crawlable actor and technique pages generated from the current public-workspace dataset
 - Global actor, alias, technique, report, publisher, and evidence search
 - Intelligence discovery dashboard, shareable deep links, report filtering, and event-level Google Analytics
 - Correlated CTI/IR reports, defensive guidance, threat hunting, evidence assessment, and detection coverage workflows

@@ -20,7 +20,7 @@ export function getEcosystemLinks(attackId: string): EcosystemLink[] {
     { label: 'ThreatMapper Web Tool',     url: 'https://1200km.com/threat-matrix/' },
   ];
   if (IDENTITY_TECHNIQUES.has(base))
-    links.splice(1, 0, { label: 'ITDR Handbook — Identity Threat Detection & Response', url: 'https://1200km.com/ITDR/' });
+    links.splice(1, 0, { label: 'Insider Threat Detection Guide', url: 'https://1200km.com/insider-threat-detection/' });
   return links;
 }
 
