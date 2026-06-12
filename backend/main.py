@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import attack, apt, analyze, sync, export, layers
+from app.api.routes import attack, apt, analyze, sync, export, layers, operations
 from app.core.config import settings
 from app.core.database import create_tables
 
@@ -36,7 +36,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="ThreatMapper API",
     description="ATT&CK-based threat intelligence mapping with AI analysis",
-    version="0.2.0",
+    version="0.7.0",
     lifespan=lifespan,
 )
 
@@ -54,8 +54,9 @@ app.include_router(analyze.router, prefix="/api")
 app.include_router(sync.router,    prefix="/api")
 app.include_router(export.router,  prefix="/api")
 app.include_router(layers.router,  prefix="/api")
+app.include_router(operations.router, prefix="/api")
 
 
 @app.get("/api/health")
 async def health():
-    return {"status": "ok", "version": "0.2.0"}
+    return {"status": "ok", "version": "0.7.0"}

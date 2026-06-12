@@ -15,6 +15,11 @@ workspaces, shareable entity links, and investigation reports.
 
 ## Docker-only capabilities
 
+- Persistent operational intelligence workbench
+- Campaign/investigation evidence graphs and timelines
+- Analyst-reviewed report intake
+- Tracked-actor behavior change logs
+- Detection engineering lifecycle management
 - AI-assisted PDF/DOCX/text report analysis
 - LLM technique assistant
 - Private stored report sessions

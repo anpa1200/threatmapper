@@ -1,5 +1,5 @@
 """
-POST /api/export/analysis/{session_id}  — full PDF report from a stored analysis
+GET  /api/export/analysis/{session_id}  — full PDF report from a stored analysis
 POST /api/export/layer                  — PDF report for the current Navigator layer
 """
 

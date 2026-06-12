@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useAppStore } from '@/store';
-import { aptApi } from '@/api/client';
+import { aptApi, operationsApi } from '@/api/client';
 import { Header } from '@/components/Layout/Header';
 import { TechniqueModal } from '@/components/TechniqueModal';
 import type { CampaignListItem } from '@/types/attack';
 import { useSearchParams } from 'react-router-dom';
 import { getActorReports } from '@/config/intelligence';
 import { ReportReferences } from '@/components/ReportReferences';
+import { useMutation } from '@tanstack/react-query';
 
 type GroupTab = 'techniques' | 'campaigns' | 'reports';
 
@@ -47,6 +48,7 @@ export function APTLibrary() {
     enabled: !!expandedCampaign,
   });
   const { data: reports = [] } = useQuery({ queryKey: ['actor-reports', selectedGroupId], queryFn: () => getActorReports(selectedGroupId!), enabled: !!selectedGroupId });
+  const trackActor = useMutation({ mutationFn: () => operationsApi.trackActor({ actor_id: groupDetail!.attack_id, actor_name: groupDetail!.name, snapshot: { technique_ids: groupDetail!.techniques.map(item => item.attack_id), captured_at: new Date().toISOString() } }) });
 
   return (
     <div className="flex flex-col h-full">
@@ -131,6 +133,9 @@ export function APTLibrary() {
                   </button>
                   <button onClick={() => navigator.clipboard.writeText(`${location.origin}/apt?group=${groupDetail.attack_id}`)}
                     className="text-xs text-gray-400 border border-gray-700 px-3 py-1.5 rounded">Copy link</button>
+                  <button onClick={() => trackActor.mutate()} className="text-xs text-purple-300 border border-purple-800 px-3 py-1.5 rounded">
+                    {trackActor.isSuccess ? 'Snapshot tracked' : 'Track changes'}
+                  </button>
                   <button
                     onClick={() => addTechniques(groupDetail.techniques.map((t) => t.attack_id))}
                     className="text-xs text-gray-400 hover:text-white border border-gray-700 hover:border-gray-500 px-3 py-1.5 rounded transition-colors"

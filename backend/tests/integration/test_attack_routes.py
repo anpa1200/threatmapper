@@ -79,17 +79,17 @@ async def test_groups_no_data_returns_404(client: AsyncClient):
 async def test_compare_empty_list_returns_400(client: AsyncClient):
     resp = await client.post(
         "/api/apt/compare",
-        json=[],
+        json={"technique_ids": []},
         params={"domain": "enterprise-attack"},
     )
-    assert resp.status_code == 400
+    assert resp.status_code == 422
 
 
 @pytest.mark.asyncio
 async def test_compare_no_data_returns_404(client: AsyncClient):
     resp = await client.post(
         "/api/apt/compare",
-        json=["T1566", "T1059"],
+        json={"technique_ids": ["T1566", "T1059"]},
         params={"domain": "enterprise-attack"},
     )
     assert resp.status_code == 404

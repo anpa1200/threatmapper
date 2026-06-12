@@ -22,7 +22,7 @@ async def test_compare_top_n_capped(client: AsyncClient):
     """top_n > 50 should return 422."""
     resp = await client.post(
         "/api/apt/compare",
-        json=["T1566"],
+        json={"technique_ids": ["T1566"]},
         params={"domain": "enterprise-attack", "top_n": 999},
     )
     assert resp.status_code in (404, 422)
@@ -50,14 +50,14 @@ async def test_export_layer_no_attck_data(client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_export_analysis_invalid_uuid(client: AsyncClient):
-    resp = await client.post("/api/export/analysis/not-a-uuid")
+    resp = await client.get("/api/export/analysis/not-a-uuid")
     assert resp.status_code == 400
 
 
 @pytest.mark.asyncio
 async def test_export_analysis_missing(client: AsyncClient):
     import uuid
-    resp = await client.post(f"/api/export/analysis/{uuid.uuid4()}")
+    resp = await client.get(f"/api/export/analysis/{uuid.uuid4()}")
     assert resp.status_code == 404
 
 

@@ -8,6 +8,9 @@
 .result small {
   @apply block text-[10px] text-gray-600;
 }
+.primary {
+  @apply rounded bg-mitre-accent px-3 py-2 text-xs text-white hover:bg-red-600 disabled:opacity-40;
+}
 :focus-visible {
   outline: 2px solid #60a5fa;
   outline-offset: 2px;

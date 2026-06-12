@@ -184,3 +184,44 @@ export const exportApi = {
       { responseType: 'blob' },
     ).then(r => r.data as Blob),
 };
+
+// ── Operational Intelligence ──────────────────────────────────────────────────
+
+export interface Investigation {
+  id: string; name: string; description: string; status: string; domain: string;
+  actor_ids: string[]; technique_ids: string[]; report_ids: string[];
+  evidence_nodes: Array<Record<string, unknown>>; evidence_edges: Array<Record<string, unknown>>;
+  timeline: Array<Record<string, unknown>>; created_at: string; updated_at: string;
+}
+export interface IntakeRecord {
+  id: string; title: string; url: string; publisher: string; status: string; summary: string;
+  source_reliability: string; actor_ids: string[]; technique_ids: string[];
+  indicators: Array<Record<string, unknown>>; analyst_notes: string; created_at: string; updated_at: string;
+}
+export interface DetectionCandidate {
+  id: string; title: string; technique_id: string; status: string; owner: string;
+  telemetry: string[]; query_language: string; query: string; validation_notes: string;
+  source_refs: string[]; created_at: string; updated_at: string;
+}
+export interface TrackedActor {
+  id: string; actor_id: string; actor_name: string; last_snapshot: Record<string, unknown>;
+  change_log: Array<Record<string, unknown>>; created_at: string; updated_at: string;
+}
+const operations = '/operations';
+export const operationsApi = {
+  investigations: (): Promise<Investigation[]> => http.get(`${operations}/investigations`).then(r => r.data),
+  createInvestigation: (body: Omit<Investigation, 'id' | 'created_at' | 'updated_at'>): Promise<Investigation> => http.post(`${operations}/investigations`, body).then(r => r.data),
+  updateInvestigation: (id: string, body: Omit<Investigation, 'id' | 'created_at' | 'updated_at'>): Promise<Investigation> => http.put(`${operations}/investigations/${id}`, body).then(r => r.data),
+  removeInvestigation: (id: string): Promise<void> => http.delete(`${operations}/investigations/${id}`).then(() => {}),
+  intake: (): Promise<IntakeRecord[]> => http.get(`${operations}/intake`).then(r => r.data),
+  createIntake: (body: Omit<IntakeRecord, 'id' | 'created_at' | 'updated_at'>): Promise<IntakeRecord> => http.post(`${operations}/intake`, body).then(r => r.data),
+  updateIntake: (id: string, body: Omit<IntakeRecord, 'id' | 'created_at' | 'updated_at'>): Promise<IntakeRecord> => http.put(`${operations}/intake/${id}`, body).then(r => r.data),
+  removeIntake: (id: string): Promise<void> => http.delete(`${operations}/intake/${id}`).then(() => {}),
+  detections: (): Promise<DetectionCandidate[]> => http.get(`${operations}/detections`).then(r => r.data),
+  createDetection: (body: Omit<DetectionCandidate, 'id' | 'created_at' | 'updated_at'>): Promise<DetectionCandidate> => http.post(`${operations}/detections`, body).then(r => r.data),
+  updateDetection: (id: string, body: Omit<DetectionCandidate, 'id' | 'created_at' | 'updated_at'>): Promise<DetectionCandidate> => http.put(`${operations}/detections/${id}`, body).then(r => r.data),
+  removeDetection: (id: string): Promise<void> => http.delete(`${operations}/detections/${id}`).then(() => {}),
+  trackedActors: (): Promise<TrackedActor[]> => http.get(`${operations}/tracked-actors`).then(r => r.data),
+  trackActor: (body: { actor_id: string; actor_name: string; snapshot: Record<string, unknown> }): Promise<TrackedActor> => http.post(`${operations}/tracked-actors`, body).then(r => r.data),
+  removeTrackedActor: (id: string): Promise<void> => http.delete(`${operations}/tracked-actors/${id}`).then(() => {}),
+};

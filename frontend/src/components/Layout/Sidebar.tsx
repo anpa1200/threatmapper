@@ -15,6 +15,7 @@ const nav = [
   { to: '/compare',       label: 'Compare',       icon: '⬡' },
   { to: '/group-compare', label: 'Group vs Group', icon: '◉' },
   { to: '/report',        label: 'Investigation Report', icon: '▤' },
+  { to: '/operations',    label: 'Operations', icon: '◆' },
 ];
 
 export function Sidebar() {
@@ -111,7 +112,7 @@ export function Sidebar() {
             <span className="text-[10px] text-gray-500">ATT&CK up to date</span>
           </div>
         )}
-        <div className="text-[10px] text-gray-600 mt-0.5">ThreatMapper v0.6.0</div>
+        <div className="text-[10px] text-gray-600 mt-0.5">ThreatMapper v0.7.0</div>
       </div>
     </aside>
   );
