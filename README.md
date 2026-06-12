@@ -382,7 +382,7 @@ Rank every ATT&CK group against your current Navigator selection.
 | Detail tab | Content |
 |---|---|
 | **Overview** | Similarity score, shared techniques (amber chips), your-only techniques |
-| **Tactic Breakdown** | Stacked bar per kill-chain phase: shared / user-only / APT-only |
+| **Tactic Breakdown** | Stacked bar per kill-chain phase: shared / user-only / group-profile-only |
 | **Visual Diff** | Compact matrix colour-strip showing the full overlap |
 | **Gap Analysis** | Every technique in the group's profile not in your layer — your detection backlog |
 
@@ -473,13 +473,13 @@ Populated from MITRE's official STIX 2.1 bundles on startup and on each sync. Co
 - **Attribution links** — which group conducted which campaign (`attributed-to` relationships)
 - **Technique usage** — the specific techniques observed in each group/campaign with use descriptions
 
-**Coverage as of ATT&CK v19.1:**
+Built on the currently ingested MITRE ATT&CK dataset. Counts depend on the selected ATT&CK domain and ATT&CK release.
 
 | Domain | Groups | Campaigns | Techniques |
 |---|---|---|---|
 | Enterprise | Dynamic | Dynamic | Dynamic |
-| ICS | 14 | 8 | 80+ |
-| Mobile | 20 | 3 | 70+ |
+| ICS | Dynamic | Dynamic | Dynamic |
+| Mobile | Dynamic | Dynamic | Dynamic |
 
 ### DB 2 — User Report Sessions (append-only)
 
