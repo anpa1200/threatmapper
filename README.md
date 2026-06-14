@@ -762,6 +762,11 @@ ThreatMapper is suitable for local labs, private analyst workstations, internal 
 - Celery workers scale horizontally — add additional `worker` service instances.
 - The PostgreSQL connection pool is set to 10 connections (max 20 overflow).
 
+## Publishing And Discovery
+
+Use [`DISCOVERY.md`](DISCOVERY.md) for canonical links, community-specific launch
+copy, newsletter pitch text, and current external submission tracking.
+
 ---
 
 ## Tech Stack
