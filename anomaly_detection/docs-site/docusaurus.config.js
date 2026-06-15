@@ -4,7 +4,7 @@ const config = {
   tagline: 'A vendor-neutral reference for statistical anomalies and observable security telemetry.',
   favicon: 'img/favicon.svg',
 
-  url: 'https://anpa1200.github.io',
+  url: 'https://1200km.com',
   baseUrl: '/anomaly-detection-atlas/',
   organizationName: 'anpa1200',
   projectName: 'anomaly-detection-atlas',
