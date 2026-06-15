@@ -1,0 +1,46 @@
+{
+  "dataset": "synthetic-public-style-demo",
+  "attck_version": "19.1",
+  "domain": "enterprise-attack",
+  "mappings": [
+    {
+      "attack_id": "T1566.001",
+      "name": "Spearphishing Attachment",
+      "review_status": "accepted",
+      "confidence": "high",
+      "evidence": "The initial access vector was a phishing email with a malicious archive attachment."
+    },
+    {
+      "attack_id": "T1059.001",
+      "name": "PowerShell",
+      "review_status": "accepted",
+      "confidence": "high",
+      "evidence": "The archive contained a script that launched PowerShell with encoded commands."
+    },
+    {
+      "attack_id": "T1003.001",
+      "name": "LSASS Memory",
+      "review_status": "accepted",
+      "confidence": "high",
+      "evidence": "The operator dumped credentials from LSASS memory."
+    },
+    {
+      "attack_id": "T1021.002",
+      "name": "SMB/Windows Admin Shares",
+      "review_status": "accepted",
+      "confidence": "medium",
+      "evidence": "The operator reused valid domain credentials to connect to a file server over SMB."
+    },
+    {
+      "attack_id": "T1560.001",
+      "name": "Archive via Utility",
+      "review_status": "accepted",
+      "confidence": "medium",
+      "evidence": "The operator compressed selected documents into a password-protected archive."
+    }
+  ],
+  "review_notes": [
+    "Discovery commands may map to several techniques; review the exact command lines before accepting all discovery mappings.",
+    "Exfiltration over HTTPS may require more context before selecting a specific exfiltration technique."
+  ]
+}

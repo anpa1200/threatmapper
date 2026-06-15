@@ -3,6 +3,7 @@
 __pycache__/
 celerybeat-schedule*
 .pytest_cache/
+.coverage
 *.egg-info/
 dist/
 build/

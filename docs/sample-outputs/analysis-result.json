@@ -1,0 +1,64 @@
+{
+  "session_id": "demo-0001",
+  "provider": "demo-fixture",
+  "model": "human-reviewed",
+  "domain": "enterprise-attack",
+  "attck_version": "19.1",
+  "summary": "Synthetic intrusion report with phishing attachment, PowerShell execution, discovery, credential dumping, SMB lateral movement, archiving, and HTTPS exfiltration.",
+  "techniques": [
+    {
+      "attack_id": "T1566.001",
+      "name": "Spearphishing Attachment",
+      "tactic": "initial-access",
+      "confidence": 0.95,
+      "review_status": "accepted",
+      "evidence": "phishing email with a malicious archive attachment"
+    },
+    {
+      "attack_id": "T1059.001",
+      "name": "PowerShell",
+      "tactic": "execution",
+      "confidence": 0.94,
+      "review_status": "accepted",
+      "evidence": "launched PowerShell with encoded commands"
+    },
+    {
+      "attack_id": "T1003.001",
+      "name": "LSASS Memory",
+      "tactic": "credential-access",
+      "confidence": 0.93,
+      "review_status": "accepted",
+      "evidence": "dumped credentials from LSASS memory"
+    },
+    {
+      "attack_id": "T1021.002",
+      "name": "SMB/Windows Admin Shares",
+      "tactic": "lateral-movement",
+      "confidence": 0.78,
+      "review_status": "accepted",
+      "evidence": "connect to a file server over SMB"
+    },
+    {
+      "attack_id": "T1560.001",
+      "name": "Archive via Utility",
+      "tactic": "collection",
+      "confidence": 0.76,
+      "review_status": "accepted",
+      "evidence": "compressed selected documents into a password-protected archive"
+    }
+  ],
+  "apt_matches": [
+    {
+      "group_attack_id": "G0096",
+      "group_name": "APT41",
+      "similarity": 0.18,
+      "shared_count": 3,
+      "interpretation": "Low overlap; use as a research lead only, not attribution."
+    }
+  ],
+  "limitations": [
+    "Synthetic dataset; not an attribution case.",
+    "Similarity score is not attribution evidence.",
+    "All mappings require analyst review before operational use."
+  ]
+}

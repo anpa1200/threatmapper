@@ -1,0 +1,47 @@
+name: ATT&CK mapping correction
+description: Report an incorrect or missing ATT&CK mapping.
+title: "[Mapping]: "
+labels: ["mapping", "quality"]
+body:
+  - type: input
+    id: source
+    attributes:
+      label: Public source
+      description: URL or citation for the report.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence text
+      description: Paste the relevant public excerpt or describe the exact section.
+    validations:
+      required: true
+  - type: input
+    id: current
+    attributes:
+      label: Current mapping
+      placeholder: T1059.001
+  - type: input
+    id: proposed
+    attributes:
+      label: Proposed mapping
+      placeholder: T1059.003
+    validations:
+      required: true
+  - type: dropdown
+    id: confidence
+    attributes:
+      label: Confidence
+      options:
+        - high
+        - medium
+        - low
+    validations:
+      required: true
+  - type: textarea
+    id: reasoning
+    attributes:
+      label: Reasoning
+    validations:
+      required: true

@@ -1,0 +1,6 @@
+attack_id,technique,telemetry_needed,current_status,recommended_next_step
+T1566.001,Spearphishing Attachment,email gateway logs and attachment detonation,needs-review,Confirm mail telemetry and attachment hashes
+T1059.001,PowerShell,process creation and script block logging,candidate,Validate encoded-command baseline
+T1003.001,LSASS Memory,EDR process access telemetry,candidate,Test LSASS access detection in lab
+T1021.002,SMB/Windows Admin Shares,Windows logon and SMB session telemetry,needs-review,Review admin share access from non-admin workstations
+T1560.001,Archive via Utility,process creation and file creation telemetry,none,Create hunt for archive tools staging sensitive paths

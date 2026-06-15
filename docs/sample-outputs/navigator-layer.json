@@ -1,0 +1,22 @@
+{
+  "name": "ThreatMapper Demo Layer",
+  "versions": {
+    "attack": "19.1",
+    "navigator": "5.1.0",
+    "layer": "4.5"
+  },
+  "domain": "enterprise-attack",
+  "description": "Synthetic demo layer generated from the ThreatMapper public demo excerpt.",
+  "techniques": [
+    {"techniqueID": "T1566.001", "score": 95, "comment": "accepted: phishing attachment evidence"},
+    {"techniqueID": "T1059.001", "score": 94, "comment": "accepted: encoded PowerShell evidence"},
+    {"techniqueID": "T1003.001", "score": 93, "comment": "accepted: LSASS evidence"},
+    {"techniqueID": "T1021.002", "score": 78, "comment": "accepted: SMB file server connection"},
+    {"techniqueID": "T1560.001", "score": 76, "comment": "accepted: compressed archive evidence"}
+  ],
+  "gradient": {
+    "colors": ["#ffffff", "#70a7ff"],
+    "minValue": 0,
+    "maxValue": 100
+  }
+}

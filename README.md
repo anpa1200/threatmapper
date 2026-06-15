@@ -2,6 +2,11 @@
 
 **AI-assisted CTI-to-detection workbench for MITRE ATT&CK mapping and detection-gap analysis.**
 
+[![CI](https://github.com/anpa1200/threatmapper/actions/workflows/ci.yml/badge.svg)](https://github.com/anpa1200/threatmapper/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/badge/release-v0.8.5-blue)](VERSION)
+[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+[![Security policy](https://img.shields.io/badge/security-policy-blue)](SECURITY.md)
+[![Roadmap](https://img.shields.io/badge/roadmap-public-blue)](ROADMAP.md)
 [![External submissions](https://img.shields.io/badge/External%20submissions-submitted-yellow)](DISCOVERY.md)
 [![Accepted upstream](https://img.shields.io/badge/Accepted%20upstream-pending-lightgrey)](DISCOVERY.md)
 [![Awesome Threat Intelligence](https://img.shields.io/badge/awesome--threat--intelligence-submitted-yellow)](https://github.com/hslatman/awesome-threat-intelligence/pull/385)
@@ -20,6 +25,22 @@ ThreatMapper AI is a self-hosted CTI-to-detection workbench for mapping threat r
 **Medium Walkthrough:** https://medium.com/@1200km/threatmapper-i-built-a-self-hosted-ai-threat-intelligence-platform-heres-how-to-use-it-0aa7673e6bd8
 
 > **Validation and attribution limitation:** ThreatMapper assists analysts but does not replace analyst validation. LLM-generated mappings may contain false positives, false negatives, or ambiguous technique assignments. Group/campaign similarity is based on TTP overlap and is an investigation lead, not attribution proof.
+
+## Project Maturity Evidence
+
+ThreatMapper is pre-`v1.0`, but the repository now publishes the operational evidence expected from a serious security tool:
+
+| Area | Evidence |
+|---|---|
+| Installability | [Quickstart](docs/quickstart.md), Docker Compose deployment, `.env.example` |
+| Analyst documentation | [User guide](docs/user-guide.md), [comparison](docs/comparison.md), [limitations](docs/limitations.md) |
+| Operations | [Admin guide](docs/admin-guide.md), [security model](docs/security-model.md), [security policy](SECURITY.md) |
+| Quality | Backend unit/integration tests, frontend build, [CI workflow](.github/workflows/ci.yml) |
+| Reviewability | [Demo dataset](docs/demo-dataset/public-report-excerpt.md), [expected mappings](docs/demo-dataset/expected-mappings.json), [sample outputs](docs/sample-outputs/) |
+| Validation | [Evaluation plan](docs/validation/evaluation-plan.md), [mapping review rubric](docs/validation/mapping-review-rubric.md) |
+| Maintenance | [Maintainers](MAINTAINERS.md), [roadmap](ROADMAP.md), [changelog](CHANGELOG.md), [contributing guide](CONTRIBUTING.md) |
+
+Curated-list resubmission should wait until the project has additional release history and external usage evidence. The current documentation is intended to make that path measurable rather than promotional.
 
 ## Public Demo Privacy Note
 
