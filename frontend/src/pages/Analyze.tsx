@@ -338,11 +338,46 @@ function ResultsView({
   navigate: ReturnType<typeof useNavigate>;
 }) {
   const [tab, setTab] = useState<'techniques' | 'groups' | 'raw'>('techniques');
+  const [displayResult, setDisplayResult] = useState(result);
+
+  useEffect(() => {
+    setDisplayResult(result);
+  }, [result]);
+
+  const reviewMutation = useMutation({
+    mutationFn: ({
+      attackId,
+      reviewStatus,
+      evidence,
+    }: {
+      attackId: string;
+      reviewStatus: NonNullable<AnalysisResult['techniques'][number]['review_status']>;
+      evidence: string;
+    }) =>
+      analyzeApi.updateTechniqueReview(result.session_id, attackId, {
+        review_status: reviewStatus,
+        evidence,
+      }),
+    onSuccess: updated => {
+      setDisplayResult(current => ({
+        ...current,
+        techniques: current.techniques.map(technique =>
+          technique.attack_id === updated.attack_id ? { ...technique, ...updated } : technique
+        ),
+      }));
+    },
+  });
 
   const injectAndNavigate = () => {
-    addTechniques(result.techniques.map(t => t.attack_id));
+    addTechniques(
+      displayResult.techniques
+        .filter(t => t.review_status !== 'rejected')
+        .map(t => t.attack_id)
+    );
     navigate('/navigator');
   };
+
+  const canReview = result.session_id !== 'stream';
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
@@ -350,19 +385,19 @@ function ResultsView({
       <div className="px-6 py-4 border-b border-gray-800 bg-gray-900/50">
         <div className="flex items-center justify-between mb-2">
           <div>
-            <span className="text-xs text-gray-500 font-mono">{result.provider} / {result.model}</span>
+            <span className="text-xs text-gray-500 font-mono">{displayResult.provider} / {displayResult.model}</span>
           </div>
           <div className="flex gap-2">
             <a
-              href={exportApi.analysisUrl(result.session_id)}
-              download={`analysis-${result.session_id.slice(0, 8)}.pdf`}
+              href={exportApi.analysisUrl(displayResult.session_id)}
+              download={`analysis-${displayResult.session_id.slice(0, 8)}.pdf`}
               className="text-xs bg-gray-700 hover:bg-gray-600 text-white px-3 py-1.5 rounded transition-colors"
             >
               ↓ PDF report
             </a>
             <a
-              href={exportApi.analysisStixUrl(result.session_id)}
-              download={`analysis-${result.session_id.slice(0, 8)}-opencti.stix.json`}
+              href={exportApi.analysisStixUrl(displayResult.session_id)}
+              download={`analysis-${displayResult.session_id.slice(0, 8)}-opencti.stix.json`}
               className="text-xs bg-gray-700 hover:bg-gray-600 text-white px-3 py-1.5 rounded transition-colors"
               title="Download a STIX 2.1 bundle for OpenCTI import"
             >
@@ -376,13 +411,13 @@ function ResultsView({
             </button>
           </div>
         </div>
-        {result.summary && (
-          <p className="text-sm text-gray-300 leading-relaxed">{result.summary}</p>
+        {displayResult.summary && (
+          <p className="text-sm text-gray-300 leading-relaxed">{displayResult.summary}</p>
         )}
-        {result.apt_hints.length > 0 && (
+        {displayResult.apt_hints.length > 0 && (
           <div className="flex gap-1.5 flex-wrap mt-2">
             <span className="text-xs text-gray-500">Mentioned:</span>
-            {result.apt_hints.map(h => (
+            {displayResult.apt_hints.map(h => (
               <span key={h} className="text-xs bg-yellow-900/30 text-yellow-400 border border-yellow-800 px-2 py-0.5 rounded-full">{h}</span>
             ))}
           </div>
@@ -392,10 +427,10 @@ function ResultsView({
       {/* Tabs */}
       <div className="flex gap-4 px-6 py-2 border-b border-gray-800 text-xs">
         <TabBtn active={tab === 'techniques'} onClick={() => setTab('techniques')}>
-          Techniques ({result.techniques.length})
+          Techniques ({displayResult.techniques.length})
         </TabBtn>
         <TabBtn active={tab === 'groups'} onClick={() => setTab('groups')}>
-          Group Similarity Leads ({result.apt_matches.length})
+          Group Similarity Leads ({displayResult.apt_matches.length})
         </TabBtn>
         <TabBtn active={tab === 'raw'} onClick={() => setTab('raw')}>
           Raw response
@@ -405,8 +440,8 @@ function ResultsView({
       <div className="flex-1 overflow-y-auto px-6 py-4">
         {tab === 'techniques' && (
           <div className="space-y-2">
-            {result.techniques.length === 0 && <p className="text-gray-500 text-sm">No techniques extracted.</p>}
-            {result.techniques.map(t => (
+            {displayResult.techniques.length === 0 && <p className="text-gray-500 text-sm">No techniques extracted.</p>}
+            {displayResult.techniques.map(t => (
               <div key={t.attack_id} className="flex gap-3 p-3 bg-gray-800 rounded-lg">
                 <span className="font-mono text-xs text-mitre-accent pt-0.5 w-20 shrink-0">{t.attack_id}</span>
                 <div className="flex-1 min-w-0">
@@ -414,9 +449,17 @@ function ResultsView({
                     <span className="text-sm text-white font-medium">{t.name}</span>
                     <span className="text-[10px] bg-gray-700 text-gray-300 px-1.5 rounded">{t.tactic}</span>
                     <ConfidenceBadge value={t.confidence} />
-                    <span className={`text-[10px] px-1.5 rounded border ${reviewStatusClass(t.review_status)}`}>
-                      {t.review_status ?? 'suggested'}
-                    </span>
+                    <ReviewStatusSelect
+                      value={t.review_status ?? 'suggested'}
+                      disabled={!canReview || reviewMutation.isPending}
+                      onChange={reviewStatus =>
+                        reviewMutation.mutate({
+                          attackId: t.attack_id,
+                          reviewStatus,
+                          evidence: t.evidence,
+                        })
+                      }
+                    />
                     {t.evidence_source === 'source-text' && (
                       <span className="text-[10px] px-1.5 rounded border border-green-800 bg-green-950/40 text-green-300">
                         source-bound
@@ -437,8 +480,8 @@ function ResultsView({
 
         {tab === 'groups' && (
           <div className="space-y-2">
-            {result.apt_matches.length === 0 && <p className="text-gray-500 text-sm">No group-similarity leads.</p>}
-            {result.apt_matches.map((m, i) => (
+            {displayResult.apt_matches.length === 0 && <p className="text-gray-500 text-sm">No group-similarity leads.</p>}
+            {displayResult.apt_matches.map((m, i) => (
               <div key={m.group_attack_id} className="p-3 bg-gray-800 rounded-lg">
                 <div className="flex items-center gap-3">
                   <span className="text-xs text-gray-600 w-5">#{i + 1}</span>
@@ -466,7 +509,7 @@ function ResultsView({
 
         {tab === 'raw' && (
           <pre className="text-[10px] font-mono text-gray-400 whitespace-pre-wrap bg-gray-900 p-4 rounded-lg overflow-x-auto">
-            {JSON.stringify(result, null, 2)}
+            {JSON.stringify(displayResult, null, 2)}
           </pre>
         )}
       </div>
@@ -513,6 +556,33 @@ function StreamResultParser({
       </div>
     );
   }
+}
+
+function ReviewStatusSelect({
+  value,
+  disabled,
+  onChange,
+}: {
+  value: NonNullable<AnalysisResult['techniques'][number]['review_status']>;
+  disabled: boolean;
+  onChange: (value: NonNullable<AnalysisResult['techniques'][number]['review_status']>) => void;
+}) {
+  return (
+    <select
+      value={value}
+      disabled={disabled}
+      onChange={event => onChange(event.target.value as NonNullable<AnalysisResult['techniques'][number]['review_status']>)}
+      className={`text-[10px] px-1.5 py-0.5 rounded border outline-none ${reviewStatusClass(value)} ${
+        disabled ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'
+      }`}
+      title="Analyst review status"
+    >
+      <option value="suggested">suggested</option>
+      <option value="accepted">accepted</option>
+      <option value="rejected">rejected</option>
+      <option value="needs-evidence">needs-evidence</option>
+    </select>
+  );
 }
 
 function reviewStatusClass(status: AnalysisResult['techniques'][number]['review_status']) {
