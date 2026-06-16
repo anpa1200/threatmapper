@@ -129,7 +129,7 @@ export function Compare() {
       );
       const resp = await analyzeApi.submit(fd).catch(() => null);
       if (resp) {
-        const pdfResp = await fetch(`/api/export/analysis/${resp.session_id}`, { method: 'POST' });
+        const pdfResp = await fetch(`/api/export/analysis/${resp.session_id}`);
         if (pdfResp.ok) {
           const blob = await pdfResp.blob();
           const url  = URL.createObjectURL(blob);

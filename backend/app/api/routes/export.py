@@ -29,6 +29,7 @@ _PDF_HEADERS = {
 # ── Analysis PDF ──────────────────────────────────────────────────────────────
 
 @router.get("/analysis/{session_id}", response_class=Response)
+@router.post("/analysis/{session_id}", response_class=Response)
 async def export_analysis_pdf(
     session_id: str,
     db: AsyncSession = Depends(get_session),
