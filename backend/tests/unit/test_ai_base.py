@@ -48,7 +48,7 @@ def test_parse_valid_json():
 
 def test_parse_strips_markdown_fences():
     raw = "```json\n" + _valid_payload() + "\n```"
-    result = _parse_response(raw, "openai", "gpt-4o")
+    result = _parse_response(raw, "openai", "gpt-4.1")
     assert len(result.techniques) == 1
 
 
@@ -75,7 +75,7 @@ def test_parse_invalid_json_returns_empty_result():
 
 def test_parse_empty_techniques_list():
     payload = json.dumps({"techniques": [], "apt_hints": [], "summary": "No TTPs found."})
-    result = _parse_response(payload, "openai", "gpt-4o")
+    result = _parse_response(payload, "openai", "gpt-4.1")
     assert result.techniques == []
     assert result.summary == "No TTPs found."
 

@@ -145,7 +145,7 @@ User uploads report
   _read_input()          ← stream with 50 MB byte-cap, size-check before buffer
         │
         ▼
-  LLMAdapter.extract()   ← Claude / GPT-4o / Gemini
+  LLMAdapter.extract()   ← Claude / OpenAI / Gemini
         │
         ▼
   _parse_response()      ← JSON extraction with raw_decode fallback
@@ -624,6 +624,7 @@ All configuration is via environment variables in `.env`.
 | `DB_PASS` | `changeme` | Database password — **change this** |
 | `ANTHROPIC_API_KEY` | — | Anthropic / Claude API key |
 | `OPENAI_API_KEY` | — | OpenAI API key |
+| `OPENAI_MODEL` | `gpt-4.1` | OpenAI model used when no request-level model is provided |
 | `GEMINI_API_KEY` | — | Google Gemini API key |
 | `ATTCK_DOMAINS` | `enterprise-attack,mobile-attack,ics-attack` | Comma-separated domains to ingest |
 | `LOG_LEVEL` | `info` | `debug` / `info` / `warning` / `error` |

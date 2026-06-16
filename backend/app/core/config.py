@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     # AI providers
     anthropic_api_key: str = ""
     openai_api_key: str = ""
+    openai_model: str = "gpt-4.1"
     gemini_api_key: str = ""
 
     # ATT&CK ingestion

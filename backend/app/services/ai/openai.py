@@ -1,4 +1,4 @@
-"""OpenAI adapter — GPT-4o with JSON response format enforcement."""
+"""OpenAI adapter with JSON response format enforcement."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from typing import AsyncIterator
 from app.core.config import settings
 from app.services.ai.base import LLMAdapter
 
-DEFAULT_MODEL = "gpt-4o"
+DEFAULT_MODEL = "gpt-4.1"
 MAX_TOKENS = 8192
 
 

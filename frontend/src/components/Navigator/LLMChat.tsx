@@ -12,7 +12,7 @@ type Provider = 'claude' | 'openai' | 'gemini';
 
 const PROVIDERS: { id: Provider; short: string }[] = [
   { id: 'claude',  short: 'Claude' },
-  { id: 'openai',  short: 'GPT-4o' },
+  { id: 'openai',  short: 'OpenAI' },
   { id: 'gemini',  short: 'Gemini' },
 ];
 

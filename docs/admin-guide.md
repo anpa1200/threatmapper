@@ -25,6 +25,7 @@ Important settings:
 | `DB_NAME`, `DB_USER`, `DB_PASS` | PostgreSQL credentials |
 | `ANTHROPIC_API_KEY` | Claude provider |
 | `OPENAI_API_KEY` | OpenAI provider |
+| `OPENAI_MODEL` | OpenAI model default |
 | `GEMINI_API_KEY` | Gemini provider |
 | `ATTCK_DOMAINS` | ATT&CK domains to ingest |
 | `LOG_LEVEL` | API/worker log verbosity |

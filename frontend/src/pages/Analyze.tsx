@@ -11,7 +11,7 @@ type Provider = 'claude' | 'openai' | 'gemini';
 
 const PROVIDERS: { id: Provider; label: string; model: string; color: string }[] = [
   { id: 'claude',  label: 'Claude',  model: 'claude-opus-4-8',  color: 'border-orange-600 bg-orange-900/20 text-orange-300' },
-  { id: 'openai',  label: 'GPT-4o',  model: 'gpt-4o',           color: 'border-green-700  bg-green-900/20  text-green-300'  },
+  { id: 'openai',  label: 'OpenAI',  model: 'gpt-4.1',           color: 'border-green-700  bg-green-900/20  text-green-300'  },
   { id: 'gemini',  label: 'Gemini',  model: 'gemini-2.0-flash',  color: 'border-blue-600   bg-blue-900/20   text-blue-300'   },
 ];
 

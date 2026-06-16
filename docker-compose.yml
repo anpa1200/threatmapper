@@ -39,6 +39,7 @@ services:
       REDIS_URL: redis://redis:6379/0
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4.1}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       ATTCK_DOMAINS: ${ATTCK_DOMAINS:-enterprise-attack,mobile-attack,ics-attack}
       ATTCK_DATA_DIR: /app/data/attck
@@ -67,6 +68,7 @@ services:
       REDIS_URL: redis://redis:6379/0
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4.1}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       ATTCK_DATA_DIR: /app/data/attck
       AUTH_ENABLED: ${AUTH_ENABLED:-false}

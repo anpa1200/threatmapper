@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+from app.core.config import settings
 from app.services.ai.base import LLMAdapter
 
 _DEFAULTS: dict[str, str] = {
     "claude": "claude-opus-4-8",
-    "openai": "gpt-4o",
+    "openai": settings.openai_model,
     "gemini": "gemini-2.0-flash",
 }
 
