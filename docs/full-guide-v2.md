@@ -11,6 +11,11 @@ ThreatMapper is not an attribution engine. It helps analysts organize evidence
 and investigation leads. Final mappings, similarity conclusions, and detection
 handoffs require human review.
 
+Public article and visual walkthrough:
+
+- 1200km article: https://1200km.com/articles/threatmapper-v2-self-hosted-ai-cti-platform.html
+- Medium publication: https://medium.com/@1200km/threatmapper-v2-0-i-built-a-self-hosted-ai-threat-intelligence-platform-941a80cc5a65
+
 ## 1. Operating Modes
 
 ### Public Web Workspace
