@@ -35,10 +35,34 @@ Important settings:
 Back up PostgreSQL regularly:
 
 ```bash
-docker compose exec db pg_dump -U "$DB_USER" "$DB_NAME" > threatmapper-backup.sql
+docker compose exec postgres pg_dump -U "$DB_USER" "$DB_NAME" > threatmapper-backup.sql
 ```
 
 Test restore procedures before relying on backups.
+
+## PostgreSQL Credential Rotation
+
+`DB_PASS` is used when the PostgreSQL volume is first initialized. If a database
+volume already exists, changing `.env` updates container environment variables
+but does not change the password stored inside PostgreSQL.
+
+Fresh clones on new machines are not affected if `.env` is created before the
+first startup. The mismatch only appears after an existing `pg_data` volume was
+created with one password and `.env` is later changed to another password.
+
+After changing `DB_PASS` for an existing volume, rotate the database role
+password in place:
+
+```bash
+docker compose exec -T postgres sh -lc 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -v pass="$POSTGRES_PASSWORD" <<'"'"'SQL'"'"'
+ALTER USER tm_user WITH PASSWORD :'"'"'pass'"'"';
+SQL'
+docker compose restart api worker beat frontend
+```
+
+If the data is disposable, `docker compose down -v` followed by
+`docker compose up --build` recreates the database with the current `.env`
+credentials.
 
 ## Updates
 

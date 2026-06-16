@@ -63,6 +63,40 @@ Expected health response:
 {"status":"ok","version":"0.9.0"}
 ```
 
+## Troubleshooting: PostgreSQL Password Mismatch
+
+If the API exits during startup with:
+
+```text
+asyncpg.exceptions.InvalidPasswordError: password authentication failed for user "tm_user"
+```
+
+the PostgreSQL volume was probably created with an older `DB_PASS`. Docker does
+not reinitialize an existing database volume when `.env` changes.
+
+This does not affect a fresh clone on a new machine when `.env` is created
+before the first `docker compose up --build`. In that case, PostgreSQL
+initializes the new volume with the current `DB_NAME`, `DB_USER`, and `DB_PASS`
+values.
+
+For a development deployment where you can discard local database state, reset
+the volumes:
+
+```bash
+docker compose down -v
+docker compose up --build
+```
+
+To keep the existing database, update the stored PostgreSQL role password to
+match the current `.env`:
+
+```bash
+docker compose exec -T postgres sh -lc 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -v pass="$POSTGRES_PASSWORD" <<'"'"'SQL'"'"'
+ALTER USER tm_user WITH PASSWORD :'"'"'pass'"'"';
+SQL'
+docker compose restart api worker beat frontend
+```
+
 ## 6. Demo Workflow
 
 1. Open the frontend.
