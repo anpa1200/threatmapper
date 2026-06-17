@@ -35,16 +35,24 @@ _sync_engine = create_engine(_sync_url, echo=False, pool_pre_ping=True)
 
 # ── STIX helpers ──────────────────────────────────────────────────────────────
 
-def _attack_id(obj: dict) -> str | None:
+def _source_name_for_domain(domain: str) -> str:
+    return "mitre-atlas" if domain == "atlas" else "mitre-attack"
+
+
+def _kill_chain_for_domain(domain: str) -> str:
+    return "mitre-atlas" if domain == "atlas" else "mitre-"
+
+
+def _attack_id(obj: dict, source_name: str = "mitre-attack") -> str | None:
     for ref in obj.get("external_references", []):
-        if ref.get("source_name") == "mitre-attack":
+        if ref.get("source_name") == source_name:
             return ref.get("external_id")
     return None
 
 
-def _attack_url(obj: dict) -> str:
+def _attack_url(obj: dict, source_name: str = "mitre-attack") -> str:
     for ref in obj.get("external_references", []):
-        if ref.get("source_name") == "mitre-attack":
+        if ref.get("source_name") == source_name:
             return ref.get("url", "")
     return ""
 
@@ -66,13 +74,15 @@ def _is_stale(obj: dict) -> bool:
 
 # ── Bundle parser ─────────────────────────────────────────────────────────────
 
-def parse_bundle(bundle_path: Path) -> dict:
+def parse_bundle(bundle_path: Path, domain: str = "enterprise-attack") -> dict:
     """
     Read a STIX 2.1 JSON bundle and return plain-dict lists ready for upsert.
     No external libraries required.
     """
     logger.info("Parsing %s ...", bundle_path.name)
     raw = json.loads(bundle_path.read_bytes())
+    source_name = _source_name_for_domain(domain)
+    kill_chain_prefix = _kill_chain_for_domain(domain)
 
     by_id: dict[str, dict] = {}
     relationships: list[dict] = []
@@ -94,7 +104,7 @@ def parse_bundle(bundle_path: Path) -> dict:
         t = obj.get("type", "")
 
         if t == "x-mitre-tactic":
-            aid = _attack_id(obj)
+            aid = _attack_id(obj, source_name)
             if aid:
                 tactics.append({
                     "attack_id":   aid,
@@ -102,26 +112,26 @@ def parse_bundle(bundle_path: Path) -> dict:
                     "name":        obj.get("name", ""),
                     "shortname":   obj.get("x_mitre_shortname", ""),
                     "description": obj.get("description", ""),
-                    "url":         _attack_url(obj),
+                    "url":         _attack_url(obj, source_name),
                 })
 
         elif t == "attack-pattern":
-            aid = _attack_id(obj)
+            aid = _attack_id(obj, source_name)
             if aid:
                 is_sub = bool(obj.get("x_mitre_is_subtechnique"))
-                parent = aid.split(".")[0] if is_sub and "." in aid else None
-                # Accept mitre-attack / mitre-mobile-attack / mitre-ics-attack
+                parent = aid.rsplit(".", 1)[0] if is_sub and "." in aid else None
+                # Accept ATT&CK chains (mitre-attack / mobile / ics) or ATLAS.
                 tactic_shortnames = [
                     kcp["phase_name"]
                     for kcp in obj.get("kill_chain_phases", [])
-                    if kcp.get("kill_chain_name", "").startswith("mitre-")
+                    if kcp.get("kill_chain_name", "").startswith(kill_chain_prefix)
                 ]
                 techniques.append({
                     "attack_id":        aid,
                     "stix_id":          obj["id"],
                     "name":             obj.get("name", ""),
                     "description":      obj.get("description", ""),
-                    "url":              _attack_url(obj),
+                    "url":              _attack_url(obj, source_name),
                     "is_subtechnique":  is_sub,
                     "parent_attack_id": parent,
                     "platforms":        obj.get("x_mitre_platforms", []) or [],
@@ -131,7 +141,7 @@ def parse_bundle(bundle_path: Path) -> dict:
                 })
 
         elif t == "intrusion-set":
-            aid = _attack_id(obj)
+            aid = _attack_id(obj, source_name)
             if aid:
                 name = obj.get("name", "")
                 aliases = [a for a in (obj.get("aliases") or []) if a != name]
@@ -141,7 +151,7 @@ def parse_bundle(bundle_path: Path) -> dict:
                     "name":        name,
                     "description": obj.get("description", ""),
                     "aliases":     aliases,
-                    "url":         _attack_url(obj),
+                    "url":         _attack_url(obj, source_name),
                     "created":     obj.get("created", "") or "",
                     "modified":    obj.get("modified", "") or "",
                     "attack_version": obj.get("x_mitre_version", "") or "",
@@ -150,14 +160,14 @@ def parse_bundle(bundle_path: Path) -> dict:
                 })
 
         elif t == "campaign":
-            aid = _attack_id(obj)
+            aid = _attack_id(obj, source_name)
             if aid:
                 campaigns.append({
                     "attack_id":   aid,
                     "stix_id":     obj["id"],
                     "name":        obj.get("name", ""),
                     "description": obj.get("description", ""),
-                    "url":         _attack_url(obj),
+                    "url":         _attack_url(obj, source_name),
                     "first_seen":  obj.get("first_seen", "") or "",
                     "last_seen":   obj.get("last_seen", "") or "",
                 })
@@ -222,7 +232,7 @@ def parse_bundle(bundle_path: Path) -> dict:
 # ── DB upsert ─────────────────────────────────────────────────────────────────
 
 def ingest_domain(domain: str, bundle_path: Path, version: str) -> None:
-    data = parse_bundle(bundle_path)
+    data = parse_bundle(bundle_path, domain)
 
     with Session(_sync_engine) as session:
         # ── Version record ────────────────────────────────────────────────────

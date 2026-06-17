@@ -269,7 +269,7 @@ Navigator is the ATT&CK matrix workspace.
 
 You can:
 
-- browse Enterprise, Mobile, and ICS ATT&CK
+- browse Enterprise, Mobile, and ICS ATT&CK plus MITRE ATLAS
 - search techniques
 - expand sub-techniques
 - filter by platform
@@ -598,7 +598,7 @@ ThreatMapper v2.0.0 includes:
 - PostgreSQL report and ATT&CK storage
 - Redis/Celery background workers
 - Claude, OpenAI, Gemini, and Local LLM support
-- MITRE ATT&CK Enterprise, Mobile, and ICS support
+- MITRE ATT&CK Enterprise, Mobile, ICS, and MITRE ATLAS support
 - enriched ATT&CK actor pages
 - DFIR example metadata
 - STIX/OpenCTI export

@@ -8,8 +8,11 @@ from __future__ import annotations
 
 import asyncio
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.database import get_session
 
 router = APIRouter(prefix="/sync", tags=["MITRE Sync"])
 
@@ -53,6 +56,12 @@ class TriggerOut(BaseModel):
     force: bool
 
 
+class IOCSyncOut(BaseModel):
+    days: int
+    totals: dict[str, int]
+    sources: list[dict]
+
+
 MITRE_CONTENT = [
     "matrices",
     "tactics",
@@ -64,13 +73,34 @@ MITRE_CONTENT = [
     "campaign-technique relationships",
     "references",
 ]
+ATLAS_CONTENT = [
+    "ATLAS matrix",
+    "ATLAS tactics",
+    "ATLAS techniques",
+    "ATLAS sub-techniques",
+    "AI system adversary behavior",
+    "mitre-atlas references",
+]
+IOC_CONTENT = [
+    "ThreatFox recent IOC sync",
+    "AlienVault OTX actor pulse sync",
+    "custom JSON/CSV/TXT IOC feeds",
+    "actor IOC links",
+    "IOC freshness and confidence metadata",
+]
 
 SUPPORTED_SOURCES = {
     "mitre-attack": {
-        "label": "MITRE ATT&CK STIX",
+        "label": "MITRE ATT&CK and ATLAS STIX",
         "status": "active",
-        "content": MITRE_CONTENT,
+        "content": MITRE_CONTENT + ATLAS_CONTENT,
         "schedule": "daily at 03:00 UTC",
+    },
+    "ioc-intelligence": {
+        "label": "IOC Intelligence",
+        "status": "active",
+        "content": IOC_CONTENT,
+        "schedule": "manual, ThreatFox recent API supports 1-7 days",
     },
     "other": {
         "label": "Other CTI references",
@@ -82,7 +112,7 @@ SUPPORTED_SOURCES = {
 
 
 @router.get("/status", response_model=SyncStatusOut)
-async def sync_status():
+async def sync_status(session: AsyncSession = Depends(get_session)):
     """
     Check each configured domain: what version is in the DB vs latest on GitHub.
     The GitHub check is a lightweight API call (no download).
@@ -101,7 +131,7 @@ async def sync_status():
                 latest_version=s.latest_version,
                 needs_update=s.needs_update,
                 last_ingested=s.last_ingested,
-                content=MITRE_CONTENT,
+                content=ATLAS_CONTENT if s.domain == "atlas" else MITRE_CONTENT,
             )
             for s in statuses
         ]
@@ -116,6 +146,18 @@ async def sync_status():
             )
             for source_id, meta in SUPPORTED_SOURCES.items()
         ]
+        try:
+            from app.services.ioc_intel import list_ioc_sources
+            ioc_sources = await list_ioc_sources(session)
+            ioc_source = next((item for item in sources if item.id == "ioc-intelligence"), None)
+            if ioc_source:
+                ioc_source.status = "active" if all(item.sync_status != "error" for item in ioc_sources) else "degraded"
+                ioc_source.content = [
+                    *IOC_CONTENT,
+                    *[f"{item.label}: {item.sync_status}" for item in ioc_sources],
+                ]
+        except Exception:
+            pass
         return SyncStatusOut(
             sources=sources,
             domains=domains,
@@ -155,6 +197,20 @@ async def trigger_sync(body: TriggerRequest | None = None):
         )
     except Exception as exc:
         raise HTTPException(503, f"Celery unavailable: {exc}") from exc
+
+
+@router.post("/ioc", response_model=IOCSyncOut)
+async def trigger_ioc_sync(
+    days: int = Query(7, ge=1, le=7),
+    domain: str = Query("enterprise-attack"),
+    session: AsyncSession = Depends(get_session),
+):
+    """Synchronize all configured IOC sources centrally."""
+    try:
+        from app.services.ioc_intel import sync_all_ioc_sources
+        return await sync_all_ioc_sources(session, days=days, domain=domain)
+    except Exception as exc:
+        raise HTTPException(500, f"IOC sync failed: {exc}") from exc
 
 
 @router.get("/task/{task_id}")

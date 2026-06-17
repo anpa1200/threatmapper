@@ -20,6 +20,24 @@
 .primary {
   @apply rounded bg-mitre-accent px-3 py-2 text-xs text-white hover:bg-red-600 disabled:opacity-40;
 }
+.primary-action {
+  @apply rounded bg-mitre-accent px-2 py-1 text-[10px] font-semibold text-white hover:bg-red-600;
+}
+.secondary-action {
+  @apply rounded border border-gray-700 px-2 py-1 text-[10px] font-semibold text-gray-400 hover:border-gray-500 hover:text-white;
+}
+.actor-header-action {
+  @apply inline-flex h-11 min-w-[92px] max-w-[138px] shrink-0 items-center justify-center rounded px-3 text-center text-[11px] font-semibold leading-tight transition-colors;
+}
+.actor-tab-button {
+  @apply inline-flex h-8 shrink-0 items-center justify-center rounded border px-3 text-center text-xs font-semibold leading-none transition-colors;
+}
+.label {
+  @apply mb-1 block text-[10px] font-semibold uppercase tracking-wide text-gray-500;
+}
+.field {
+  @apply w-full rounded border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-gray-200 outline-none focus:border-mitre-accent;
+}
 :focus-visible {
   outline: 2px solid #60a5fa;
   outline-offset: 2px;

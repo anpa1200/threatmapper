@@ -55,7 +55,7 @@ def run_analysis_task(
 
     try:
         # Step 1 — LLM extraction (async in isolated loop)
-        result: ExtractionResult = asyncio.run(_llm_extract(text, provider, model))
+        result: ExtractionResult = asyncio.run(_llm_extract(text, provider, model, domain))
 
         # Step 2 — group-similarity ranking + DB storage (sync)
         _persist_result(session_id, result, domain)
@@ -75,10 +75,10 @@ def run_analysis_task(
 
 # ── Async LLM call (isolated) ─────────────────────────────────────────────────
 
-async def _llm_extract(text: str, provider: str, model: str | None) -> ExtractionResult:
+async def _llm_extract(text: str, provider: str, model: str | None, domain: str) -> ExtractionResult:
     from app.services.ai.factory import get_adapter
     adapter = get_adapter(provider, model)
-    return await adapter.extract(text)
+    return await adapter.extract(text, domain)
 
 
 # ── Sync DB operations ────────────────────────────────────────────────────────

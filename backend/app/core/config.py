@@ -19,8 +19,12 @@ class Settings(BaseSettings):
     local_llm_model: str = "llama3.1:8b"
 
     # ATT&CK ingestion
-    attck_domains: str = "enterprise-attack,mobile-attack,ics-attack"
+    attck_domains: str = "enterprise-attack,mobile-attack,ics-attack,atlas"
     attck_data_dir: str = "/app/data/attck"
+
+    # IOC intelligence feeds
+    threatfox_auth_key: str = ""
+    otx_api_key: str = ""
 
     # Optional trusted-proxy team authentication. Keep disabled for local use.
     auth_enabled: bool = False

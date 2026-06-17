@@ -94,7 +94,7 @@ Open:
 Health should return:
 
 ```json
-{"status":"ok","version":"2.0.0"}
+{"status":"ok","version":"2.1.0"}
 ```
 
 ## 3. Core Concepts
@@ -150,7 +150,7 @@ Providers:
 
 Workflow:
 
-1. Select ATT&CK domain: Enterprise, Mobile, or ICS.
+1. Select framework/domain: Enterprise ATT&CK, Mobile ATT&CK, ICS ATT&CK, or MITRE ATLAS.
 2. Select provider.
 3. Paste text or upload a supported file.
 4. Run analysis.
@@ -221,7 +221,7 @@ Navigator provides the ATT&CK matrix workspace.
 
 Capabilities:
 
-- Enterprise, Mobile, and ICS domains
+- Enterprise, Mobile, ICS, and ATLAS domains
 - zoom and pan matrix view
 - sub-technique expansion
 - technique search
@@ -389,13 +389,114 @@ Capabilities:
 - latest known versions
 - stale/update-needed state
 - manual sync trigger
-- Enterprise, Mobile, and ICS domain selection
+- Enterprise, Mobile, ICS, and ATLAS domain selection
 - force sync option
 
 Scheduled sync runs through Celery Beat. Manual sync is available through the UI
 and API.
 
-## 14. Reference Book
+## 14. Sector Intelligence
+
+Sector Intelligence is the first v3-oriented workflow in ThreatMapper. It answers:
+
+- which actors are relevant to a client sector
+- which actors have sector or geography evidence
+- which actors have recent ATT&CK campaign context
+- why the actor was ranked
+- which source supports the claim
+
+The initial local sync source is MISP Galaxy threat actors. ThreatMapper stores
+observations locally, including targeted sectors, CFR target categories, suspected
+victim geographies, origin metadata, motivations, aliases, and references.
+
+Workflow:
+
+1. Open Sector Intel.
+2. Click Sync MISP Galaxy.
+3. Select client sector.
+4. Add optional region or geography.
+5. Add environment keywords such as cloud, Kubernetes, Microsoft 365, OT, or VPN.
+6. Select quarter, year, or two-year activity window.
+7. Review ranked actors, reasons, and evidence.
+
+The scoring combines:
+
+- direct sector evidence
+- broad private-sector evidence
+- region/geography evidence
+- recent ATT&CK campaign activity
+- ATT&CK technique depth
+- source confidence
+
+Broad labels such as private sector are treated as weak supporting evidence. Direct
+sector matches such as telecom, finance, energy, healthcare, or government carry
+more weight.
+
+## 15. IOC Intelligence
+
+IOC Intelligence adds source-backed observables to actor profiles. ATT&CK provides
+TTP and campaign relationships, but it does not provide live indicators. ThreatMapper
+therefore stores IOCs in a separate local database with source, freshness, confidence,
+and evidence.
+
+Initial sources:
+
+- abuse.ch ThreatFox for recent malware-related IOCs. The recent IOC API supports
+  1-7 day windows; use ThreatFox exports or custom feeds for larger windows.
+- AlienVault OTX actor-attributed pulses. Set `OTX_API_KEY`; ThreatMapper searches
+  actor names/aliases, imports pulse indicators, and links indicators when pulse
+  adversary/title/tags match the actor.
+- custom or personal JSON, CSV, and TXT IOC feeds
+- manual JSON import for report, MISP, OpenCTI, or vendor CTI extracts
+
+Before syncing ThreatFox, set:
+
+```bash
+THREATFOX_AUTH_KEY=your_abusech_auth_key
+```
+
+Actor mapping is conservative:
+
+- direct manual imports can set `actor_attack_id` or `actor_name`
+- ThreatFox IOCs are linked only when IOC metadata contains an actor name or alias
+- each IOC keeps source URL, first/last seen, confidence, TLP, malware family, tags,
+  and the relationship evidence
+
+Workflow:
+
+1. Open ATT&CK Group Library.
+2. Select an actor.
+3. Open the IOCs tab.
+4. Click Sync ThreatFox, add a custom feed, or import report-backed IOCs through
+   the API.
+5. Review current IOCs and export CSV when needed.
+
+Custom JSON/CSV feeds can include:
+
+```text
+value, type, actor_attack_id, actor_name, malware_family, campaign,
+source_url, first_seen, last_seen, confidence, tlp, tags, description
+```
+
+TXT feeds are parsed as one IOC per line. ThreatMapper infers basic types such as
+IPv4, URL, domain, email, MD5, SHA1, and SHA256.
+
+API:
+
+```text
+GET  /api/ioc/sources
+POST /api/ioc/sources
+POST /api/sync/ioc?days=7
+POST /api/ioc/sync/threatfox?days=7
+POST /api/ioc/sync/otx
+POST /api/ioc/sync/{source_id}
+POST /api/ioc/import
+GET  /api/ioc/actors/G0049?days=180&active_only=true
+GET  /api/ioc/actors/G0049/summary?days=180
+GET  /api/ioc/actors/G0049/export.csv?days=180&active_only=true
+```
+
+## 16. Reference Book
 
 The embedded reference book provides additional detection and anomaly context.
 
@@ -409,7 +510,7 @@ Use it from:
 The reference book supports paragraph-level links into relevant defensive
 guidance.
 
-## 15. Operations And Pipeline
+## 17. Operations And Pipeline
 
 The Operations and Pipeline areas provide a working structure for future
 investigation management and intake workflows.
@@ -427,7 +528,7 @@ Current capabilities include:
 
 Treat these as analyst workflow scaffolding and integration points.
 
-## 16. Exports
+## 18. Exports
 
 ### PDF Report
 
@@ -483,7 +584,7 @@ From Navigator:
 
 ![ATT&CK Navigator export controls](assets/threatmapper-v2/24-m1Zh30Hm7e6wmzZq1Mjdog.webp)
 
-## 17. API Overview
+## 19. API Overview
 
 Common endpoints:
 
@@ -509,13 +610,19 @@ GET  /api/export/analysis/{session_id}/stix
 POST /api/export/layer
 GET  /api/sync/status
 POST /api/sync/trigger
+GET  /api/sector/sources
+GET  /api/sector/relevance
+GET  /api/ioc/sources
+POST /api/ioc/sync/threatfox
+POST /api/ioc/import
+GET  /api/ioc/actors/{actor_id}
 ```
 
 ![API terminal output and health checks](assets/threatmapper-v2/09-z711T5SOrORpjITlM2IY9A.webp)
 
 ![Docker Compose startup logs](assets/threatmapper-v2/11-z4L2KcZIixQjdkrcBt8OlA.webp)
 
-## 18. Analyst Review Rules
+## 20. Analyst Review Rules
 
 ![Practical attribution workflow](assets/threatmapper-v2/31-JDE0azpONj0OVW95p9yZkg.webp)
 
@@ -530,7 +637,7 @@ Use these rules before promoting output:
 - Reject mappings without behavioral evidence.
 - Document uncertainty in final reporting.
 
-## 19. Privacy And Deployment Boundaries
+## 21. Privacy And Deployment Boundaries
 
 Do not upload confidential reports into public demos.
 
@@ -543,7 +650,7 @@ For private analysis:
 - define retention policy for uploads, raw responses, and exports
 - back up PostgreSQL if report history matters
 
-## 20. Recommended End-to-End Workflow
+## 22. Recommended End-to-End Workflow
 
 1. Start with a public or authorized report.
 2. Run AI Analysis.
@@ -559,7 +666,7 @@ For private analysis:
 12. Record uncertainty and avoid attribution claims unless supported by
     independent evidence.
 
-## 21. Visual Appendix
+## 23. Visual Appendix
 
 The following images are the screenshots, diagrams, and infographics used in
 the published ThreatMapper v2.0 article and retained here as local project

@@ -1,4 +1,4 @@
-"""Downloads ATT&CK STIX bundles from MITRE's GitHub repository."""
+"""Downloads MITRE ATT&CK and ATLAS STIX bundles from GitHub."""
 
 import logging
 from pathlib import Path
@@ -14,10 +14,27 @@ RAW_BUNDLE_URL = (
     "https://raw.githubusercontent.com/mitre-attack/attack-stix-data/master"
     "/{domain}/{domain}-{version}.json"
 )
+ATLAS_DOMAIN = "atlas"
+ATLAS_BUNDLE_NAME = "stix-atlas.json"
+ATLAS_CONTENTS_URL = (
+    "https://api.github.com/repos/mitre-atlas/atlas-navigator-data/contents/dist/"
+    f"{ATLAS_BUNDLE_NAME}"
+)
+ATLAS_RAW_BUNDLE_URL = (
+    "https://raw.githubusercontent.com/mitre-atlas/atlas-navigator-data/main/dist/"
+    f"{ATLAS_BUNDLE_NAME}"
+)
+
+
+def is_atlas_domain(domain: str) -> bool:
+    return domain == ATLAS_DOMAIN
 
 
 def get_latest_version(domain: str) -> str:
-    """Query the MITRE GitHub repo to find the highest available ATT&CK version."""
+    """Query GitHub to find the latest available ATT&CK or ATLAS version."""
+    if is_atlas_domain(domain):
+        return get_latest_atlas_version()
+
     url = GITHUB_CONTENTS_URL.format(domain=domain)
     headers = {"Accept": "application/vnd.github.v3+json"}
 
@@ -46,9 +63,29 @@ def get_latest_version(domain: str) -> str:
     return version_str
 
 
+def get_latest_atlas_version() -> str:
+    """Use the ATLAS STIX file SHA as the cache/version identifier."""
+    headers = {"Accept": "application/vnd.github.v3+json"}
+    resp = requests.get(ATLAS_CONTENTS_URL, headers=headers, timeout=30)
+    resp.raise_for_status()
+    payload = resp.json()
+    sha = str(payload.get("sha") or "")
+    if not sha:
+        raise RuntimeError("No ATLAS STIX bundle SHA returned by GitHub")
+    version = sha[:12]
+    logger.info("Latest ATLAS bundle version: %s", version)
+    return version
+
+
 def get_latest_cached_version(domain: str, data_dir: str) -> str | None:
-    """Return the highest cached ATT&CK bundle version for a domain."""
+    """Return the highest cached ATT&CK numeric version or latest cached ATLAS SHA."""
     root = Path(data_dir)
+    if is_atlas_domain(domain):
+        cached = sorted(root.glob(f"{domain}-*.json"), key=lambda path: path.stat().st_mtime)
+        if not cached:
+            return None
+        return cached[-1].name.replace(f"{domain}-", "").replace(".json", "")
+
     versions: list[tuple[tuple[int, ...], str]] = []
     for path in root.glob(f"{domain}-*.json"):
         stem = path.name.replace(f"{domain}-", "").replace(".json", "")
@@ -71,7 +108,7 @@ def download_bundle(domain: str, version: str, data_dir: str) -> Path:
         return dest
 
     dest.parent.mkdir(parents=True, exist_ok=True)
-    url = RAW_BUNDLE_URL.format(domain=domain, version=version)
+    url = ATLAS_RAW_BUNDLE_URL if is_atlas_domain(domain) else RAW_BUNDLE_URL.format(domain=domain, version=version)
     logger.info("Downloading %s ...", url)
 
     resp = requests.get(url, stream=True, timeout=120)

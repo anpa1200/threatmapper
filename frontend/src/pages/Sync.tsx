@@ -7,6 +7,7 @@ const domainLabels: Record<string, string> = {
   'enterprise-attack': 'Enterprise',
   'mobile-attack': 'Mobile',
   'ics-attack': 'ICS',
+  'atlas': 'ATLAS',
 };
 
 export function Sync() {
@@ -56,6 +57,16 @@ export function Sync() {
       qc.invalidateQueries({ queryKey: ['sync-status'] });
     },
   });
+  const iocSync = useMutation({
+    mutationFn: () => syncApi.ioc(7),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['sync-status'] });
+      qc.invalidateQueries({ queryKey: ['actor-ioc-counts'] });
+      qc.invalidateQueries({ queryKey: ['actor-ioc-summary'] });
+      qc.invalidateQueries({ queryKey: ['actor-iocs'] });
+      qc.invalidateQueries({ queryKey: ['ioc-sources'] });
+    },
+  });
 
   const toggle = (domain: string) => {
     setSelected(current =>
@@ -76,7 +87,7 @@ export function Sync() {
                 <p className="text-sm text-gray-400">
                   Synchronize ATT&CK matrices, tactics, techniques, sub-techniques, APT group profiles, campaigns, usage relationships, and references from MITRE STIX bundles.
                 </p>
-                <div className="grid sm:grid-cols-3 gap-2">
+                <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-2">
                   {domains.map(item => (
                     <button
                       key={item.domain}
@@ -107,6 +118,45 @@ export function Sync() {
                   {trigger.error && <span className="text-xs text-red-400">{String(trigger.error)}</span>}
                   {taskId && <span className="text-xs text-gray-500 font-mono">task {taskId.slice(0, 8)} · {task.data?.status ?? 'PENDING'}</span>}
                 </div>
+              </div>
+            </Panel>
+
+            <Panel title="IOC Intelligence Synchronization">
+              <div className="p-4 space-y-4">
+                <p className="text-sm text-gray-400">
+                  Centrally refresh all IOC sources: ThreatFox recent IOCs, AlienVault OTX actor pulses, and every enabled custom JSON, CSV, or TXT IOC feed. Actor IOC counts update after the sync completes.
+                </p>
+                <div className="rounded border border-gray-800 bg-gray-950 p-3 text-xs text-gray-500">
+                  ThreatFox recent API supports 1-7 days. Larger windows should be handled with ThreatFox exports or custom feeds.
+                </div>
+                <div className="flex flex-wrap items-center gap-3">
+                  <button
+                    onClick={() => iocSync.mutate()}
+                    disabled={iocSync.isPending}
+                    className="primary"
+                  >
+                    {iocSync.isPending ? 'Syncing IOCs...' : 'Sync all IOC sources'}
+                  </button>
+                  {iocSync.error && <span className="text-xs text-red-400">{errorMessage(iocSync.error)}</span>}
+                </div>
+                {iocSync.data && (
+                  <div className="rounded border border-green-900 bg-green-950/30 p-3 text-xs text-green-300">
+                    Synced IOCs: {iocSync.data.totals.inserted} new, {iocSync.data.totals.updated} updated, {iocSync.data.totals.actor_links} actor links.
+                  </div>
+                )}
+                {iocSync.data?.sources?.length ? (
+                  <div className="max-h-44 space-y-2 overflow-y-auto">
+                    {iocSync.data.sources.map((source, index) => (
+                      <div key={`${String(source.source)}-${index}`} className="rounded border border-gray-800 bg-gray-950 px-3 py-2 text-xs">
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="font-mono text-gray-300">{String(source.source)}</span>
+                          <span className={String(source.status) === 'ok' ? 'text-green-400' : 'text-red-300'}>{String(source.status)}</span>
+                        </div>
+                        {source.error ? <div className="mt-1 text-[10px] text-red-300">{String(source.error)}</div> : null}
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
               </div>
             </Panel>
 
@@ -180,4 +230,13 @@ export function Sync() {
 
 function Panel({ title, children }: { title: string; children: React.ReactNode }) {
   return <section className="rounded-lg border border-gray-800 bg-gray-900/60 overflow-hidden"><h2 className="text-sm font-semibold text-white px-4 py-3 border-b border-gray-800">{title}</h2>{children}</section>;
+}
+
+function errorMessage(error: unknown) {
+  if (!error) return '';
+  if (typeof error === 'object' && error !== null && 'response' in error) {
+    const response = (error as { response?: { data?: { detail?: string } } }).response;
+    if (response?.data?.detail) return response.data.detail;
+  }
+  return error instanceof Error ? error.message : String(error);
 }

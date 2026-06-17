@@ -26,13 +26,13 @@ workspaces, shareable entity links, and investigation reports.
 - MITRE campaign ingestion and comparison
 - PostgreSQL-backed saved layers
 - Server-side PDF exports and APIs
-- Automated ATT&CK synchronization
+- Automated ATT&CK and ATLAS synchronization
 - Self-hosted/private deployment
 
-## Remaining architecture gap
+## Current architecture note
 
-ThreatMapper Web includes a static MITRE ATLAS matrix. Docker currently embeds and
-cross-links the Anomaly Detection Atlas reference book but does not ingest MITRE ATLAS
-objects into PostgreSQL. Adding native ATLAS requires a dedicated ingestion adapter
-because ATLAS is not represented by the current Enterprise/Mobile/ICS ATT&CK STIX
-domain pipeline.
+ThreatMapper Docker now ingests MITRE ATLAS as a first-class `atlas` domain in
+PostgreSQL beside Enterprise, Mobile, and ICS ATT&CK. ATLAS currently contributes
+matrix, tactic, technique, and sub-technique objects; APT groups and campaigns remain
+ATT&CK datasets because the upstream ATLAS bundle does not publish intrusion-set or
+campaign profiles.

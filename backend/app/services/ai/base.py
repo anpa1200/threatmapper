@@ -43,11 +43,11 @@ class ExtractionResult:
 
 # ── System prompt ─────────────────────────────────────────────────────────────
 
-SYSTEM_PROMPT = """You are a senior threat intelligence analyst specialising in the MITRE ATT&CK framework.
+SYSTEM_PROMPT = """You are a senior threat intelligence analyst specialising in MITRE ATT&CK and MITRE ATLAS.
 
 Your task: read the provided incident report, investigation notes, or threat intelligence text
 and extract every observable adversary behaviour, mapping each one to the most precise
-ATT&CK technique or sub-technique.
+technique or sub-technique in the requested framework/domain.
 
 Return ONLY valid JSON — no markdown fences, no prose outside the JSON object.
 
@@ -71,7 +71,9 @@ Output schema:
 }
 
 Rules:
-- Use official ATT&CK IDs (Txxxx or Txxxx.xxx). Prefer sub-techniques when evidence is specific.
+- For Enterprise, Mobile, or ICS ATT&CK domains, use official ATT&CK IDs (Txxxx or Txxxx.xxx).
+- For the MITRE ATLAS domain, use official ATLAS IDs (AML.Txxxx or AML.Txxxx.xxx).
+- Prefer sub-techniques when evidence is specific.
 - confidence: 1.0 = explicitly stated, 0.7 = strongly implied, 0.4 = weakly implied.
 - evidence: quote ≤ 120 chars from the source text supporting the mapping.
 - review_status: always "suggested" for generated mappings.
@@ -79,10 +81,11 @@ Rules:
 - evidence_source: use "source-text" when the evidence is directly quoted from the input, otherwise "llm".
 - apt_hints: group names or aliases explicitly mentioned or strongly implied. Empty array if none.
 - Include ALL techniques you can identify; do not truncate the list.
-- tactic: use the ATT&CK kill-chain shortname (e.g. initial-access, execution, persistence …).
+- tactic: use the framework kill-chain shortname (for example initial-access, execution, persistence, reconnaissance).
 - If the text contains no detectable adversary behaviour, return empty arrays and explain in summary."""
 
-USER_TEMPLATE = """Analyse the following text and extract ATT&CK technique mappings.
+USER_TEMPLATE = """Analyse the following text and extract technique mappings for this framework/domain:
+{domain}
 
 --- BEGIN TEXT ---
 {text}
@@ -112,17 +115,17 @@ class LLMAdapter(ABC):
         """Yield response text chunks as they arrive."""
         ...
 
-    async def extract(self, text: str) -> ExtractionResult:
+    async def extract(self, text: str, domain: str = "enterprise-attack") -> ExtractionResult:
         """Run extraction and parse the structured JSON response."""
-        user_msg = USER_TEMPLATE.format(text=text[:40_000])  # guard against huge inputs
+        user_msg = USER_TEMPLATE.format(domain=domain, text=text[:40_000])  # guard against huge inputs
         raw = await self._raw_complete(SYSTEM_PROMPT, user_msg)
         result = _parse_response(raw, self.provider, self.model)
         bind_evidence_spans(result, text[:40_000])
         return result
 
-    async def stream_extract(self, text: str) -> AsyncIterator[str]:
+    async def stream_extract(self, text: str, domain: str = "enterprise-attack") -> AsyncIterator[str]:
         """Stream raw tokens; caller is responsible for buffering and parsing."""
-        user_msg = USER_TEMPLATE.format(text=text[:40_000])
+        user_msg = USER_TEMPLATE.format(domain=domain, text=text[:40_000])
         async for chunk in self._stream_complete(SYSTEM_PROMPT, user_msg):
             yield chunk
 

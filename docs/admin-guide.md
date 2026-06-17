@@ -30,7 +30,7 @@ Important settings:
 | `LOCAL_LLM_BASE_URL` | OpenAI-compatible local LLM endpoint |
 | `LOCAL_LLM_API_KEY` | Local endpoint API key placeholder |
 | `LOCAL_LLM_MODEL` | Local model default |
-| `ATTCK_DOMAINS` | ATT&CK domains to ingest |
+| `ATTCK_DOMAINS` | ATT&CK/ATLAS domains to ingest, for example `enterprise-attack,mobile-attack,ics-attack,atlas` |
 | `LOG_LEVEL` | API/worker log verbosity |
 | `ATLAS_SYNC_INTERVAL` | Reference-book sync interval |
 

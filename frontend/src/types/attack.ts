@@ -126,10 +126,11 @@ export interface ReportSession {
   technique_count: number;
 }
 
-export type Domain = 'enterprise-attack' | 'mobile-attack' | 'ics-attack';
+export type Domain = 'enterprise-attack' | 'mobile-attack' | 'ics-attack' | 'atlas';
 
 export const DOMAIN_LABELS: Record<Domain, string> = {
   'enterprise-attack': 'Enterprise',
   'mobile-attack': 'Mobile',
   'ics-attack': 'ICS',
+  'atlas': 'ATLAS',
 };

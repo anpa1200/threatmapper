@@ -1,5 +1,31 @@
 # Changelog
 
+## Unreleased
+
+## v2.1.0 - 2026-06-17
+
+- Added Sector Intelligence MVP for client-facing actor relevance scoring.
+- Added local intel source tables, MISP Galaxy threat-actor sync, sector/region
+  observations, and actor relevance scoring from sector evidence, geography,
+  ATT&CK campaign recency, and TTP depth.
+- Added `/api/sector/*` endpoints and a Sector Intel UI page for syncing actor
+  metadata and ranking actors by client sector, region, environment keywords,
+  and activity window.
+- Added IOC Intelligence MVP with local IOC source/indicator/actor-link tables,
+  ThreatFox sync support, manual IOC import, actor IOC tabs, freshness filtering,
+  confidence/source evidence, and CSV export.
+- Added custom/personal IOC feed registration and sync for JSON, CSV, and TXT
+  feeds with actor-aware IOC normalization.
+- Added centralized Reference Sync action for all IOC sources, including
+  ThreatFox and custom IOC feeds.
+- Added AlienVault OTX actor pulse sync to enrich IOC-to-actor links from pulse
+  adversary fields, actor aliases, pulse tags, and pulse indicators.
+- Added report-upload IOC extraction for private PDF/DOCX/TXT analysis inputs.
+- Added actor IOC count display, actor IOC tab actions, and Sector Intelligence
+  actor IOC shortcuts.
+- Improved Sector Intelligence filters with multi-select A-Z searchable
+  dropdowns for sectors, regions, and technologies/environments.
+
 ## v2.0.0 - 2026-06-16
 
 - Added local LLM support through OpenAI-compatible endpoints such as Ollama,
@@ -7,8 +33,10 @@
 - Added STIX 2.1 export for OpenCTI workflows from completed analysis sessions.
 - Added DFIR Examples with public report metadata, TTP/actor indexing, and a
   local PDF workflow for private AI analysis.
-- Added Reference Sync UI/API for MITRE ATT&CK Enterprise, Mobile, and ICS
-  synchronization status and manual sync.
+- Added Reference Sync UI/API for MITRE ATT&CK Enterprise, Mobile, ICS, and
+  MITRE ATLAS synchronization status and manual sync.
+- Added MITRE ATLAS matrix ingestion as a first-class sync domain with ATLAS
+  tactics, techniques, sub-techniques, and domain-aware AI extraction prompts.
 - Enriched ATT&CK Group Library with actor metadata, aliases, external
   references, technique evidence, tactic coverage, platform coverage, and
   source context.

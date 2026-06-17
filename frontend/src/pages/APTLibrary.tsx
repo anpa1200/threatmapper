@@ -1,18 +1,18 @@
 import { useEffect, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAppStore } from '@/store';
-import { aptApi, operationsApi } from '@/api/client';
+import { aptApi, iocApi, operationsApi } from '@/api/client';
 import { Header } from '@/components/Layout/Header';
 import { TechniqueModal } from '@/components/TechniqueModal';
 import type { CampaignListItem } from '@/types/attack';
 import { useSearchParams } from 'react-router-dom';
 import { getActorReports } from '@/config/intelligence';
 import { ReportReferences } from '@/components/ReportReferences';
-import { useMutation } from '@tanstack/react-query';
 
-type GroupTab = 'overview' | 'techniques' | 'campaigns' | 'reports';
+type GroupTab = 'overview' | 'techniques' | 'campaigns' | 'reports' | 'iocs';
 
 export function APTLibrary() {
+  const qc = useQueryClient();
   const { domain, version, addTechniques, replaceTechniques, setOverlayGroup } = useAppStore();
   const [search, setSearch] = useState('');
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
@@ -20,12 +20,23 @@ export function APTLibrary() {
   const [expandedCampaign, setExpandedCampaign] = useState<string | null>(null);
   const [techModalId, setTechModalId] = useState<string | null>(null);
   const [params] = useSearchParams();
-  useEffect(() => { const id = params.get('group'); if (id) setSelectedGroupId(id); }, [params]);
+  useEffect(() => {
+    const id = params.get('group');
+    const tab = params.get('tab') as GroupTab | null;
+    if (id) setSelectedGroupId(id);
+    if (tab && ['overview', 'techniques', 'campaigns', 'reports', 'iocs'].includes(tab)) setGroupTab(tab);
+  }, [params]);
 
   const { data: groups = [], isLoading } = useQuery({
     queryKey: ['apt-groups', domain, version, search],
     queryFn: () =>
       aptApi.groups({ domain, version: version ?? undefined, search: search || undefined }),
+  });
+  const groupIds = groups.map(group => group.attack_id).join(',');
+  const { data: groupIocCounts = {} } = useQuery({
+    queryKey: ['actor-ioc-counts', groupIds],
+    queryFn: () => iocApi.actorCounts(groups.map(group => group.attack_id), 180, false),
+    enabled: groups.length > 0,
   });
 
   const { data: groupDetail, isLoading: detailLoading } = useQuery({
@@ -48,6 +59,64 @@ export function APTLibrary() {
     enabled: !!expandedCampaign,
   });
   const { data: reports = [] } = useQuery({ queryKey: ['actor-reports', selectedGroupId], queryFn: () => getActorReports(selectedGroupId!), enabled: !!selectedGroupId });
+  const { data: iocSummary } = useQuery({
+    queryKey: ['actor-ioc-summary', selectedGroupId],
+    queryFn: () => iocApi.actorSummary(selectedGroupId!, 180),
+    enabled: !!selectedGroupId,
+  });
+  const { data: actorIocs = [], isLoading: iocsLoading } = useQuery({
+    queryKey: ['actor-iocs', selectedGroupId],
+    queryFn: () => iocApi.actor(selectedGroupId!, { days: 180, active_only: true, limit: 250 }),
+    enabled: !!selectedGroupId && groupTab === 'iocs',
+  });
+  const { data: iocSources = [] } = useQuery({
+    queryKey: ['ioc-sources'],
+    queryFn: iocApi.sources,
+    enabled: groupTab === 'iocs',
+  });
+  const syncThreatFox = useMutation({
+    mutationFn: () => iocApi.syncThreatFox(7),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['actor-iocs'] });
+      qc.invalidateQueries({ queryKey: ['actor-ioc-summary'] });
+      qc.invalidateQueries({ queryKey: ['ioc-sources'] });
+    },
+  });
+  const enrichActorOtx = useMutation({
+    mutationFn: () => iocApi.enrichActorOtx(selectedGroupId!),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['actor-iocs', selectedGroupId] });
+      qc.invalidateQueries({ queryKey: ['actor-ioc-summary', selectedGroupId] });
+      qc.invalidateQueries({ queryKey: ['actor-ioc-counts'] });
+      qc.invalidateQueries({ queryKey: ['ioc-sources'] });
+    },
+  });
+  const uploadReportIocs = useMutation({
+    mutationFn: (file: File) => {
+      const form = new FormData();
+      form.append('file', file);
+      form.append('actor_attack_id', selectedGroupId ?? '');
+      form.append('actor_name', groupDetail?.name ?? '');
+      return iocApi.uploadReport(form);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['actor-iocs', selectedGroupId] });
+      qc.invalidateQueries({ queryKey: ['actor-ioc-summary', selectedGroupId] });
+      qc.invalidateQueries({ queryKey: ['actor-ioc-counts'] });
+    },
+  });
+  const createIocSource = useMutation({
+    mutationFn: iocApi.createSource,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['ioc-sources'] }),
+  });
+  const syncIocSource = useMutation({
+    mutationFn: iocApi.syncSource,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['actor-iocs'] });
+      qc.invalidateQueries({ queryKey: ['actor-ioc-summary'] });
+      qc.invalidateQueries({ queryKey: ['ioc-sources'] });
+    },
+  });
   const trackActor = useMutation({ mutationFn: () => operationsApi.trackActor({ actor_id: groupDetail!.attack_id, actor_name: groupDetail!.name, snapshot: { technique_ids: groupDetail!.techniques.map(item => item.attack_id), captured_at: new Date().toISOString() } }) });
 
   return (
@@ -86,6 +155,7 @@ export function APTLibrary() {
                   </div>
                   <div className="text-xs text-gray-400 mt-0.5">
                     {group.technique_count} techniques
+                    {` · ${groupIocCounts[group.attack_id] ?? 0} known IOCs`}
                     {group.aliases.length > 0 && ` · ${group.aliases.slice(0, 2).join(', ')}`}
                   </div>
                 </button>
@@ -123,29 +193,29 @@ export function APTLibrary() {
                     ))}
                   </div>
                 </div>
-                <div className="flex gap-2 shrink-0 flex-wrap justify-start xl:justify-end">
+                <div className="flex max-w-full shrink-0 flex-wrap items-start justify-start gap-2 xl:max-w-[720px] xl:justify-end">
                   <button
                     onClick={() => replaceTechniques(groupDetail.techniques.map((t) => t.attack_id))}
-                    className="text-xs bg-gray-700 hover:bg-gray-600 text-white px-3 py-1.5 rounded transition-colors"
+                    className="actor-header-action bg-gray-700 text-white hover:bg-gray-600"
                     title="Replace your current TTP selection with this group's techniques"
                   >
                     Load as my TTPs
                   </button>
                   <button onClick={() => navigator.clipboard.writeText(`${location.origin}/apt?group=${groupDetail.attack_id}`)}
-                    className="text-xs text-gray-400 border border-gray-700 px-3 py-1.5 rounded">Copy link</button>
-                  <button onClick={() => trackActor.mutate()} className="text-xs text-purple-300 border border-purple-800 px-3 py-1.5 rounded">
+                    className="actor-header-action border border-gray-700 text-gray-400 hover:border-gray-500 hover:text-white">Copy link</button>
+                  <button onClick={() => trackActor.mutate()} className="actor-header-action border border-purple-800 text-purple-300 hover:border-purple-500">
                     {trackActor.isSuccess ? 'Snapshot tracked' : 'Track changes'}
                   </button>
                   <button
                     onClick={() => addTechniques(groupDetail.techniques.map((t) => t.attack_id))}
-                    className="text-xs text-gray-400 hover:text-white border border-gray-700 hover:border-gray-500 px-3 py-1.5 rounded transition-colors"
+                    className="actor-header-action border border-gray-700 text-gray-400 hover:border-gray-500 hover:text-white"
                     title="Merge this group's techniques into your existing selection"
                   >
                     + Merge into TTPs
                   </button>
                   <button
                     onClick={() => setOverlayGroup(groupDetail.attack_id, groupDetail.name)}
-                    className="text-xs bg-mitre-accent hover:bg-red-600 text-white px-3 py-1.5 rounded transition-colors"
+                    className="actor-header-action bg-mitre-accent text-white hover:bg-red-600"
                   >
                     Overlay on Navigator
                   </button>
@@ -153,7 +223,7 @@ export function APTLibrary() {
                     href={groupDetail.url}
                     target="_blank"
                     rel="noreferrer"
-                    className="text-xs text-gray-400 hover:text-white border border-gray-600 px-3 py-1.5 rounded transition-colors"
+                    className="actor-header-action border border-gray-600 text-gray-400 hover:border-gray-500 hover:text-white"
                   >
                     ATT&CK ↗
                   </a>
@@ -167,20 +237,21 @@ export function APTLibrary() {
               )}
 
               {/* Tabs */}
-              <div className="flex gap-5 text-xs border-b border-gray-800 mb-5">
+              <div className="mb-5 flex flex-wrap gap-2 border-b border-gray-800 pb-3">
                 {([
                   ['overview', 'Overview'],
                   ['techniques', `Techniques (${groupDetail.technique_count})`],
                   ['campaigns',  `Campaigns (${groupDetail.campaign_count})`],
                   ['reports', `CTI / IR Reports (${reports.length})`],
+                  ['iocs', `IOCs (${iocSummary?.count ?? 0})`],
                 ] as [GroupTab, string][]).map(([id, label]) => (
                   <button
                     key={id}
                     onClick={() => setGroupTab(id)}
-                    className={`pb-2 border-b-2 transition-colors ${
+                    className={`actor-tab-button ${
                       groupTab === id
-                        ? 'border-mitre-accent text-white'
-                        : 'border-transparent text-gray-500 hover:text-gray-300'
+                        ? 'border-mitre-accent bg-mitre-accent/15 text-white'
+                        : 'border-gray-800 bg-gray-950/50 text-gray-400 hover:border-gray-600 hover:text-white'
                     }`}
                   >
                     {label}
@@ -356,9 +427,336 @@ export function APTLibrary() {
                 </div>
               )}
               {groupTab === 'reports' && <ReportReferences reports={reports} limit={60} />}
+              {groupTab === 'iocs' && (
+                <ActorIOCs
+                  actorId={groupDetail.attack_id}
+                  actorName={groupDetail.name}
+                  items={actorIocs}
+                  loading={iocsLoading}
+                  summary={iocSummary ?? null}
+                  syncing={syncThreatFox.isPending}
+                  syncResult={syncThreatFox.data ?? null}
+                  sources={iocSources}
+                  sourceSyncingId={syncIocSource.variables ?? ''}
+                  sourceSyncResult={syncIocSource.data ?? null}
+                  sourceCreateError={errorMessage(createIocSource.error)}
+                  sourceSyncError={errorMessage(syncIocSource.error)}
+                  syncError={errorMessage(syncThreatFox.error)}
+                  enriching={enrichActorOtx.isPending}
+                  enrichResult={enrichActorOtx.data ?? null}
+                  enrichError={errorMessage(enrichActorOtx.error)}
+                  uploadingReport={uploadReportIocs.isPending}
+                  reportResult={uploadReportIocs.data ?? null}
+                  reportError={errorMessage(uploadReportIocs.error)}
+                  onSync={() => syncThreatFox.mutate()}
+                  onEnrichActor={() => enrichActorOtx.mutate()}
+                  onUploadReport={(file) => uploadReportIocs.mutate(file)}
+                  onAddSource={(payload) => createIocSource.mutate(payload)}
+                  onSyncSource={(sourceId) => syncIocSource.mutate(sourceId)}
+                />
+              )}
             </div>
           )}
         </div>
+      </div>
+    </div>
+  );
+}
+
+function errorMessage(error: unknown) {
+  if (!error) return '';
+  if (typeof error === 'object' && error !== null && 'response' in error) {
+    const response = (error as { response?: { data?: { detail?: string } } }).response;
+    if (response?.data?.detail) return response.data.detail;
+  }
+  return error instanceof Error ? error.message : String(error);
+}
+
+function ActorIOCs({
+  actorId,
+  actorName,
+  items,
+  loading,
+  summary,
+  syncing,
+  syncResult,
+  sources,
+  sourceSyncingId,
+  sourceSyncResult,
+  sourceCreateError,
+  sourceSyncError,
+  syncError,
+  enriching,
+  enrichResult,
+  enrichError,
+  uploadingReport,
+  reportResult,
+  reportError,
+  onSync,
+  onEnrichActor,
+  onUploadReport,
+  onAddSource,
+  onSyncSource,
+}: {
+  actorId: string;
+  actorName: string;
+  items: import('@/api/client').IOCItem[];
+  loading: boolean;
+  summary: import('@/api/client').IOCSummary | null;
+  syncing: boolean;
+  syncResult: {source: string; days: number; inserted: number; updated: number; actor_links: number} | null;
+  sources: import('@/api/client').IOCSourceStatus[];
+  sourceSyncingId: string;
+  sourceSyncResult: {source: string; days: null; inserted: number; updated: number; actor_links: number} | null;
+  sourceCreateError: string;
+  sourceSyncError: string;
+  syncError: string;
+  enriching: boolean;
+  enrichResult: {
+    source: string;
+    actor_attack_id: string;
+    actor_name: string;
+    inserted: number;
+    updated: number;
+    actor_links: number;
+    searched_aliases: number;
+    pulses: number;
+    matched_pulses: number;
+  } | null;
+  enrichError: string;
+  uploadingReport: boolean;
+  reportResult: {
+    filename: string;
+    extracted: number;
+    imported: {source: string; days: null; inserted: number; updated: number; actor_links: number};
+    preview: import('@/api/client').IOCItem[];
+  } | null;
+  reportError: string;
+  onSync: () => void;
+  onEnrichActor: () => void;
+  onUploadReport: (file: File) => void;
+  onAddSource: (payload: {label: string; url: string; kind: 'custom-json' | 'custom-csv' | 'custom-txt'}) => void;
+  onSyncSource: (sourceId: string) => void;
+}) {
+  const [feedLabel, setFeedLabel] = useState('');
+  const [feedUrl, setFeedUrl] = useState('');
+  const [feedKind, setFeedKind] = useState<'custom-json' | 'custom-csv' | 'custom-txt'>('custom-json');
+  const customSources = sources.filter(source => source.kind.startsWith('custom-'));
+
+  return (
+    <div className="space-y-4">
+      <div className="grid gap-3 xl:grid-cols-[1fr_auto]">
+        <div className="rounded border border-gray-800 bg-gray-900/50 p-4">
+          <h3 className="text-sm font-semibold text-white">Current Actor IOCs</h3>
+          <p className="mt-2 text-xs leading-relaxed text-gray-500">
+            Source-backed observables mapped to {actorName}. ThreatFox links are created only when IOC metadata
+            contains this actor name or one of its aliases. Manual report imports can add direct actor mappings.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {Object.entries(summary?.by_type ?? {}).map(([type, count]) => (
+              <span key={type} className="rounded border border-gray-800 bg-gray-950 px-2 py-1 text-[10px] text-gray-400">
+                {type}: {count}
+              </span>
+            ))}
+            {!summary?.count && <span className="text-xs text-gray-600">No active IOCs stored for this actor.</span>}
+          </div>
+        </div>
+        <div className="rounded border border-gray-800 bg-gray-900/50 p-4 xl:w-80">
+          <div className="flex flex-wrap gap-2">
+            <button onClick={onSync} disabled={syncing} className="primary-action">
+              {syncing ? 'Syncing...' : 'Sync ThreatFox'}
+            </button>
+            <button onClick={onEnrichActor} disabled={enriching} className="secondary-action">
+              {enriching ? 'Enriching...' : 'Enrich actor'}
+            </button>
+            <a href={iocApi.actorCsvUrl(actorId, 180, true)} className="secondary-action">
+              Export CSV
+            </a>
+          </div>
+          {syncResult && (
+            <div className="mt-3 rounded border border-green-900 bg-green-950/30 p-2 text-[10px] text-green-300">
+              Synced {syncResult.inserted} new, updated {syncResult.updated}, linked {syncResult.actor_links}.
+            </div>
+          )}
+          {syncError && (
+            <div className="mt-3 rounded border border-red-900 bg-red-950/30 p-2 text-[10px] text-red-300">
+              {syncError}
+              {syncError.includes('THREATFOX_AUTH_KEY') && (
+                <div className="mt-1 text-red-200">
+                  Add THREATFOX_AUTH_KEY to .env, restart the API container, then run Sync ThreatFox again.
+                </div>
+              )}
+            </div>
+          )}
+          {enrichResult && (
+            <div className="mt-3 rounded border border-green-900 bg-green-950/30 p-2 text-[10px] text-green-300">
+              Enriched {enrichResult.actor_name}: {enrichResult.inserted} new, {enrichResult.updated} updated, {enrichResult.actor_links} links from {enrichResult.matched_pulses} matched OTX pulses.
+            </div>
+          )}
+          {enrichError && (
+            <div className="mt-3 rounded border border-red-900 bg-red-950/30 p-2 text-[10px] text-red-300">
+              {enrichError}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="rounded border border-gray-800 bg-gray-900/50 p-4">
+        <h3 className="text-sm font-semibold text-white">Extract IOCs From Report</h3>
+        <p className="mt-2 text-xs text-gray-500">
+          Upload PDF, DOCX, or TXT. ThreatMapper extracts common IOCs and maps them to {actorName}.
+        </p>
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          <label className="secondary-action cursor-pointer">
+            {uploadingReport ? 'Importing...' : 'Upload report'}
+            <input
+              type="file"
+              accept=".pdf,.docx,.txt,text/plain,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+              className="hidden"
+              disabled={uploadingReport}
+              onChange={event => {
+                const file = event.currentTarget.files?.[0];
+                if (file) onUploadReport(file);
+                event.currentTarget.value = '';
+              }}
+            />
+          </label>
+          {reportResult && (
+            <span className="text-xs text-green-300">
+              Extracted {reportResult.extracted}; imported {reportResult.imported.inserted} new, {reportResult.imported.updated} updated, {reportResult.imported.actor_links} links.
+            </span>
+          )}
+        </div>
+        {reportError && <div className="mt-2 rounded border border-red-900 bg-red-950/30 p-2 text-[10px] text-red-300">{reportError}</div>}
+        {reportResult?.preview?.length ? (
+          <div className="mt-3 flex max-h-24 flex-wrap gap-1 overflow-y-auto">
+            {reportResult.preview.slice(0, 20).map(item => (
+              <span key={`${item.type}-${item.value}`} className="rounded border border-gray-800 bg-gray-950 px-2 py-1 font-mono text-[10px] text-gray-400">
+                {item.type}: {item.value}
+              </span>
+            ))}
+          </div>
+        ) : null}
+      </div>
+
+      <div className="rounded border border-gray-800 bg-gray-900/50 p-4">
+        <h3 className="text-sm font-semibold text-white">Custom / Personal IOC Feeds</h3>
+        <p className="mt-2 text-xs text-gray-500">
+          Add a private JSON, CSV, or TXT IOC feed. JSON/CSV records can include actor_attack_id, actor_name,
+          malware_family, campaign, first_seen, last_seen, confidence, tags, and source_url.
+        </p>
+        <div className="mt-3 grid gap-2 lg:grid-cols-[180px_1fr_140px_auto]">
+          <input
+            value={feedLabel}
+            onChange={event => setFeedLabel(event.target.value)}
+            placeholder="Feed label"
+            className="field"
+          />
+          <input
+            value={feedUrl}
+            onChange={event => setFeedUrl(event.target.value)}
+            placeholder="https://example.local/iocs.json"
+            className="field"
+          />
+          <select value={feedKind} onChange={event => setFeedKind(event.target.value as typeof feedKind)} className="field">
+            <option value="custom-json">JSON</option>
+            <option value="custom-csv">CSV</option>
+            <option value="custom-txt">TXT</option>
+          </select>
+          <button
+            type="button"
+            onClick={() => {
+              onAddSource({ label: feedLabel, url: feedUrl, kind: feedKind });
+              setFeedLabel('');
+              setFeedUrl('');
+            }}
+            disabled={!feedLabel.trim() || !feedUrl.trim()}
+            className="primary-action disabled:opacity-40"
+          >
+            Add Feed
+          </button>
+        </div>
+        {sourceCreateError && <div className="mt-2 rounded border border-red-900 bg-red-950/30 p-2 text-[10px] text-red-300">{sourceCreateError}</div>}
+        {sourceSyncError && <div className="mt-2 rounded border border-red-900 bg-red-950/30 p-2 text-[10px] text-red-300">{sourceSyncError}</div>}
+        {sourceSyncResult && (
+          <div className="mt-2 rounded border border-green-900 bg-green-950/30 p-2 text-[10px] text-green-300">
+            Synced {sourceSyncResult.source}: {sourceSyncResult.inserted} new, {sourceSyncResult.updated} updated, {sourceSyncResult.actor_links} linked.
+          </div>
+        )}
+        <div className="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+          {customSources.map(source => (
+            <div key={source.source_id} className="rounded border border-gray-800 bg-gray-950 p-3">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="truncate text-xs font-semibold text-gray-200">{source.label}</div>
+                  <div className="mt-1 truncate text-[10px] text-gray-600">{source.url}</div>
+                  <div className="mt-1 text-[10px] text-gray-500">{source.kind.replace('custom-', '').toUpperCase()} · {source.sync_status}</div>
+                  {source.sync_error && <div className="mt-1 line-clamp-2 text-[10px] text-red-300">{source.sync_error}</div>}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => onSyncSource(source.source_id)}
+                  disabled={sourceSyncingId === source.source_id}
+                  className="secondary-action"
+                >
+                  {sourceSyncingId === source.source_id ? 'Syncing' : 'Sync'}
+                </button>
+              </div>
+            </div>
+          ))}
+          {!customSources.length && <div className="text-xs text-gray-600">No custom feeds configured.</div>}
+        </div>
+      </div>
+
+      <div className="overflow-hidden rounded border border-gray-800">
+        <div className="grid grid-cols-[140px_1fr_110px_110px_120px] gap-3 border-b border-gray-800 bg-gray-950 px-3 py-2 text-[10px] uppercase text-gray-500">
+          <span>Type</span>
+          <span>Indicator</span>
+          <span>Malware</span>
+          <span>Last Seen</span>
+          <span>Source</span>
+        </div>
+        {loading ? (
+          <div className="p-4 text-sm text-gray-500">Loading actor IOCs...</div>
+        ) : items.length ? (
+          <div className="divide-y divide-gray-800">
+            {items.map(item => (
+              <div key={`${item.type}-${item.value}-${item.source}`} className="grid grid-cols-[140px_1fr_110px_110px_120px] gap-3 px-3 py-3 text-xs">
+                <div>
+                  <span className="rounded bg-gray-800 px-2 py-1 font-mono text-[10px] text-gray-300">{item.type}</span>
+                  <div className="mt-2 text-[10px] text-gray-600">conf {item.confidence}</div>
+                </div>
+                <div className="min-w-0">
+                  <div className="break-all font-mono text-gray-200">{item.value}</div>
+                  {item.evidence && <div className="mt-1 text-[10px] text-gray-600">{item.evidence}</div>}
+                  {item.tags.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-1">
+                      {item.tags.slice(0, 6).map(tag => (
+                        <span key={tag} className="rounded bg-gray-900 px-1.5 py-0.5 text-[10px] text-gray-500">{tag}</span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <div className="truncate text-gray-400" title={item.malware_family}>{item.malware_family || '-'}</div>
+                <div className="font-mono text-[10px] text-gray-500">{(item.last_seen || item.first_seen || '-').slice(0, 10)}</div>
+                <div>
+                  {item.source_url ? (
+                    <a href={item.source_url} target="_blank" rel="noreferrer" className="text-mitre-accent hover:underline">
+                      {item.source}
+                    </a>
+                  ) : (
+                    <span className="text-gray-500">{item.source}</span>
+                  )}
+                  <div className="mt-1 text-[10px] uppercase text-gray-600">{item.tlp}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="p-4 text-sm text-gray-500">
+            No current IOCs are mapped to this actor yet. Sync ThreatFox or import report/MISP/OpenCTI IOCs with direct actor attribution.
+          </div>
+        )}
       </div>
     </div>
   );

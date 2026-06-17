@@ -14,6 +14,7 @@ const nav = [
   { to: '/analyze',       label: 'AI Analysis',   icon: '⬢' },
   { to: '/compare',       label: 'Compare',       icon: '⬡' },
   { to: '/group-compare', label: 'Group vs Group', icon: '◉' },
+  { to: '/sector-intel',  label: 'Sector Intel', icon: '◎' },
   { to: '/report',        label: 'Investigation Report', icon: '▤' },
   { to: '/operations',    label: 'Operations', icon: '◆' },
   { to: '/pipeline',      label: 'Pipeline', icon: '⇄' },

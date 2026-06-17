@@ -3,7 +3,7 @@
 **AI-assisted CTI-to-detection workbench for MITRE ATT&CK mapping and detection-gap analysis.**
 
 [![CI](https://github.com/anpa1200/threatmapper/actions/workflows/ci.yml/badge.svg)](https://github.com/anpa1200/threatmapper/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/badge/release-v2.0.0-blue)](VERSION)
+[![Release](https://img.shields.io/badge/release-v2.1.0-blue)](VERSION)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Security policy](https://img.shields.io/badge/security-policy-blue)](SECURITY.md)
 [![Roadmap](https://img.shields.io/badge/roadmap-public-blue)](ROADMAP.md)
@@ -12,7 +12,7 @@
 [![Awesome Threat Intelligence](https://img.shields.io/badge/awesome--threat--intelligence-submitted-yellow)](https://github.com/hslatman/awesome-threat-intelligence/pull/385)
 [![Threat Hunting](https://img.shields.io/badge/awesome--threat--hunting-submitted-yellow)](https://github.com/threat-hunting/awesome_Threat-Hunting/pull/5)
 
-**Current release: v2.0.0 · [Live Intelligence Workspace](https://1200km.com/threat-matrix/) · [Documentation & Usage Guide](https://1200km.com/threatmapper-docs/) · [Full v2 Guide](docs/full-guide-v2.md) · [1200km Article](https://1200km.com/articles/threatmapper-v2-self-hosted-ai-cti-platform.html) · [Medium Walkthrough](https://medium.com/@1200km/threatmapper-v2-0-i-built-a-self-hosted-ai-threat-intelligence-platform-941a80cc5a65)**
+**Current release: v2.1.0 · [Live Intelligence Workspace](https://1200km.com/threat-matrix/) · [Documentation & Usage Guide](https://1200km.com/threatmapper-docs/) · [Full v2 Guide](docs/full-guide-v2.md) · [1200km Article](https://1200km.com/articles/threatmapper-v2-self-hosted-ai-cti-platform.html) · [Medium Walkthrough](https://medium.com/@1200km/threatmapper-v2-0-i-built-a-self-hosted-ai-threat-intelligence-platform-941a80cc5a65)**
 
 ThreatMapper AI is a self-hosted CTI-to-detection workbench for mapping threat reports to MITRE ATT&CK, comparing TTP overlap with known groups and campaigns, identifying detection gaps, and exporting analyst-ready outputs.
 
@@ -30,7 +30,7 @@ ThreatMapper AI is a self-hosted CTI-to-detection workbench for mapping threat r
 
 ## Project Maturity Evidence
 
-ThreatMapper v2.0.0 publishes the operational evidence expected from a serious self-hosted CTI tool:
+ThreatMapper v2.1.0 publishes the operational evidence expected from a serious self-hosted CTI tool:
 
 | Area | Evidence |
 |---|---|
@@ -100,15 +100,17 @@ also available at [`docs/demo-videos/dfir-report-ai-analysis-compare.gif`](docs/
 
 | Module | Capability |
 |---|---|
-| **Navigator** | Full ATT&CK matrix (Enterprise, Mobile, ICS) with D3.js zoom/pan, sub-technique expansion, dual-layer colouring |
+| **Navigator** | Full ATT&CK/ATLAS matrix support (Enterprise, Mobile, ICS, ATLAS) with D3.js zoom/pan, sub-technique expansion, dual-layer colouring |
 | **Threat Actor Library** | Currently ingested MITRE ATT&CK group profiles, aliases, techniques, and named campaign relationships |
-| **AI Analysis** | Upload PDF/DOCX/TXT or paste text → streamed LLM extraction of ATT&CK mapping candidates via Claude, OpenAI, Gemini, or a local OpenAI-compatible LLM; results saved to Reports Library (DB 2) |
+| **AI Analysis** | Upload PDF/DOCX/TXT or paste text → streamed LLM extraction of ATT&CK or ATLAS mapping candidates via Claude, OpenAI, Gemini, or a local OpenAI-compatible LLM; results saved to Reports Library (DB 2) |
 | **Compare — Groups** | Jaccard similarity ranking of your TTPs vs currently ingested group profiles; visual matrix diff, tactic breakdown, gap analysis |
 | **Compare — Campaigns** | Jaccard similarity ranking of your TTPs vs every named MITRE campaign (e.g. SolarWinds C0024, Operation Ghost C0023) |
 | **Compare — Reports** | Browse stored AI analyses (DB 2); re-run group-similarity comparison without re-calling the LLM |
+| **Sector Intelligence** | Local actor relevance scoring by client sector, geography, environment keywords, activity window, ATT&CK campaign recency, and MISP Galaxy evidence |
+| **IOC Intelligence** | Local source-backed IOC storage with ThreatFox sync, manual report import, actor IOC tabs, freshness filtering, confidence, source links, and CSV export |
 | **DFIR Examples** | Indexed public DFIR Report examples with TTP/actor metadata and a local PDF workflow for private AI analysis |
 | **Export** | ATT&CK Navigator JSON layers, PDF reports, plain JSON, and STIX 2.1 bundles for OpenCTI import |
-| **Reference Sync** | Manual and scheduled MITRE ATT&CK sync for Enterprise, Mobile, and ICS with status reporting and stale-data indicators |
+| **Reference Sync** | Manual and scheduled MITRE ATT&CK and MITRE ATLAS sync for Enterprise, Mobile, ICS, and ATLAS with status reporting and stale-data indicators |
 | **Anomaly Detection Reference Book** | Docker-served, autonomously synchronized reference catalogs with exact paragraph-level links from every mapped matrix TTP |
 | **Intelligence Pipeline** | Scheduled reviewed RSS intake, STIX/TAXII, MISP and ATLAS imports, normalized observables, public enrichment, team audit trail |
 | **Detection Studio** | Versioned Sigma, KQL, SPL and EQL skeleton generation with structural validation and explicit analyst-review placeholders |
@@ -212,8 +214,8 @@ DB_NAME=threatmapper
 DB_USER=tm_user
 DB_PASS=changeme_strong_password
 
-# ATT&CK domains to ingest (comma-separated)
-ATTCK_DOMAINS=enterprise-attack,mobile-attack,ics-attack
+# ATT&CK / ATLAS domains to ingest (comma-separated)
+ATTCK_DOMAINS=enterprise-attack,mobile-attack,ics-attack,atlas
 
 LOG_LEVEL=info
 ```
@@ -251,9 +253,9 @@ docker compose up
 
 **First startup takes 5–15 minutes.** The API container automatically:
 1. Runs `create_tables()` to initialise the PostgreSQL schema
-2. Downloads the latest ATT&CK STIX bundles from MITRE's GitHub (~105 MB total for all three domains)
+2. Downloads the latest ATT&CK STIX bundles and the MITRE ATLAS STIX bundle from GitHub
 3. Parses the STIX 2.1 JSON directly (no third-party ATT&CK library — Python 3.12 compatible)
-4. Upserts tactics, techniques, groups, campaigns, and all relationships into PostgreSQL
+4. Upserts tactics, techniques, groups, campaigns, and all relationships into PostgreSQL. ATLAS currently contributes matrix/tactic/technique data; MITRE's ATLAS bundle does not publish APT group profiles.
 
 The `atlas-builder` container builds the embedded reference-book snapshot immediately,
 then synchronizes it with the standalone Anomaly Detection Atlas repository every hour.
@@ -277,6 +279,9 @@ Parsing enterprise-attack-19.1.json ...
   Ingested campaigns from the selected ATT&CK release
   Ingested campaign-technique and group-campaign attribution links
 Finished ingesting enterprise-attack v19.1
+Parsing atlas-<sha>.json ...
+  Parsed: ATLAS tactics, techniques, and sub-techniques
+Finished ingesting atlas v<sha>
 ```
 
 ### 3 — Open
@@ -552,13 +557,14 @@ Populated from MITRE's official STIX 2.1 bundles on startup and on each sync. Co
 - **Attribution links** — which group conducted which campaign (`attributed-to` relationships)
 - **Technique usage** — the specific techniques observed in each group/campaign with use descriptions
 
-Built on the currently ingested MITRE ATT&CK dataset. Counts depend on the selected ATT&CK domain and ATT&CK release.
+Built on the currently ingested MITRE ATT&CK and MITRE ATLAS datasets. Counts depend on the selected domain and source release.
 
 | Domain | Groups | Campaigns | Techniques |
 |---|---|---|---|
 | Enterprise | Dynamic | Dynamic | Dynamic |
 | ICS | Dynamic | Dynamic | Dynamic |
 | Mobile | Dynamic | Dynamic | Dynamic |
+| ATLAS | N/A from upstream | N/A from upstream | Dynamic |
 
 ### DB 2 — User Report Sessions (append-only)
 
@@ -574,13 +580,93 @@ Created by every AI Analysis you run. Each session stores:
 
 Sessions in DB 2 can be re-compared at any time via `POST /api/analyze/sessions/{id}/compare` — this re-runs Jaccard against the *current* DB 1 (useful after a new ATT&CK version has been ingested).
 
+### Sector Intelligence DB — Actor Relevance Evidence
+
+ThreatMapper stores feed-backed actor relevance observations locally so scoring
+does not depend on live source availability at query time.
+
+Initial v3 MVP source:
+
+- **MISP Galaxy threat actors** — actor aliases, targeted sectors, CFR target
+  categories, suspected victim geographies, origin metadata, motivation, and refs.
+- **MITRE ATT&CK campaigns** — campaign first/last seen dates and actor links for
+  recency scoring.
+
+The Sector Intel page lets you sync MISP Galaxy and rank actors for a client context:
+
+```text
+sector + region + environment keywords + activity window
+  -> relevant actors
+  -> reasons
+  -> evidence links
+  -> ATT&CK TTP depth
+```
+
+API:
+
+```text
+GET  /api/sector/sources
+POST /api/sector/sync/misp-galaxy
+GET  /api/sector/sectors
+GET  /api/sector/relevance?sectors=telecom&regions=Israel&days=365
+```
+
+### IOC Intelligence DB — Actor Observables
+
+ThreatMapper stores source-backed indicators locally and links them to actors only
+when there is explicit evidence. ATT&CK itself does not provide live IOCs.
+
+Supported initial sources:
+
+- **abuse.ch ThreatFox** — current malware-related IOCs. Set
+  `THREATFOX_AUTH_KEY` in `.env` before syncing. The recent IOC API supports
+  1-7 day windows; use ThreatFox exports or custom feeds for larger windows.
+- **AlienVault OTX** — actor-attributed pulse search. Set `OTX_API_KEY` in
+  `.env`; ThreatMapper searches ATT&CK actor names/aliases, imports pulse
+  indicators, and links them when pulse adversary/title/tags match the actor.
+- **Custom / personal IOC feeds** — private JSON, CSV, or TXT feeds registered
+  from the actor IOC tab or API.
+- **Manual report import** — JSON import for report, MISP, OpenCTI, or vendor CTI
+  extracts where the actor mapping is already known.
+
+Actor IOC tabs show:
+
+- active IOCs for the selected actor
+- source and source URL
+- confidence, TLP, first/last seen, malware family, campaign, tags, and evidence
+- CSV export for client handoff or downstream tooling
+
+API:
+
+```text
+GET  /api/ioc/sources
+POST /api/ioc/sources
+POST /api/sync/ioc?days=7
+POST /api/ioc/sync/threatfox?days=7
+POST /api/ioc/sync/otx
+POST /api/ioc/sync/{source_id}
+POST /api/ioc/import
+GET  /api/ioc/actors/G0049?days=180&active_only=true
+GET  /api/ioc/actors/G0049/summary?days=180
+GET  /api/ioc/actors/G0049/export.csv?days=180&active_only=true
+```
+
+Custom JSON/CSV records can use these fields:
+
+```text
+value, type, actor_attack_id, actor_name, malware_family, campaign,
+source_url, first_seen, last_seen, confidence, tlp, tags, description
+```
+
+TXT feeds are treated as one IOC per line with best-effort type inference.
+
 ---
 
 ## API Reference
 
 Full interactive documentation at **http://localhost:8000/docs**.
 
-All 21 registered routes:
+Registered route groups include:
 
 ### ATT&CK Data
 
@@ -607,6 +693,15 @@ GET  /api/apt/campaigns?domain=enterprise-attack[&group_id=G0016&search=solar&ve
 GET  /api/apt/campaigns/{attack_id}?domain=enterprise-attack
 POST /api/apt/campaigns/compare?domain=enterprise-attack[&top_n=20&version=19.1]
      body: { "technique_ids": ["T1566", "T1059", "T1078"] }   ← max 500 IDs
+```
+
+### Sector Intelligence
+
+```
+GET  /api/sector/sources
+POST /api/sector/sync/misp-galaxy
+GET  /api/sector/sectors
+GET  /api/sector/relevance?sector=telecom&region=Israel&days=365[&technologies=cloud]
 ```
 
 ### Analysis
@@ -691,7 +786,7 @@ All configuration is via environment variables in `.env`.
 | `LOCAL_LLM_BASE_URL` | `http://host.docker.internal:11434/v1` | OpenAI-compatible local LLM endpoint |
 | `LOCAL_LLM_API_KEY` | `local` | API key placeholder for local OpenAI-compatible servers |
 | `LOCAL_LLM_MODEL` | `llama3.1:8b` | Local model used when no request-level model is provided |
-| `ATTCK_DOMAINS` | `enterprise-attack,mobile-attack,ics-attack` | Comma-separated domains to ingest |
+| `ATTCK_DOMAINS` | `enterprise-attack,mobile-attack,ics-attack,atlas` | Comma-separated ATT&CK/ATLAS domains to ingest |
 | `LOG_LEVEL` | `info` | `debug` / `info` / `warning` / `error` |
 
 To ingest only Enterprise (faster first start):
@@ -891,13 +986,24 @@ copy, newsletter pitch text, and current external submission tracking.
 
 ## Changelog
 
+### v2.1.0 (2026-06-17)
+
+**Sector relevance and IOC intelligence release:**
+- Added Sector Intelligence for client-facing actor relevance scoring by sector, geography, technology/environment, and activity window
+- Added local intelligence source tables and MISP Galaxy threat-actor sync for sector, region, origin, motivation, alias, and evidence observations
+- Added IOC Intelligence with ThreatFox, AlienVault OTX, custom JSON/CSV/TXT feeds, manual import, and report-upload IOC extraction
+- Added actor IOC tabs, IOC counts, CSV export, freshness filtering, and actor-aware IOC enrichment
+- Added centralized IOC sync controls to Reference Sync
+- Added searchable A-Z multi-select filters for Sector Intelligence sectors, regions, and technologies
+- Added actor shortcuts from Sector Intelligence to actor profile, TTPs, IOCs, and Navigator overlay
+
 ### v2.0.0 (2026-06-16)
 
 **OpenCTI-ready self-hosted CTI workbench:**
 - Added local LLM provider support for OpenAI-compatible endpoints such as Ollama, LM Studio, LocalAI, and vLLM
 - Added STIX 2.1 export for OpenCTI import from completed AI analysis sessions
 - Added DFIR Examples with indexed public report metadata, TTPs, actor mappings, and a local PDF workflow
-- Added Reference Sync page and API for MITRE ATT&CK Enterprise, Mobile, and ICS status and manual sync
+- Added Reference Sync page and API for MITRE ATT&CK Enterprise, Mobile, ICS, and MITRE ATLAS status and manual sync
 - Enriched ATT&CK Group Library with aliases, external references, technique evidence, tactic coverage, platform coverage, source names, and metadata
 - Added cached ATT&CK bundle fallback behavior for more reliable startup and sync
 - Added reviewer-facing demo video, GIF, poster, release notes, and [full v2 guide](docs/full-guide-v2.md)
@@ -922,7 +1028,7 @@ copy, newsletter pitch text, and current external submission tracking.
 - Added local investigation workspaces, coverage import/visualization, detection-backlog export, shareable deep links, and investigation-report export
 - Preserved Docker-only AI analysis, LLM technique assistant, private report sessions, campaigns, saved server layers, API workflows, PDF export, and automated ATT&CK synchronization
 
-**Known parity gap:** native MITRE ATLAS matrix ingestion remains separate from the embedded Anomaly Detection Atlas reference-book integration. Enterprise, Mobile, and ICS ATT&CK domains have full Docker support.
+Native MITRE ATLAS matrix ingestion is now integrated with the Docker sync pipeline beside Enterprise, Mobile, and ICS ATT&CK. The embedded Anomaly Detection Atlas reference book remains a separate 1200km research corpus.
 
 ### v0.5.0 (2026-06-12)
 

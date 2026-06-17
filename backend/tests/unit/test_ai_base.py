@@ -179,7 +179,8 @@ def test_system_prompt_contains_key_instructions():
 
 def test_user_template_interpolates_text():
     text = "Adversary used T1003 to dump credentials."
-    rendered = USER_TEMPLATE.format(text=text)
+    rendered = USER_TEMPLATE.format(domain="enterprise-attack", text=text)
+    assert "enterprise-attack" in rendered
     assert text in rendered
 
 
@@ -187,5 +188,5 @@ def test_user_template_truncates_at_40k():
     """The extract() method slices text to 40 000 chars before building the prompt."""
     from app.services.ai.base import USER_TEMPLATE
     big_text = "A" * 50_000
-    rendered = USER_TEMPLATE.format(text=big_text[:40_000])
+    rendered = USER_TEMPLATE.format(domain="enterprise-attack", text=big_text[:40_000])
     assert len(rendered) < 60_000

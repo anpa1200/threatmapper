@@ -85,6 +85,85 @@ export const reportsApi = {
     http.delete(`/analyze/sessions/${sessionId}`).then(() => {}),
 };
 
+// ── IOC Intelligence ─────────────────────────────────────────────────────────
+
+export interface IOCSourceStatus {
+  source_id: string;
+  label: string;
+  kind: string;
+  url: string;
+  enabled: boolean;
+  last_synced_at: string | null;
+  sync_status: string;
+  sync_error: string;
+}
+
+export interface IOCItem {
+  value: string;
+  type: string;
+  source: string;
+  source_url: string;
+  first_seen: string | null;
+  last_seen: string | null;
+  confidence: number;
+  tlp: string;
+  malware_family: string;
+  campaign: string;
+  tags: string[];
+  description: string;
+  relationship: string;
+  evidence: string;
+}
+
+export interface IOCSummary {
+  actor_attack_id: string;
+  count: number;
+  by_type: Record<string, number>;
+  sources: Record<string, number>;
+}
+
+export const iocApi = {
+  sources: (): Promise<IOCSourceStatus[]> => http.get('/ioc/sources').then(r => r.data),
+  createSource: (payload: {label: string; url: string; kind: 'custom-json' | 'custom-csv' | 'custom-txt'; source_id?: string}): Promise<IOCSourceStatus> =>
+    http.post('/ioc/sources', payload).then(r => r.data),
+  syncThreatFox: (days = 7): Promise<{source: string; days: number; inserted: number; updated: number; actor_links: number}> =>
+    http.post('/ioc/sync/threatfox', null, { params: { days } }).then(r => r.data),
+  syncSource: (sourceId: string): Promise<{source: string; days: null; inserted: number; updated: number; actor_links: number}> =>
+    http.post(`/ioc/sync/${sourceId}`).then(r => r.data),
+  actor: (actorId: string, params?: {days?: number; active_only?: boolean; limit?: number}): Promise<IOCItem[]> =>
+    http.get(`/ioc/actors/${actorId}`, { params: { days: params?.days ?? 180, active_only: params?.active_only ?? true, limit: params?.limit ?? 250 } }).then(r => r.data),
+  actorSummary: (actorId: string, days = 180): Promise<IOCSummary> =>
+    http.get(`/ioc/actors/${actorId}/summary`, { params: { days } }).then(r => r.data),
+  actorCounts: (actorIds: string[], days = 180, activeOnly = true): Promise<Record<string, number>> => {
+    const query = new URLSearchParams();
+    actorIds.forEach(id => query.append('actor_ids', id));
+    query.set('days', String(days));
+    query.set('active_only', String(activeOnly));
+    return http.get(`/ioc/actors/counts?${query.toString()}`).then(r => r.data.counts);
+  },
+  enrichActorOtx: (actorId: string): Promise<{
+    source: string;
+    actor_attack_id: string;
+    actor_name: string;
+    inserted: number;
+    updated: number;
+    actor_links: number;
+    searched_aliases: number;
+    pulses: number;
+    matched_pulses: number;
+  }> =>
+    http.post(`/ioc/actors/${actorId}/enrich/otx`).then(r => r.data),
+  uploadReport: (formData: FormData): Promise<{
+    filename: string;
+    extracted: number;
+    imported: {source: string; days: null; inserted: number; updated: number; actor_links: number};
+    preview: IOCItem[];
+  }> =>
+    http.post('/ioc/report', formData, { headers: { 'Content-Type': 'multipart/form-data' } }).then(r => r.data),
+  actorCsvUrl: (actorId: string, days = 180, activeOnly = true) =>
+    `/api/ioc/actors/${actorId}/export.csv?days=${days}&active_only=${activeOnly}`,
+};
+
 // ── Analysis ──────────────────────────────────────────────────────────────────
 
 export interface AnalysisResult {
@@ -209,6 +288,13 @@ export const syncApi = {
 
   taskStatus: (taskId: string): Promise<{ status: string; result: unknown }> =>
     http.get(`/sync/task/${taskId}`).then(r => r.data),
+
+  ioc: (days = 7): Promise<{
+    days: number;
+    totals: { inserted: number; updated: number; actor_links: number };
+    sources: Array<Record<string, unknown>>;
+  }> =>
+    http.post('/sync/ioc', null, { params: { days } }).then(r => r.data),
 };
 
 // ── Export ────────────────────────────────────────────────────────────────────
@@ -303,4 +389,87 @@ export const pipelineApi = {
   versions: (): Promise<DetectionVersion[]> => http.get(`${pipeline}/detections/versions`).then(r => r.data),
   audit: (): Promise<AuditEvent[]> => http.get(`${pipeline}/audit`).then(r => r.data),
   importJson: (kind: 'stix'|'misp'|'atlas', body: Record<string, unknown>): Promise<Record<string, unknown>> => http.post(`${pipeline}/import/${kind}`, body).then(r => r.data),
+};
+
+// ── Sector Intelligence and Actor Relevance ─────────────────────────────────
+
+export interface SectorOption {
+  id: string;
+  label: string;
+  actor_count: number;
+}
+
+export interface RegionOption {
+  id: string;
+  label: string;
+  actor_count: number;
+}
+
+export interface TechnologyOption {
+  id: string;
+  label: string;
+}
+
+export interface IntelSourceStatus {
+  source_id: string;
+  label: string;
+  kind: string;
+  url: string;
+  enabled: boolean;
+  last_synced_at: string | null;
+  sync_status: string;
+  sync_error: string;
+}
+
+export interface ActorRelevance {
+  actor_attack_id: string;
+  actor_name: string;
+  aliases: string[];
+  score: number;
+  relevance: 'high' | 'medium' | 'low';
+  technique_count: number;
+  recent_campaign_count: number;
+  campaign_count: number;
+  last_activity: string | null;
+  reasons: string[];
+  evidence: Array<{
+    type: string;
+    value: string;
+    source: string;
+    url: string;
+    confidence: number;
+    evidence: string;
+  }>;
+  techniques: Array<{
+    attack_id: string;
+    name: string;
+    tactics: string[];
+  }>;
+}
+
+export const sectorApi = {
+  sources: (): Promise<IntelSourceStatus[]> => http.get('/sector/sources').then(r => r.data),
+  sectors: (): Promise<SectorOption[]> => http.get('/sector/sectors').then(r => r.data),
+  regions: (): Promise<RegionOption[]> => http.get('/sector/regions').then(r => r.data),
+  technologies: (): Promise<TechnologyOption[]> => http.get('/sector/technologies').then(r => r.data),
+  syncMispGalaxy: (): Promise<{source: string; actors: number; matched: number; observations: number}> =>
+    http.post('/sector/sync/misp-galaxy').then(r => r.data),
+  relevance: (params: {
+    sectors: string[];
+    regions?: string[];
+    technologies?: string[];
+    days?: number;
+    domain?: string;
+    limit?: number;
+  }): Promise<ActorRelevance[]> =>
+    {
+      const query = new URLSearchParams();
+      params.sectors.forEach(item => query.append('sectors', item));
+      (params.regions ?? []).forEach(item => query.append('regions', item));
+      (params.technologies ?? []).forEach(item => query.append('technologies', item));
+      query.set('days', String(params.days ?? 365));
+      query.set('domain', params.domain ?? 'enterprise-attack');
+      query.set('limit', String(params.limit ?? 25));
+      return http.get(`/sector/relevance?${query.toString()}`).then(r => r.data);
+    },
 };

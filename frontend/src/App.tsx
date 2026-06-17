@@ -12,6 +12,7 @@ import { Operations } from '@/pages/Operations';
 import { Pipeline } from '@/pages/Pipeline';
 import { Sync } from '@/pages/Sync';
 import { Examples } from '@/pages/Examples';
+import { SectorIntel } from '@/pages/SectorIntel';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -42,6 +43,7 @@ export default function App() {
               <Route path="/pipeline" element={<Pipeline />} />
               <Route path="/sync" element={<Sync />} />
               <Route path="/examples" element={<Examples />} />
+              <Route path="/sector-intel" element={<SectorIntel />} />
             </Routes>
           </main>
         </div>

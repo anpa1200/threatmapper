@@ -2,7 +2,7 @@ import { useAppStore } from '@/store';
 import type { Domain } from '@/types/attack';
 import { DOMAIN_LABELS } from '@/types/attack';
 
-const DOMAINS: Domain[] = ['enterprise-attack', 'mobile-attack', 'ics-attack'];
+const DOMAINS: Domain[] = ['enterprise-attack', 'mobile-attack', 'ics-attack', 'atlas'];
 
 export function Header({ title }: { title: string }) {
   const { domain, setDomain, selectedTechniques, clearTechniques } = useAppStore();

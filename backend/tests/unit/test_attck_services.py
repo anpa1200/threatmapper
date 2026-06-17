@@ -7,6 +7,7 @@ from types import SimpleNamespace
 import pytest
 
 from app.services.attck import downloader, version_checker
+from app.services.attck.ingestor import parse_bundle
 
 
 class _Response:
@@ -40,6 +41,18 @@ def test_get_latest_version_ignores_non_bundle_files(monkeypatch):
     monkeypatch.setattr(downloader.requests, "get", fake_get)
 
     assert downloader.get_latest_version("enterprise-attack") == "15.0"
+
+
+def test_get_latest_version_supports_atlas_sha(monkeypatch):
+    def fake_get(url, headers, timeout):
+        assert url == downloader.ATLAS_CONTENTS_URL
+        assert headers["Accept"] == "application/vnd.github.v3+json"
+        assert timeout == 30
+        return _Response(payload={"sha": "abcdef1234567890"})
+
+    monkeypatch.setattr(downloader.requests, "get", fake_get)
+
+    assert downloader.get_latest_version("atlas") == "abcdef123456"
 
 
 def test_get_latest_version_raises_when_no_json_bundles(monkeypatch):
@@ -79,6 +92,21 @@ def test_download_bundle_streams_to_temp_file_then_renames(monkeypatch, tmp_path
         True,
         120,
     )]
+
+
+def test_download_bundle_uses_atlas_raw_url(monkeypatch, tmp_path):
+    requests_seen = []
+
+    def fake_get(url, stream, timeout):
+        requests_seen.append((url, stream, timeout))
+        return _Response(chunks=[b'{"type":"bundle","objects":[]}'])
+
+    monkeypatch.setattr(downloader.requests, "get", fake_get)
+
+    path = downloader.download_bundle("atlas", "abcdef123456", str(tmp_path))
+
+    assert path == tmp_path / "atlas-abcdef123456.json"
+    assert requests_seen == [(downloader.ATLAS_RAW_BUNDLE_URL, True, 120)]
 
 
 def test_download_bundle_removes_temp_file_on_stream_error(monkeypatch, tmp_path):
@@ -123,6 +151,60 @@ def test_ensure_bundle_falls_back_to_cached_version(monkeypatch, tmp_path):
     )
 
     assert downloader.ensure_bundle("enterprise-attack", str(tmp_path)) == (cached, "19.1")
+
+
+def test_parse_bundle_supports_atlas_ids_and_subtech_parent(tmp_path):
+    bundle = tmp_path / "atlas-test.json"
+    bundle.write_text(
+        """
+        {
+          "type": "bundle",
+          "objects": [
+            {
+              "type": "x-mitre-tactic",
+              "id": "x-mitre-tactic--atlas-recon",
+              "name": "Reconnaissance",
+              "x_mitre_shortname": "reconnaissance",
+              "external_references": [
+                {"source_name": "mitre-atlas", "external_id": "AML.TA0002", "url": "https://atlas.mitre.org/tactics/AML.TA0002"}
+              ]
+            },
+            {
+              "type": "attack-pattern",
+              "id": "attack-pattern--atlas-parent",
+              "name": "Create Proxy AI Model",
+              "description": "Create a proxy AI model.",
+              "x_mitre_is_subtechnique": false,
+              "kill_chain_phases": [{"kill_chain_name": "mitre-atlas", "phase_name": "resource-development"}],
+              "external_references": [
+                {"source_name": "mitre-atlas", "external_id": "AML.T0005", "url": "https://atlas.mitre.org/techniques/AML.T0005"}
+              ]
+            },
+            {
+              "type": "attack-pattern",
+              "id": "attack-pattern--atlas-child",
+              "name": "Train Proxy via Replication",
+              "description": "Train a proxy by replication.",
+              "x_mitre_is_subtechnique": true,
+              "kill_chain_phases": [{"kill_chain_name": "mitre-atlas", "phase_name": "resource-development"}],
+              "external_references": [
+                {"source_name": "mitre-atlas", "external_id": "AML.T0005.001", "url": "https://atlas.mitre.org/techniques/AML.T0005.001"}
+              ]
+            }
+          ]
+        }
+        """,
+        encoding="utf-8",
+    )
+
+    parsed = parse_bundle(bundle, "atlas")
+
+    assert parsed["tactics"][0]["attack_id"] == "AML.TA0002"
+    parent, child = parsed["techniques"]
+    assert parent["attack_id"] == "AML.T0005"
+    assert child["attack_id"] == "AML.T0005.001"
+    assert child["parent_attack_id"] == "AML.T0005"
+    assert child["tactic_shortnames"] == ["resource-development"]
 
 
 def test_sync_outdated_domains_updates_only_domains_that_need_it(monkeypatch, tmp_path):

@@ -126,7 +126,7 @@ async def analyze(
     session_id = str(db_session.id)
 
     try:
-        result = await adapter.extract(body)
+        result = await adapter.extract(body, domain)
         apt_matches = await _rank_apt_groups(result, domain, session)
         await _store_result(db_session, result, apt_matches, session)
         await session.commit()
@@ -178,7 +178,7 @@ async def analyze_stream(
     async def event_generator() -> AsyncIterator[str]:
         buffer = ""
         try:
-            async for token in adapter.stream_extract(body):
+            async for token in adapter.stream_extract(body, domain):
                 buffer += token
                 yield _sse({"type": "token", "content": token})
 
