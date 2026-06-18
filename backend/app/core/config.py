@@ -31,6 +31,7 @@ class Settings(BaseSettings):
     # IOC intelligence feeds
     threatfox_auth_key: str = ""
     otx_api_key: str = ""
+    virustotal_api_key: str = ""
 
     # Optional trusted-proxy team authentication. Keep disabled for local use.
     auth_enabled: bool = False

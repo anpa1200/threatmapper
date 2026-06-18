@@ -14,6 +14,7 @@ import { Sync } from '@/pages/Sync';
 import { Examples } from '@/pages/Examples';
 import { SectorIntel } from '@/pages/SectorIntel';
 import { Troubleshooting } from '@/pages/Troubleshooting';
+import { VirusTotalLookup } from '@/pages/VirusTotalLookup';
 import { SystemSelfTestPopup } from '@/components/SystemSelfTestPopup';
 import { GlobalErrorPopup } from '@/components/GlobalErrorPopup';
 
@@ -48,6 +49,7 @@ export default function App() {
               <Route path="/examples" element={<Examples />} />
               <Route path="/sector-intel" element={<SectorIntel />} />
               <Route path="/troubleshooting" element={<Troubleshooting />} />
+              <Route path="/virustotal" element={<VirusTotalLookup />} />
             </Routes>
           </main>
           <GlobalErrorPopup />

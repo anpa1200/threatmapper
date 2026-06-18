@@ -38,6 +38,7 @@ Optional IOC enrichment providers:
 ```env
 THREATFOX_AUTH_KEY=
 OTX_API_KEY=
+VIRUSTOTAL_API_KEY=
 ```
 
 Leave these blank if you only want ATT&CK/ATLAS mapping, sector relevance, and
@@ -155,3 +156,15 @@ Do not use confidential reports in public or third-party environments.
 5. Open ATT&CK Group Library and select an actor.
 6. Use the IOCs tab to sync ThreatFox/OTX, add a custom feed, import IOCs, or
    upload a private report for IOC extraction.
+
+## 8. VirusTotal IOC Lookup
+
+Set `VIRUSTOTAL_API_KEY` in `.env`, restart the API, and open:
+
+```text
+http://localhost:3000/virustotal
+```
+
+Paste an IP, domain, URL, MD5, SHA1, or SHA256. The page shows a structured
+VirusTotal summary and provides actions to add found TTPs to `My TTPs`, show
+found TTPs on the matrix, and open any matched local adversary profile.

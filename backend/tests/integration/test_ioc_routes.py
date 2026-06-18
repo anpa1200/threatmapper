@@ -89,6 +89,16 @@ async def test_actor_otx_enrich_reports_missing_key(client: AsyncClient, monkeyp
 
 
 @pytest.mark.asyncio
+async def test_virustotal_lookup_reports_missing_key(client: AsyncClient, monkeypatch):
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "virustotal_api_key", "")
+    resp = await client.post("/api/ioc/virustotal/lookup", json={"indicator": "8.8.8.8"})
+    assert resp.status_code == 400
+    assert "VIRUSTOTAL_API_KEY" in resp.json()["detail"]
+
+
+@pytest.mark.asyncio
 async def test_custom_ioc_source_kind_validation(client: AsyncClient):
     resp = await client.post(
         "/api/ioc/sources",

@@ -106,6 +106,7 @@ services:
       ATTCK_DATA_DIR: /app/data/attck
       THREATFOX_AUTH_KEY: ${THREATFOX_AUTH_KEY:-}
       OTX_API_KEY: ${OTX_API_KEY:-}
+      VIRUSTOTAL_API_KEY: ${VIRUSTOTAL_API_KEY:-}
       LOG_LEVEL: ${LOG_LEVEL:-info}
       AUTH_ENABLED: ${AUTH_ENABLED:-false}
       AUTH_DEFAULT_ROLE: ${AUTH_DEFAULT_ROLE:-admin}

@@ -143,6 +143,30 @@ export interface IOCSummary {
   sources: Record<string, number>;
 }
 
+export interface VirusTotalLookupResult {
+  indicator: string;
+  type: string;
+  virustotal_url: string;
+  permalink: string;
+  summary: string;
+  reputation: number;
+  last_analysis_stats: Record<string, number>;
+  last_analysis_date: number | null;
+  tags: string[];
+  threat_names: string[];
+  detections: Array<{ engine: string; category: string; result: string }>;
+  ttps: Array<{ attack_id: string; name: string; tactics: string[]; url: string }>;
+  actors: Array<{
+    attack_id: string;
+    name: string;
+    aliases: string[];
+    matched_terms: string[];
+    technique_ids: string[];
+    url: string;
+  }>;
+  context: Record<string, unknown>;
+}
+
 export const iocApi = {
   sources: (): Promise<IOCSourceStatus[]> => http.get('/ioc/sources').then(r => r.data),
   createSource: (payload: {label: string; url: string; kind: 'custom-json' | 'custom-csv' | 'custom-txt'; source_id?: string}): Promise<IOCSourceStatus> =>
@@ -183,6 +207,8 @@ export const iocApi = {
     http.post('/ioc/report', formData, { headers: { 'Content-Type': 'multipart/form-data' } }).then(r => r.data),
   actorCsvUrl: (actorId: string, days = 180, activeOnly = true) =>
     `/api/ioc/actors/${actorId}/export.csv?days=${days}&active_only=${activeOnly}`,
+  virusTotalLookup: (payload: { indicator: string; domain: string }): Promise<VirusTotalLookupResult> =>
+    http.post('/ioc/virustotal/lookup', payload).then(r => r.data),
 };
 
 // ── Analysis ──────────────────────────────────────────────────────────────────

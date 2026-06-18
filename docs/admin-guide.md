@@ -33,6 +33,7 @@ Important settings:
 | `ATTCK_DOMAINS` | ATT&CK/ATLAS domains to ingest, for example `enterprise-attack,mobile-attack,ics-attack,atlas` |
 | `THREATFOX_AUTH_KEY` | Optional abuse.ch ThreatFox key for IOC sync |
 | `OTX_API_KEY` | Optional AlienVault OTX key for actor pulse IOC enrichment |
+| `VIRUSTOTAL_API_KEY` | Optional VirusTotal key for on-demand IOC reputation and ATT&CK context lookup |
 | `LOG_LEVEL` | API/worker log verbosity |
 | `ATLAS_SYNC_INTERVAL` | Reference-book sync interval |
 
@@ -212,3 +213,43 @@ For IOC handoff, use the actor IOC tab or:
 ```bash
 GET /api/ioc/actors/{actor_id}/export.csv
 ```
+
+## VirusTotal Lookup
+
+VirusTotal integration is an on-demand enrichment workflow. It does not import
+or persist VirusTotal responses.
+
+Configure:
+
+```env
+VIRUSTOTAL_API_KEY=
+```
+
+Supported IOC types:
+
+- IP address
+- domain
+- URL
+- MD5
+- SHA1
+- SHA256
+
+API:
+
+```text
+POST /api/ioc/virustotal/lookup
+```
+
+Request:
+
+```json
+{"indicator":"8.8.8.8","domain":"enterprise-attack"}
+```
+
+The response includes VirusTotal verdict counts, selected detection rows, tags,
+threat labels, extracted ATT&CK IDs, and local actor matches when a returned
+name/tag/label matches an ingested ATT&CK group name or alias.
+
+In the UI, use `VirusTotal Lookup` to add found TTPs to `My TTPs`, show found
+TTPs on the Navigator matrix, open a matched adversary page, or overlay a
+matched adversary on the matrix.

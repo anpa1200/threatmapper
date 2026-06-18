@@ -27,6 +27,7 @@ from app.services.ioc_intel import (
     sync_otx_subscribed_pulses,
     sync_threatfox,
 )
+from app.services.virustotal import lookup_virustotal_ioc
 
 router = APIRouter(prefix="/ioc", tags=["IOC Intelligence"])
 
@@ -109,9 +110,66 @@ class IOCCountsOut(BaseModel):
     counts: dict[str, int]
 
 
+class VirusTotalLookupIn(BaseModel):
+    indicator: str = Field(..., min_length=1, max_length=2048)
+    domain: str = "enterprise-attack"
+
+
+class VirusTotalTechniqueOut(BaseModel):
+    attack_id: str
+    name: str = ""
+    tactics: list[str] = Field(default_factory=list)
+    url: str = ""
+
+
+class VirusTotalActorOut(BaseModel):
+    attack_id: str
+    name: str
+    aliases: list[str] = Field(default_factory=list)
+    matched_terms: list[str] = Field(default_factory=list)
+    technique_ids: list[str] = Field(default_factory=list)
+    url: str = ""
+
+
+class VirusTotalDetectionOut(BaseModel):
+    engine: str
+    category: str
+    result: str
+
+
+class VirusTotalLookupOut(BaseModel):
+    indicator: str
+    type: str
+    virustotal_url: str
+    permalink: str
+    summary: str
+    reputation: int
+    last_analysis_stats: dict[str, int] = Field(default_factory=dict)
+    last_analysis_date: int | None = None
+    tags: list[str] = Field(default_factory=list)
+    threat_names: list[str] = Field(default_factory=list)
+    detections: list[VirusTotalDetectionOut] = Field(default_factory=list)
+    ttps: list[VirusTotalTechniqueOut] = Field(default_factory=list)
+    actors: list[VirusTotalActorOut] = Field(default_factory=list)
+    context: dict[str, Any] = Field(default_factory=dict)
+
+
 @router.get("/sources", response_model=list[IOCSourceOut])
 async def sources(session: AsyncSession = Depends(get_session)):
     return await list_ioc_sources(session)
+
+
+@router.post("/virustotal/lookup", response_model=VirusTotalLookupOut)
+async def virustotal_lookup(payload: VirusTotalLookupIn, session: AsyncSession = Depends(get_session)):
+    try:
+        return await lookup_virustotal_ioc(session, payload.indicator, domain=payload.domain)
+    except ValueError as exc:
+        raise HTTPException(404 if "not found" in str(exc).lower() else 400, str(exc)) from exc
+    except RuntimeError as exc:
+        status_code = 400 if "VIRUSTOTAL_API_KEY" in str(exc) else 502
+        raise HTTPException(status_code, str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(502, f"VirusTotal lookup failed: {type(exc).__name__}: {exc}") from exc
 
 
 @router.post("/sources", response_model=IOCSourceOut)

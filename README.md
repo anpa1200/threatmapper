@@ -112,6 +112,7 @@ also available at [`docs/demo-videos/dfir-report-ai-analysis-compare.gif`](docs/
 | **Compare — Reports** | Browse stored AI analyses (DB 2); re-run group-similarity comparison without re-calling the LLM |
 | **Sector Intelligence** | Local actor relevance scoring by client sector, geography, environment keywords, activity window, ATT&CK campaign recency, and MISP Galaxy evidence |
 | **IOC Intelligence** | Local source-backed IOC storage with ThreatFox sync, manual report import, actor IOC tabs, freshness filtering, confidence, source links, and CSV export |
+| **VirusTotal Lookup** | On-demand IOC reputation lookup for IPs, domains, URLs, and hashes with clean verdicts, extracted ATT&CK TTPs, local actor matches, and matrix/My TTP actions |
 | **DFIR Examples** | Indexed public DFIR Report examples with TTP/actor metadata and a local PDF workflow for private AI analysis |
 | **Export** | ATT&CK Navigator JSON layers, PDF reports, plain JSON, and STIX 2.1 bundles for OpenCTI import |
 | **Reference Sync** | Manual and scheduled MITRE ATT&CK and MITRE ATLAS sync for Enterprise, Mobile, ICS, and ATLAS with status reporting and stale-data indicators |
@@ -672,6 +673,31 @@ source_url, first_seen, last_seen, confidence, tlp, tags, description
 ```
 
 TXT feeds are treated as one IOC per line with best-effort type inference.
+
+### VirusTotal Lookup — On-Demand IOC Context
+
+VirusTotal Lookup checks one IOC at a time and does not persist the VirusTotal
+response. Configure `VIRUSTOTAL_API_KEY` in `.env`, then open `/virustotal` in
+the Docker frontend.
+
+Supported inputs:
+
+- IP address
+- domain
+- URL
+- MD5, SHA1, or SHA256
+
+The page displays verdict counts, selected engine detections, tags, threat
+labels, ATT&CK IDs found in VirusTotal context, and local actor matches when a
+returned name/tag/label matches an ingested ATT&CK group name or alias.
+
+Actions:
+
+- add found TTPs to `My TTPs`
+- show found TTPs on the matrix
+- open a matched adversary page
+- overlay a matched adversary on the matrix
+- add the matched adversary's TTPs to the working set
 
 ---
 

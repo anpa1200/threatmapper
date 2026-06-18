@@ -519,7 +519,50 @@ GET  /api/ioc/actors/G0049/summary?days=180
 GET  /api/ioc/actors/G0049/export.csv?days=180&active_only=true
 ```
 
-## 16. Reference Book
+## 16. VirusTotal IOC Lookup
+
+VirusTotal Lookup checks one IOC at a time and turns the response into a
+structured analyst view. It is an on-demand enrichment workflow and does not
+store the VirusTotal response in the local IOC database.
+
+Configure:
+
+```env
+VIRUSTOTAL_API_KEY=...
+```
+
+Open:
+
+```text
+http://localhost:3000/virustotal
+```
+
+Supported inputs:
+
+- IP address
+- domain
+- URL
+- MD5
+- SHA1
+- SHA256
+
+The page displays:
+
+- malicious, suspicious, harmless, and undetected verdict counts
+- selected engine detections
+- VirusTotal tags and threat labels
+- ATT&CK technique IDs found in VirusTotal context
+- local adversary matches when names or aliases match ATT&CK group profiles
+
+Available actions:
+
+- `Add to My TTPs`
+- `Show on matrix`
+- `Actor page`
+- `Overlay actor`
+- `Add actor TTPs`
+
+## 17. Reference Book
 
 The embedded reference book provides additional detection and anomaly context.
 
@@ -533,7 +576,7 @@ Use it from:
 The reference book supports paragraph-level links into relevant defensive
 guidance.
 
-## 17. Operations And Pipeline
+## 18. Operations And Pipeline
 
 The Operations and Pipeline areas provide a working structure for future
 investigation management and intake workflows.
@@ -551,7 +594,7 @@ Current capabilities include:
 
 Treat these as analyst workflow scaffolding and integration points.
 
-## 18. Exports
+## 19. Exports
 
 ### PDF Report
 
@@ -607,7 +650,7 @@ From Navigator:
 
 ![ATT&CK Navigator export controls](assets/adversarygraph-v2/24-m1Zh30Hm7e6wmzZq1Mjdog.webp)
 
-## 19. API Overview
+## 20. API Overview
 
 Common endpoints:
 
@@ -645,7 +688,7 @@ GET  /api/ioc/actors/{actor_id}
 
 ![Docker Compose startup logs](assets/adversarygraph-v2/11-z4L2KcZIixQjdkrcBt8OlA.webp)
 
-## 20. Analyst Review Rules
+## 21. Analyst Review Rules
 
 ![Practical attribution workflow](assets/adversarygraph-v2/31-JDE0azpONj0OVW95p9yZkg.webp)
 
@@ -660,7 +703,7 @@ Use these rules before promoting output:
 - Reject mappings without behavioral evidence.
 - Document uncertainty in final reporting.
 
-## 21. Privacy And Deployment Boundaries
+## 22. Privacy And Deployment Boundaries
 
 Do not upload confidential reports into public demos.
 
@@ -673,7 +716,7 @@ For private analysis:
 - define retention policy for uploads, raw responses, and exports
 - back up PostgreSQL if report history matters
 
-## 22. Recommended End-to-End Workflow
+## 23. Recommended End-to-End Workflow
 
 1. Start with a public or authorized report.
 2. Run AI Analysis.
@@ -689,7 +732,7 @@ For private analysis:
 12. Record uncertainty and avoid attribution claims unless supported by
     independent evidence.
 
-## 23. Visual Appendix
+## 24. Visual Appendix
 
 The following images are the screenshots, diagrams, and infographics used in
 the published AdversaryGraph v2.0 article and retained here as local project
