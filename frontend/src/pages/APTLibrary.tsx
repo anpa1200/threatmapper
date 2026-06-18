@@ -5,7 +5,7 @@ import { aptApi, iocApi, operationsApi } from '@/api/client';
 import { Header } from '@/components/Layout/Header';
 import { TechniqueModal } from '@/components/TechniqueModal';
 import type { CampaignListItem } from '@/types/attack';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { getActorReports } from '@/config/intelligence';
 import { ReportReferences } from '@/components/ReportReferences';
 
@@ -13,6 +13,7 @@ type GroupTab = 'overview' | 'techniques' | 'campaigns' | 'reports' | 'iocs';
 
 export function APTLibrary() {
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const { domain, version, addTechniques, replaceTechniques, setOverlayGroup } = useAppStore();
   const [search, setSearch] = useState('');
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
@@ -453,6 +454,11 @@ export function APTLibrary() {
                   onUploadReport={(file) => uploadReportIocs.mutate(file)}
                   onAddSource={(payload) => createIocSource.mutate(payload)}
                   onSyncSource={(sourceId) => syncIocSource.mutate(sourceId)}
+                  onAddTechniques={(ids) => addTechniques(ids)}
+                  onShowTechniques={(ids) => {
+                    replaceTechniques(ids);
+                    navigate('/navigator');
+                  }}
                 />
               )}
             </div>
@@ -497,6 +503,8 @@ function ActorIOCs({
   onUploadReport,
   onAddSource,
   onSyncSource,
+  onAddTechniques,
+  onShowTechniques,
 }: {
   actorId: string;
   actorName: string;
@@ -537,11 +545,14 @@ function ActorIOCs({
   onUploadReport: (file: File) => void;
   onAddSource: (payload: {label: string; url: string; kind: 'custom-json' | 'custom-csv' | 'custom-txt'}) => void;
   onSyncSource: (sourceId: string) => void;
+  onAddTechniques: (ids: string[]) => void;
+  onShowTechniques: (ids: string[]) => void;
 }) {
   const [feedLabel, setFeedLabel] = useState('');
   const [feedUrl, setFeedUrl] = useState('');
   const [feedKind, setFeedKind] = useState<'custom-json' | 'custom-csv' | 'custom-txt'>('custom-json');
   const customSources = sources.filter(source => source.kind.startsWith('custom-'));
+  const iocTechniqueIds = Array.from(new Set(items.flatMap(item => item.technique_ids ?? []))).sort();
 
   return (
     <div className="space-y-4">
@@ -558,6 +569,11 @@ function ActorIOCs({
                 {type}: {count}
               </span>
             ))}
+            {Object.entries(summary?.techniques ?? {}).slice(0, 12).map(([techniqueId, count]) => (
+              <span key={techniqueId} className="rounded border border-purple-900 bg-purple-950/30 px-2 py-1 font-mono text-[10px] text-purple-300">
+                {techniqueId}: {count}
+              </span>
+            ))}
             {!summary?.count && <span className="text-xs text-gray-600">No active IOCs stored for this actor.</span>}
           </div>
         </div>
@@ -572,6 +588,20 @@ function ActorIOCs({
             <a href={iocApi.actorCsvUrl(actorId, 180, true)} className="secondary-action">
               Export CSV
             </a>
+            <button
+              onClick={() => onAddTechniques(iocTechniqueIds)}
+              disabled={!iocTechniqueIds.length}
+              className="secondary-action disabled:opacity-40"
+            >
+              Add IOC TTPs
+            </button>
+            <button
+              onClick={() => onShowTechniques(iocTechniqueIds)}
+              disabled={!iocTechniqueIds.length}
+              className="secondary-action disabled:opacity-40"
+            >
+              Show IOC TTPs
+            </button>
           </div>
           {syncResult && (
             <div className="mt-3 rounded border border-green-900 bg-green-950/30 p-2 text-[10px] text-green-300">
@@ -734,6 +764,35 @@ function ActorIOCs({
                       {item.tags.slice(0, 6).map(tag => (
                         <span key={tag} className="rounded bg-gray-900 px-1.5 py-0.5 text-[10px] text-gray-500">{tag}</span>
                       ))}
+                    </div>
+                  )}
+                  {(item.technique_ids ?? []).length > 0 && (
+                    <div className="mt-2 flex flex-wrap items-center gap-1">
+                      {(item.technique_ids ?? []).slice(0, 10).map(techniqueId => (
+                        <button
+                          key={techniqueId}
+                          type="button"
+                          onClick={() => onShowTechniques([techniqueId])}
+                          className="rounded border border-purple-900 bg-purple-950/30 px-1.5 py-0.5 font-mono text-[10px] text-purple-300 hover:border-purple-500"
+                          title="Show this IOC-linked TTP on the matrix"
+                        >
+                          {techniqueId}
+                        </button>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() => onAddTechniques(item.technique_ids ?? [])}
+                        className="rounded border border-gray-800 px-1.5 py-0.5 text-[10px] text-gray-400 hover:border-gray-600 hover:text-white"
+                      >
+                        Add
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onShowTechniques(item.technique_ids ?? [])}
+                        className="rounded border border-gray-800 px-1.5 py-0.5 text-[10px] text-gray-400 hover:border-gray-600 hover:text-white"
+                      >
+                        Matrix
+                      </button>
                     </div>
                   )}
                 </div>

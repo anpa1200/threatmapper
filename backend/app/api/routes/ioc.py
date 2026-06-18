@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 import io
+import re
 from datetime import datetime
 from typing import Any
 
@@ -61,6 +62,7 @@ class IOCImportIn(BaseModel):
     actor_name: str | None = None
     malware_family: str = ""
     campaign: str = ""
+    technique_ids: list[str] = Field(default_factory=list)
     source: str = "manual-report-import"
     source_url: str = ""
     first_seen: str | None = None
@@ -94,6 +96,7 @@ class IOCOut(BaseModel):
     tlp: str
     malware_family: str
     campaign: str
+    technique_ids: list[str] = Field(default_factory=list)
     tags: list[str]
     description: str
     relationship: str
@@ -307,6 +310,7 @@ async def import_ioc_route(payload: IOCImportRequest, session: AsyncSession = De
             actor_name=item.actor_name,
             malware_family=item.malware_family,
             campaign=item.campaign,
+            technique_ids=item.technique_ids,
             source=item.source,
             source_url=item.source_url,
             first_seen=item.first_seen,
@@ -337,6 +341,7 @@ async def import_iocs_from_report(
         raise HTTPException(400, "Uploaded report is empty")
     try:
         text = extract_text(content, file.filename or "report.txt")
+        report_techniques = sorted({match.upper() for match in re.findall(r"\bT\d{4}(?:\.\d{3})?\b", text, flags=re.I)})
         items = extract_iocs_from_text(
             text,
             actor_attack_id=actor_attack_id or "",
@@ -344,6 +349,8 @@ async def import_iocs_from_report(
             source_url=source_url or "",
             confidence=max(0, min(100, confidence)),
         )
+        for item in items:
+            item.technique_ids = report_techniques
         result = await import_iocs(session, items) if items else {"source": "manual-report-import", "inserted": 0, "updated": 0, "actor_links": 0}
         preview = [
             {
@@ -357,6 +364,7 @@ async def import_iocs_from_report(
                 "tlp": item.tlp,
                 "malware_family": item.malware_family,
                 "campaign": item.campaign,
+                "technique_ids": item.technique_ids or [],
                 "tags": item.tags or [],
                 "description": item.description,
                 "relationship": "attributed-to" if (item.actor_attack_id or item.actor_name) else "extracted-from-report",
@@ -442,6 +450,7 @@ async def actor_ioc_csv_route(
             "tlp",
             "malware_family",
             "campaign",
+            "technique_ids",
             "tags",
             "description",
             "relationship",
@@ -450,7 +459,11 @@ async def actor_ioc_csv_route(
     )
     writer.writeheader()
     for row in rows:
-        writer.writerow({**row, "tags": ",".join(row.get("tags") or [])})
+        writer.writerow({
+            **row,
+            "technique_ids": ",".join(row.get("technique_ids") or []),
+            "tags": ",".join(row.get("tags") or []),
+        })
     output.seek(0)
     return StreamingResponse(
         iter([output.getvalue()]),

@@ -27,6 +27,7 @@ OTX_SOURCE_ID = "alienvault-otx"
 MALPEDIA_SOURCE_ID = "malpedia"
 MANUAL_SOURCE_ID = "manual-report-import"
 CUSTOM_FEED_KINDS = {"custom-json", "custom-csv", "custom-txt"}
+ATTACK_ID_RE = re.compile(r"\bT\d{4}(?:\.\d{3})?\b", re.IGNORECASE)
 
 
 @dataclass
@@ -37,6 +38,7 @@ class IOCImportItem:
     actor_name: str | None = None
     malware_family: str = ""
     campaign: str = ""
+    technique_ids: list[str] | None = None
     source: str = MANUAL_SOURCE_ID
     source_url: str = ""
     first_seen: str | None = None
@@ -592,6 +594,7 @@ async def actor_iocs(
         if key in seen:
             continue
         seen.add(key)
+        technique_ids = indicator.technique_ids or _indicator_technique_ids(indicator)
         result.append(
             {
                 "value": indicator.value,
@@ -604,6 +607,7 @@ async def actor_iocs(
                 "tlp": indicator.tlp,
                 "malware_family": indicator.malware_family,
                 "campaign": indicator.campaign,
+                "technique_ids": technique_ids,
                 "tags": indicator.tags or [],
                 "description": indicator.description,
                 "relationship": link.relationship_type,
@@ -617,10 +621,13 @@ async def actor_ioc_summary(session: AsyncSession, actor_id: str, days: int = 18
     items = await actor_iocs(session, actor_id, days=days, active_only=True, limit=1000)
     by_type: dict[str, int] = {}
     sources: dict[str, int] = {}
+    techniques: dict[str, int] = {}
     for item in items:
         by_type[item["type"]] = by_type.get(item["type"], 0) + 1
         sources[item["source"]] = sources.get(item["source"], 0) + 1
-    return {"actor_attack_id": actor_id, "count": len(items), "by_type": by_type, "sources": sources}
+        for technique_id in item.get("technique_ids") or []:
+            techniques[technique_id] = techniques.get(technique_id, 0) + 1
+    return {"actor_attack_id": actor_id, "count": len(items), "by_type": by_type, "sources": sources, "techniques": techniques}
 
 
 async def actor_ioc_counts(
@@ -885,6 +892,7 @@ def _otx_pulse_to_import_items(pulse: dict[str, Any]) -> list[IOCImportItem]:
                 indicator_type=str(indicator.get("type") or _infer_ioc_type(value)).lower(),
                 actor_name=adversary,
                 campaign=pulse_name,
+                technique_ids=_extract_attack_ids(pulse),
                 source=OTX_SOURCE_ID,
                 source_url=pulse_url,
                 first_seen=indicator.get("created") or pulse.get("created"),
@@ -966,6 +974,7 @@ def _record_to_import(record: dict[str, Any], source_id: str, default_source_url
         actor_name=_optional_str(_first(record, "actor_name", "threat_actor", "intrusion_set", "group")),
         malware_family=_optional_str(_first(record, "malware_family", "malware", "family")),
         campaign=_optional_str(_first(record, "campaign", "operation")),
+        technique_ids=_technique_list(_first(record, "technique_ids", "ttps", "attack_ids", "mitre_attack", "techniques")),
         source=source_id,
         source_url=_optional_str(_first(record, "source_url", "url", "reference", "link")) or default_source_url,
         first_seen=_optional_str(_first(record, "first_seen", "firstSeen", "created")),
@@ -1005,6 +1014,82 @@ def _as_tags(value: Any) -> list[str]:
     return [item.strip() for item in str(value).split(",") if item.strip()]
 
 
+def _technique_list(value: Any) -> list[str]:
+    if value is None:
+        return []
+    values = value if isinstance(value, list) else str(value).split(",")
+    attack_ids: list[str] = []
+    for item in values:
+        if isinstance(item, dict):
+            text = " ".join(str(item.get(key) or "") for key in ("attack_id", "id", "technique_id", "external_id", "name"))
+        else:
+            text = str(item)
+        attack_ids.extend(_extract_attack_ids(text))
+    return _dedupe_attack_ids(attack_ids)
+
+
+def _item_technique_ids(item: IOCImportItem) -> list[str]:
+    values: list[Any] = [
+        item.technique_ids or [],
+        item.value,
+        item.indicator_type,
+        item.malware_family,
+        item.campaign,
+        item.source_url,
+        item.description,
+        item.tags or [],
+        item.raw or {},
+    ]
+    attack_ids: list[str] = []
+    for value in values:
+        attack_ids.extend(_extract_attack_ids(value))
+    return _dedupe_attack_ids(attack_ids)
+
+
+def _indicator_technique_ids(indicator: IOCIndicator) -> list[str]:
+    values = [
+        indicator.value,
+        indicator.indicator_type,
+        indicator.malware_family,
+        indicator.campaign,
+        indicator.source_url,
+        indicator.description,
+        indicator.tags or [],
+        indicator.raw or {},
+    ]
+    attack_ids: list[str] = []
+    for value in values:
+        attack_ids.extend(_extract_attack_ids(value))
+    return _dedupe_attack_ids(attack_ids)
+
+
+def _extract_attack_ids(value: Any) -> list[str]:
+    return [match.upper() for match in ATTACK_ID_RE.findall(_flatten_text(value))]
+
+
+def _dedupe_attack_ids(values: list[str]) -> list[str]:
+    seen: set[str] = set()
+    result = []
+    for value in values:
+        attack_id = value.upper().strip()
+        if attack_id and attack_id not in seen:
+            seen.add(attack_id)
+            result.append(attack_id)
+    return sorted(result)
+
+
+def _flatten_text(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, (str, int, float, bool)):
+        return str(value)
+    if isinstance(value, dict):
+        return " ".join(_flatten_text(item) for pair in value.items() for item in pair)
+    if isinstance(value, (list, tuple, set)):
+        return " ".join(_flatten_text(item) for item in value)
+    return str(value)
+
+
 def _dedupe_tags(values: list[str]) -> list[str]:
     seen: set[str] = set()
     result = []
@@ -1018,6 +1103,7 @@ def _dedupe_tags(values: list[str]) -> list[str]:
 
 
 async def _upsert_indicator(session: AsyncSession, item: IOCImportItem) -> tuple[int, bool]:
+    technique_ids = _item_technique_ids(item)
     stmt = (
         insert(IOCIndicator)
         .values(
@@ -1031,6 +1117,7 @@ async def _upsert_indicator(session: AsyncSession, item: IOCImportItem) -> tuple
             tlp=item.tlp,
             malware_family=item.malware_family,
             campaign=item.campaign,
+            technique_ids=technique_ids,
             description=item.description,
             tags=item.tags or [],
             raw=item.raw or {},
@@ -1044,6 +1131,7 @@ async def _upsert_indicator(session: AsyncSession, item: IOCImportItem) -> tuple
                 "tlp": item.tlp,
                 "malware_family": item.malware_family,
                 "campaign": item.campaign,
+                "technique_ids": technique_ids,
                 "description": item.description,
                 "tags": item.tags or [],
                 "raw": item.raw or {},

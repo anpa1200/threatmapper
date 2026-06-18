@@ -111,7 +111,7 @@ also available at [`docs/demo-videos/dfir-report-ai-analysis-compare.gif`](docs/
 | **Compare — Campaigns** | Jaccard similarity ranking of your TTPs vs every named MITRE campaign (e.g. SolarWinds C0024, Operation Ghost C0023) |
 | **Compare — Reports** | Browse stored AI analyses (DB 2); re-run group-similarity comparison without re-calling the LLM |
 | **Sector Intelligence** | Local actor relevance scoring by client sector, geography, environment keywords, activity window, ATT&CK campaign recency, and MISP Galaxy evidence |
-| **IOC Intelligence** | Local source-backed IOC storage with ThreatFox sync, manual report import, actor IOC tabs, freshness filtering, confidence, source links, and CSV export |
+| **IOC Intelligence** | Local source-backed IOC storage with ThreatFox sync, manual report import, actor IOC tabs, IOC-to-TTP mapping, freshness filtering, confidence, source links, and CSV export |
 | **VirusTotal Lookup** | On-demand IOC reputation lookup for IPs, domains, URLs, and hashes with clean verdicts, extracted ATT&CK TTPs, local actor matches, and matrix/My TTP actions |
 | **DFIR Examples** | Indexed public DFIR Report examples with TTP/actor metadata and a local PDF workflow for private AI analysis |
 | **Export** | ATT&CK Navigator JSON layers, PDF reports, plain JSON, and STIX 2.1 bundles for OpenCTI import |
@@ -654,6 +654,8 @@ Actor IOC tabs show:
 - active IOCs for the selected actor
 - source and source URL
 - confidence, TLP, first/last seen, malware family, campaign, tags, and evidence
+- ATT&CK technique IDs found in IOC metadata, feed records, OTX pulses, or uploaded reports
+- actions to add IOC-linked TTPs to `My TTPs` or show them on the matrix
 - CSV export for client handoff or downstream tooling
 
 API:
@@ -676,7 +678,7 @@ Custom JSON/CSV records can use these fields:
 
 ```text
 value, type, actor_attack_id, actor_name, malware_family, campaign,
-source_url, first_seen, last_seen, confidence, tlp, tags, description
+technique_ids, source_url, first_seen, last_seen, confidence, tlp, tags, description
 ```
 
 TXT feeds are treated as one IOC per line with best-effort type inference.

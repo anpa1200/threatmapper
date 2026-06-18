@@ -493,6 +493,9 @@ Actor mapping is conservative:
 - ThreatFox IOCs are linked only when IOC metadata contains an actor name or alias
 - Malpedia malware families are linked only when family attribution, aliases, or
   references match a local ATT&CK actor name or alias
+- IOC records store `technique_ids` when a source explicitly provides ATT&CK IDs
+  or when IDs are found in feed metadata, OTX pulses, custom records, or uploaded
+  report text
 - each IOC keeps source URL, first/last seen, confidence, TLP, malware family, tags,
   and the relationship evidence
 
@@ -503,13 +506,14 @@ Workflow:
 3. Open the IOCs tab.
 4. Click Sync ThreatFox, Sync Malpedia, add a custom feed, or import
    report-backed IOCs through the API.
-5. Review current IOCs and export CSV when needed.
+5. Review current IOCs, add IOC-linked TTPs to `My TTPs`, show IOC-linked TTPs
+   on the matrix, and export CSV when needed.
 
 Custom JSON/CSV feeds can include:
 
 ```text
 value, type, actor_attack_id, actor_name, malware_family, campaign,
-source_url, first_seen, last_seen, confidence, tlp, tags, description
+technique_ids, source_url, first_seen, last_seen, confidence, tlp, tags, description
 ```
 
 TXT feeds are parsed as one IOC per line. AdversaryGraph infers basic types such as

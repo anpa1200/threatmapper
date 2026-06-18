@@ -130,6 +130,7 @@ export interface IOCItem {
   tlp: string;
   malware_family: string;
   campaign: string;
+  technique_ids: string[];
   tags: string[];
   description: string;
   relationship: string;
@@ -141,6 +142,7 @@ export interface IOCSummary {
   count: number;
   by_type: Record<string, number>;
   sources: Record<string, number>;
+  techniques: Record<string, number>;
 }
 
 export interface VirusTotalLookupResult {

@@ -39,6 +39,7 @@ class IOCIndicator(Base):
     tlp: Mapped[str] = mapped_column(String(30), default="clear")
     malware_family: Mapped[str] = mapped_column(String(255), default="")
     campaign: Mapped[str] = mapped_column(String(255), default="")
+    technique_ids: Mapped[list] = mapped_column(JSONB, default=list)
     description: Mapped[str] = mapped_column(Text, default="")
     tags: Mapped[list] = mapped_column(JSONB, default=list)
     raw: Mapped[dict] = mapped_column(JSONB, default=dict)
