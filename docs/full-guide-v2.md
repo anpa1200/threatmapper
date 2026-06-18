@@ -94,7 +94,7 @@ Open:
 Health should return:
 
 ```json
-{"status":"ok","version":"2.2.0"}
+{"status":"ok","version":"2.4.0"}
 ```
 
 Run the built-in deployment self-test after Docker startup:

@@ -35,8 +35,8 @@ export function APTLibrary() {
   });
   const groupIds = groups.map(group => group.attack_id).join(',');
   const { data: groupIocCounts = {} } = useQuery({
-    queryKey: ['actor-ioc-counts', groupIds],
-    queryFn: () => iocApi.actorCounts(groups.map(group => group.attack_id), 180, false),
+    queryKey: ['actor-ioc-counts', groupIds, 180, true],
+    queryFn: () => iocApi.actorCounts(groups.map(group => group.attack_id), 180, true),
     enabled: groups.length > 0,
   });
 
@@ -156,7 +156,7 @@ export function APTLibrary() {
                   </div>
                   <div className="text-xs text-gray-400 mt-0.5">
                     {group.technique_count} techniques
-                    {` · ${groupIocCounts[group.attack_id] ?? 0} known IOCs`}
+                    {` · ${groupIocCounts[group.attack_id] ?? 0} current IOCs`}
                     {group.aliases.length > 0 && ` · ${group.aliases.slice(0, 2).join(', ')}`}
                   </div>
                 </button>

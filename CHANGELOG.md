@@ -4,6 +4,24 @@
 
 No unreleased changes.
 
+## v2.4.0 - 2026-06-18
+
+- Added daily dynamic reference database synchronization for MITRE ATT&CK,
+  MISP Galaxy, and configured IOC intelligence sources.
+- Added an external persistent Postgres data directory controlled by
+  `ADVERSARYGRAPH_DB_DIR`, so private reports, custom IOCs, custom feeds, and
+  analyst data survive Docker image rebuilds.
+- Added `POST /api/sync/dynamic-db` and a Reference Sync UI action for manually
+  refreshing the dynamic reference database.
+- Added a migration helper for moving existing Docker named-volume Postgres data
+  into the external deployment directory.
+- Extended deployment self-test output with database host/name and external data
+  directory details.
+- Fixed ATT&CK Group Library IOC count mismatch by using the same active
+  180-day IOC definition in the group list and actor IOC tab.
+- Updated docs for the dynamic DB model, external data directory, release
+  workflow, and IOC count semantics.
+
 ## v2.2.0 - 2026-06-18
 
 - Added an internal Docker troubleshooting page at `/troubleshooting` with
