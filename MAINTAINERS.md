@@ -1,6 +1,6 @@
 # Maintainers
 
-ThreatMapper is maintained by Andrey Pautov.
+AdversaryGraph is maintained by Andrey Pautov.
 
 ## Ownership
 
@@ -21,4 +21,4 @@ ThreatMapper is maintained by Andrey Pautov.
 
 ## Project Status
 
-ThreatMapper is pre-`v1.0` and should be treated as an actively developed analyst workbench. The public web workspace is suitable for exploration. Private reports should be processed only in a self-hosted deployment controlled by the operator.
+AdversaryGraph is pre-`v1.0` and should be treated as an actively developed analyst workbench. The public web workspace is suitable for exploration. Private reports should be processed only in a self-hosted deployment controlled by the operator.

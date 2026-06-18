@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Renamed user-facing product branding from ThreatMapper to AdversaryGraph while
+  retaining legacy repository URLs, database defaults, and STIX custom fields for
+  compatibility.
+
 ## v2.1.0 - 2026-06-17
 
 - Added Sector Intelligence MVP for client-facing actor relevance scoring.
@@ -63,7 +67,7 @@
 ## v0.8.5
 
 - Public intelligence and ecosystem release.
-- Promoted ThreatMapper Web as the browser-native workspace.
+- Promoted AdversaryGraph Web as the browser-native workspace.
 - Added correlated CTI/IR report and 1200km resource indexes.
 - Added persistent evidence, source, confidence, mapping quality, notes, and coverage maturity fields.
 - Added Anomaly Detection Atlas integration and ATT&CK technique cross-links.

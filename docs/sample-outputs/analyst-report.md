@@ -1,4 +1,4 @@
-# ThreatMapper Demo Analyst Report
+# AdversaryGraph Demo Analyst Report
 
 ## Summary
 

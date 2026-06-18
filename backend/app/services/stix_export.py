@@ -19,7 +19,7 @@ def build_analysis_stix_bundle(
 ) -> dict[str, Any]:
     """Build a STIX 2.1 bundle suitable for OpenCTI import.
 
-    ThreatMapper is TTP/report-centric, not IOC-centric. The export therefore
+    AdversaryGraph is TTP/report-centric, not IOC-centric. The export therefore
     models reviewed analysis as a STIX report linked to ATT&CK attack-patterns
     and optional intrusion-set similarity leads. Similarity leads are not
     attribution claims.
@@ -38,7 +38,7 @@ def build_analysis_stix_bundle(
             "id": identity_id,
             "created": now,
             "modified": now,
-            "name": "ThreatMapper",
+            "name": "AdversaryGraph",
             "identity_class": "system",
             "description": "Self-hosted CTI-to-ATT&CK analysis workbench.",
         }
@@ -65,7 +65,7 @@ def build_analysis_stix_bundle(
         object_refs.append(intrusion_set_id)
         objects.append(_intrusion_set_object(intrusion_set_id, group_attack_id, group_name, match, group_meta, now, identity_id))
 
-    report_name = session.name or session.filename or f"ThreatMapper analysis {session_id[:8]}"
+    report_name = session.name or session.filename or f"AdversaryGraph analysis {session_id[:8]}"
     report = {
         "type": "report",
         "spec_version": "2.1",
@@ -74,14 +74,14 @@ def build_analysis_stix_bundle(
         "modified": now,
         "created_by_ref": identity_id,
         "name": report_name,
-        "description": result.summary or "ThreatMapper ATT&CK mapping analysis.",
+        "description": result.summary or "AdversaryGraph ATT&CK mapping analysis.",
         "published": _stix_time(session.created_at) if session.created_at else now,
         "report_types": ["threat-report"],
         "object_refs": sorted(set(object_refs)) or [identity_id],
         "external_references": [
             {
-                "source_name": "ThreatMapper",
-                "description": "Local ThreatMapper analysis session",
+                "source_name": "AdversaryGraph",
+                "description": "Local AdversaryGraph analysis session",
                 "external_id": session_id,
             }
         ],
@@ -119,7 +119,7 @@ def _attack_pattern_object(
     ]
     evidence = item.get("evidence")
     if evidence:
-        refs.append({"source_name": "ThreatMapper evidence", "description": str(evidence)[:500]})
+        refs.append({"source_name": "AdversaryGraph evidence", "description": str(evidence)[:500]})
     return {
         "type": "attack-pattern",
         "spec_version": "2.1",
@@ -157,7 +157,7 @@ def _intrusion_set_object(
         "created_by_ref": identity_id,
         "name": meta.get("name") or name,
         "description": meta.get("description") or (
-            "ThreatMapper similarity lead based on ATT&CK TTP overlap. "
+            "AdversaryGraph similarity lead based on ATT&CK TTP overlap. "
             "This is not an attribution claim."
         ),
         "aliases": aliases,

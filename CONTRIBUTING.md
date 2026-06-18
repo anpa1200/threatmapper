@@ -1,6 +1,6 @@
 # Contributing
 
-ThreatMapper welcomes focused contributions that improve CTI analyst workflows, documentation, validation, and operational reliability.
+AdversaryGraph welcomes focused contributions that improve CTI analyst workflows, documentation, validation, and operational reliability.
 
 ## Good First Contributions
 

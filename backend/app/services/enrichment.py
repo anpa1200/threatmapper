@@ -13,7 +13,7 @@ async def enrich_observable(kind: str, value: str, provider: str = "auto") -> di
         raise ValueError(f"Unsupported enrichment provider: {provider}")
     path = "ip" if kind in {"ipv4", "ipv6"} else "domain"
     async with httpx.AsyncClient(timeout=20, follow_redirects=True) as client:
-        response = await client.get(f"https://rdap.org/{path}/{value}", headers={"User-Agent": "ThreatMapper/0.8"})
+        response = await client.get(f"https://rdap.org/{path}/{value}", headers={"User-Agent": "AdversaryGraph/0.8"})
         response.raise_for_status()
     data = response.json()
     return {

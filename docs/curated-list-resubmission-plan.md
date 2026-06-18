@@ -1,6 +1,6 @@
 # Curated List Resubmission Plan
 
-ThreatMapper was previously declined from a curated awesome list because it did not yet show enough maturity, documentation, ownership transparency, quality evidence, age, and non-promotional signal.
+AdversaryGraph was previously declined from a curated awesome list because it did not yet show enough maturity, documentation, ownership transparency, quality evidence, age, and non-promotional signal.
 
 This plan defines the evidence required before resubmission.
 
@@ -30,7 +30,7 @@ This plan defines the evidence required before resubmission.
 Use neutral wording:
 
 ```text
-Adds ThreatMapper, a self-hosted CTI-to-detection workbench for ATT&CK mapping,
+Adds AdversaryGraph, a self-hosted CTI-to-detection workbench for ATT&CK mapping,
 TTP-overlap comparison, detection-gap review, and analyst-reviewed exports.
 
 Maturity evidence:

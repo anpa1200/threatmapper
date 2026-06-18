@@ -1,6 +1,6 @@
 # Quickstart
 
-This guide starts a local ThreatMapper Docker deployment for evaluation.
+This guide starts a local AdversaryGraph Docker deployment for evaluation.
 
 ## Prerequisites
 

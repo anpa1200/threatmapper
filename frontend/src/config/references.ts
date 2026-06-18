@@ -17,7 +17,7 @@ export function getEcosystemLinks(attackId: string): EcosystemLink[] {
   const base = attackId.split('.')[0];
   const links: EcosystemLink[] = [
     { label: 'CTI Analyst Field Manual',  url: 'https://1200km.com/cti-analyst-field-manual/' },
-    { label: 'ThreatMapper Web Tool',     url: 'https://1200km.com/threat-matrix/' },
+    { label: 'AdversaryGraph Web Tool',     url: 'https://1200km.com/threat-matrix/' },
   ];
   if (IDENTITY_TECHNIQUES.has(base))
     links.splice(1, 0, { label: 'Insider Threat Detection Guide', url: 'https://1200km.com/insider-threat-detection/' });

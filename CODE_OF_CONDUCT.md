@@ -1,6 +1,6 @@
 # Code of Conduct
 
-ThreatMapper follows a simple professional conduct standard.
+AdversaryGraph follows a simple professional conduct standard.
 
 Participants should:
 

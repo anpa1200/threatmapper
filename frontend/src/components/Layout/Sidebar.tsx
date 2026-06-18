@@ -40,7 +40,7 @@ export function Sidebar() {
         <div className="flex items-center gap-2">
           <span className="text-mitre-accent text-2xl font-bold">⬡</span>
           <div>
-            <div className="text-sm font-bold text-white tracking-wide">ThreatMapper</div>
+            <div className="text-sm font-bold text-white tracking-wide">AdversaryGraph</div>
             <div className="text-xs text-gray-400">ATT&CK Intelligence</div>
           </div>
         </div>
@@ -116,7 +116,7 @@ export function Sidebar() {
             <NavLink to="/sync" className="text-[10px] text-gray-500 hover:text-gray-300">ATT&CK up to date</NavLink>
           </div>
         )}
-        <div className="text-[10px] text-gray-600 mt-0.5">ThreatMapper v2.0.0</div>
+        <div className="text-[10px] text-gray-600 mt-0.5">AdversaryGraph v2.1.0</div>
       </div>
     </aside>
   );

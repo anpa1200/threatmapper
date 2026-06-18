@@ -1,6 +1,6 @@
 # Demo Videos
 
-This directory contains short reviewer-facing workflow videos for ThreatMapper.
+This directory contains short reviewer-facing workflow videos for AdversaryGraph.
 
 ## DFIR Report to AI Analysis to Compare
 
@@ -14,7 +14,7 @@ The demo shows a local analyst workflow:
 
 1. Open indexed DFIR Report examples.
 2. Create or select a local PDF from the original source report.
-3. Upload the PDF to ThreatMapper AI Analysis.
+3. Upload the PDF to AdversaryGraph AI Analysis.
 4. Stream ATT&CK technique extraction.
 5. Review selected TTPs in Navigator for comparison and follow-on analysis.
 

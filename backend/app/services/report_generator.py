@@ -34,7 +34,7 @@ class _Report(FPDF):
             return
         self.set_font("Helvetica", "B", 8)
         self.set_text_color(*_RED)
-        self.cell(0, 7, "ThreatMapper - Threat Intelligence Report", align="R")
+        self.cell(0, 7, "AdversaryGraph - Threat Intelligence Report", align="R")
         self.ln(1)
         self.set_draw_color(*_RED)
         self.line(10, self.get_y(), 200, self.get_y())
@@ -49,7 +49,7 @@ class _Report(FPDF):
         self.set_text_color(*_GRAY)
         self.cell(
             0, 8,
-            f"Page {self.page_no()} | ThreatMapper | MITRE ATT&CK® Framework",
+            f"Page {self.page_no()} | AdversaryGraph | MITRE ATT&CK® Framework",
             align="C",
         )
 
@@ -128,7 +128,7 @@ def _cover(pdf: _Report, data: dict) -> None:
     pdf.set_xy(14, 14)
     pdf.set_font("Helvetica", "B", 26)
     pdf.set_text_color(*_WHITE)
-    pdf.cell(0, 12, "ThreatMapper", ln=True)
+    pdf.cell(0, 12, "AdversaryGraph", ln=True)
 
     pdf.set_x(14)
     pdf.set_font("Helvetica", "", 14)

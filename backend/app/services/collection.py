@@ -31,7 +31,7 @@ async def fetch_rss(url: str) -> list[dict]:
     if parsed.scheme not in {"http", "https"}:
         raise ValueError("RSS source must use HTTP or HTTPS")
     async with httpx.AsyncClient(timeout=20, follow_redirects=True) as client:
-        response = await client.get(url, headers={"User-Agent": "ThreatMapper/0.8"})
+        response = await client.get(url, headers={"User-Agent": "AdversaryGraph/0.8"})
         response.raise_for_status()
     root = ET.fromstring(response.content)
     entries = root.findall(".//item") or root.findall(".//{http://www.w3.org/2005/Atom}entry")

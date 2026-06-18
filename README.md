@@ -1,4 +1,4 @@
-# ThreatMapper
+# AdversaryGraph
 
 **AI-assisted CTI-to-detection workbench for MITRE ATT&CK mapping and detection-gap analysis.**
 
@@ -14,7 +14,9 @@
 
 **Current release: v2.1.0 · [Release Summary](docs/release-summary-v2.1.0.md) · [Live Intelligence Workspace](https://1200km.com/threat-matrix/) · [Documentation & Usage Guide](https://1200km.com/threatmapper-docs/) · [Full v2 Guide](docs/full-guide-v2.md) · [1200km Article](https://1200km.com/articles/threatmapper-v2-self-hosted-ai-cti-platform.html) · [Medium Walkthrough](https://medium.com/@1200km/threatmapper-v2-0-i-built-a-self-hosted-ai-threat-intelligence-platform-941a80cc5a65)**
 
-ThreatMapper AI is a self-hosted CTI-to-detection workbench for mapping threat reports to MITRE ATT&CK, comparing TTP overlap with known groups and campaigns, identifying detection gaps, and exporting analyst-ready outputs.
+AdversaryGraph AI is a self-hosted CTI-to-detection workbench for mapping threat reports to MITRE ATT&CK, comparing TTP overlap with known groups and campaigns, identifying detection gaps, and exporting analyst-ready outputs.
+
+> **Rename note:** AdversaryGraph was previously named ThreatMapper. Existing repository URLs, site slugs, database defaults, Docker helper paths, and STIX custom fields may retain `threatmapper` identifiers for backward compatibility during the rename.
 
 **Live Web Workspace:** https://1200km.com/threat-matrix/
 
@@ -26,11 +28,11 @@ ThreatMapper AI is a self-hosted CTI-to-detection workbench for mapping threat r
 
 **Medium Walkthrough:** https://medium.com/@1200km/threatmapper-v2-0-i-built-a-self-hosted-ai-threat-intelligence-platform-941a80cc5a65
 
-> **Validation and attribution limitation:** ThreatMapper assists analysts but does not replace analyst validation. LLM-generated mappings may contain false positives, false negatives, or ambiguous technique assignments. Group/campaign similarity is based on TTP overlap and is an investigation lead, not attribution proof.
+> **Validation and attribution limitation:** AdversaryGraph assists analysts but does not replace analyst validation. LLM-generated mappings may contain false positives, false negatives, or ambiguous technique assignments. Group/campaign similarity is based on TTP overlap and is an investigation lead, not attribution proof.
 
 ## Project Maturity Evidence
 
-ThreatMapper v2.1.0 publishes the operational evidence expected from a serious self-hosted CTI tool:
+AdversaryGraph v2.1.0 publishes the operational evidence expected from a serious self-hosted CTI tool:
 
 | Area | Evidence |
 |---|---|
@@ -53,7 +55,7 @@ The public Web workspace is intended for exploration. Do not upload confidential
 
 ## Validation and Limitations
 
-ThreatMapper assists analysts but does not replace analyst validation. LLM-generated ATT&CK mappings may include false positives, false negatives, or ambiguous technique assignments. Group and campaign similarity is based on TTP overlap and should be treated as an investigation lead, not attribution proof.
+AdversaryGraph assists analysts but does not replace analyst validation. LLM-generated ATT&CK mappings may include false positives, false negatives, or ambiguous technique assignments. Group and campaign similarity is based on TTP overlap and should be treated as an investigation lead, not attribution proof.
 
 ## Screenshots And Visual Evidence
 
@@ -70,8 +72,8 @@ also available at [`docs/demo-videos/dfir-report-ai-analysis-compare.gif`](docs/
 
 | Matrix and actor workflow | Analysis and review workflow |
 |---|---|
-| ![ThreatMapper ATT&CK matrix workspace](docs/screenshots/02_1x07j05Kn78RJY96S3Ga4IVQ.png) | ![ThreatMapper analysis workflow](docs/screenshots/10_1xCsGSK7APVQvnvTDCLxXKNA.png) |
-| ![ThreatMapper actor overlay](docs/screenshots/13_1xFpAXPkiL1j3fiuOkL7tp8A.png) | ![ThreatMapper evidence review](docs/screenshots/20_1xVAfpLRWhfkB0pwRR5C4Nlw.png) |
+| ![AdversaryGraph ATT&CK matrix workspace](docs/screenshots/02_1x07j05Kn78RJY96S3Ga4IVQ.png) | ![AdversaryGraph analysis workflow](docs/screenshots/10_1xCsGSK7APVQvnvTDCLxXKNA.png) |
+| ![AdversaryGraph actor overlay](docs/screenshots/13_1xFpAXPkiL1j3fiuOkL7tp8A.png) | ![AdversaryGraph evidence review](docs/screenshots/20_1xVAfpLRWhfkB0pwRR5C4Nlw.png) |
 
 ---
 
@@ -124,11 +126,11 @@ also available at [`docs/demo-videos/dfir-report-ai-analysis-compare.gif`](docs/
 
 ## Web vs Docker
 
-**ThreatMapper Web** is the public browser-native workspace for ATT&CK exploration, manual layers, group overlays and comparisons, local workspaces, ecosystem research, coverage-gap analysis, and browser-generated exports. It does not perform LLM report extraction or backend private-report storage.
+**AdversaryGraph Web** is the public browser-native workspace for ATT&CK exploration, manual layers, group overlays and comparisons, local workspaces, ecosystem research, coverage-gap analysis, and browser-generated exports. It does not perform LLM report extraction or backend private-report storage.
 
-**ThreatMapper Docker** is the full self-hosted platform for provider-configured AI extraction, private PostgreSQL-backed analyses, campaigns, APIs, PDF reports, detection-rule workflows, and scheduled ATT&CK synchronization.
+**AdversaryGraph Docker** is the full self-hosted platform for provider-configured AI extraction, private PostgreSQL-backed analyses, campaigns, APIs, PDF reports, detection-rule workflows, and scheduled ATT&CK synchronization.
 
-ThreatMapper is self-hosted. In Docker mode, report content is sent only to the LLM provider configured by the operator. For fully private analysis, use a local or private LLM gateway. The public Web workspace does not perform LLM report extraction or backend report storage.
+AdversaryGraph is self-hosted. In Docker mode, report content is sent only to the LLM provider configured by the operator. For fully private analysis, use a local or private LLM gateway. The public Web workspace does not perform LLM report extraction or backend report storage.
 
 The Docker deployment gives the operator control over storage, networking, and provider configuration. Trusted-header authentication and roles are available when configured, but internet-facing deployments still require TLS, an authenticating reverse proxy, restricted network exposure, backups, retention controls, and secrets management.
 
@@ -355,7 +357,7 @@ Click any technique to open the detail panel with an embedded chat. The full ATT
 
 ### Reference Book and Exact TTP Crosslinks
 
-ThreatMapper integrates the complete Anomaly Detection Atlas as an autonomous Docker service.
+AdversaryGraph integrates the complete Anomaly Detection Atlas as an autonomous Docker service.
 Click **Reference Book** in the sidebar to open the full documentation site.
 
 Each matrix technique panel loads `ttp-reference-index.json` and shows links only to exact matching
@@ -513,12 +515,12 @@ From **Analyze**, click **Download PDF** on any completed analysis. Includes:
 From **Analyze**, click **↓ STIX/OpenCTI** on a completed analysis to download a
 STIX 2.1 bundle. The bundle is designed for OpenCTI import and contains:
 
-- a STIX `report` for the ThreatMapper analysis session
+- a STIX `report` for the AdversaryGraph analysis session
 - ATT&CK `attack-pattern` objects for extracted TTPs
 - optional `intrusion-set` objects for group-similarity leads
-- ThreatMapper custom metadata for confidence, review status, evidence source, similarity score, model, provider, and ATT&CK domain
+- AdversaryGraph custom metadata for confidence, review status, evidence source, similarity score, model, provider, and ATT&CK domain
 
-ThreatMapper does not export IOCs here. Group matches are exported as
+AdversaryGraph does not export IOCs here. Group matches are exported as
 TTP-overlap investigation leads, not attribution claims.
 
 #### Navigator layer PDF
@@ -533,7 +535,7 @@ Click **↓ Navigator layer** to download a `.json` file compatible with [MITRE 
 
 ### MITRE Sync
 
-ThreatMapper tracks new ATT&CK releases automatically.
+AdversaryGraph tracks new ATT&CK releases automatically.
 
 #### Automatic sync (daily)
 
@@ -593,7 +595,7 @@ Sessions in DB 2 can be re-compared at any time via `POST /api/analyze/sessions/
 
 ### Sector Intelligence DB — Actor Relevance Evidence
 
-ThreatMapper stores feed-backed actor relevance observations locally so scoring
+AdversaryGraph stores feed-backed actor relevance observations locally so scoring
 does not depend on live source availability at query time.
 
 Initial v3 MVP source:
@@ -624,7 +626,7 @@ GET  /api/sector/relevance?sectors=telecom&regions=Israel&days=365
 
 ### IOC Intelligence DB — Actor Observables
 
-ThreatMapper stores source-backed indicators locally and links them to actors only
+AdversaryGraph stores source-backed indicators locally and links them to actors only
 when there is explicit evidence. ATT&CK itself does not provide live IOCs.
 
 Supported initial sources:
@@ -633,7 +635,7 @@ Supported initial sources:
   `THREATFOX_AUTH_KEY` in `.env` before syncing. The recent IOC API supports
   1-7 day windows; use ThreatFox exports or custom feeds for larger windows.
 - **AlienVault OTX** — actor-attributed pulse search. Set `OTX_API_KEY` in
-  `.env`; ThreatMapper searches ATT&CK actor names/aliases, imports pulse
+  `.env`; AdversaryGraph searches ATT&CK actor names/aliases, imports pulse
   indicators, and links them when pulse adversary/title/tags match the actor.
 - **Custom / personal IOC feeds** — private JSON, CSV, or TXT feeds registered
   from the actor IOC tab or API.
@@ -787,7 +789,7 @@ All configuration is via environment variables in `.env`.
 
 | Variable | Default | Description |
 |---|---|---|
-| `DB_NAME` | `threatmapper` | PostgreSQL database name |
+| `DB_NAME` | `threatmapper` | PostgreSQL database name. The legacy default is kept so existing deployments continue to start after upgrade. |
 | `DB_USER` | `tm_user` | Database user |
 | `DB_PASS` | `changeme` | Database password — **change this** |
 | `ANTHROPIC_API_KEY` | — | Anthropic / Claude API key |
@@ -892,7 +894,7 @@ PYTHONPATH=. pytest tests/unit/ -v
 
 ### Database schema and migrations
 
-ThreatMapper uses SQLAlchemy `create_all()` on startup — no migration framework required for a fresh install.
+AdversaryGraph uses SQLAlchemy `create_all()` on startup — no migration framework required for a fresh install.
 
 If upgrading an existing deployment, apply these `ALTER TABLE` statements manually:
 
@@ -940,7 +942,7 @@ class MyProviderAdapter(LLMAdapter):
 
 ### Production and Security Note
 
-ThreatMapper is suitable for local labs, private analyst workstations, internal CTI workflows, and controlled self-hosted deployments. Internet-facing deployments require additional access control and hardening.
+AdversaryGraph is suitable for local labs, private analyst workstations, internal CTI workflows, and controlled self-hosted deployments. Internet-facing deployments require additional access control and hardening.
 
 ### Security checklist
 
@@ -952,7 +954,7 @@ ThreatMapper is suitable for local labs, private analyst workstations, internal 
 - [ ] Restrict CORS to approved origins
 - [ ] Use strong, unique secrets and rotate LLM API keys regularly
 - [ ] Configure PostgreSQL backups, restore testing, retention, and deletion controls
-- [ ] For any internet-facing deployment, place ThreatMapper behind nginx or Caddy with TLS and authentication
+- [ ] For any internet-facing deployment, place AdversaryGraph behind nginx or Caddy with TLS and authentication
 - [ ] Review trusted-header authentication and role configuration before team deployment
 - [ ] API keys are read from environment variables and never stored in the database
 
@@ -1033,7 +1035,7 @@ copy, newsletter pitch text, and current external submission tracking.
 
 **Web-workspace parity plus AI:**
 - Added intelligence discovery dashboard and global actor/TTP/report search
-- Bundled the same correlated CTI/IR report and 1200km resource indexes used by ThreatMapper Web
+- Bundled the same correlated CTI/IR report and 1200km resource indexes used by AdversaryGraph Web
 - Added actor report tabs and technique-level reports, practical resources, detection logic, mitigation guidance, threat-hunting hypotheses, and hunt-plan export
 - Added persistent evidence, source, confidence, mapping quality, notes, and coverage maturity assessments
 - Added local investigation workspaces, coverage import/visualization, detection-backlog export, shareable deep links, and investigation-report export
@@ -1044,12 +1046,12 @@ Native MITRE ATLAS matrix ingestion is now integrated with the Docker sync pipel
 ### v0.5.0 (2026-06-12)
 
 **Public intelligence and ecosystem release:**
-- ThreatMapper Web promoted as the public intelligence workspace and primary ecosystem entry point
+- AdversaryGraph Web promoted as the public intelligence workspace and primary ecosystem entry point
 - Permanent crawlable actor and technique pages generated from the current public-workspace dataset
 - Global actor, alias, technique, report, publisher, and evidence search
 - Intelligence discovery dashboard, shareable deep links, report filtering, and event-level Google Analytics
 - Correlated CTI/IR reports, defensive guidance, threat hunting, evidence assessment, and detection coverage workflows
-- Strong cross-links to ThreatMapper docs, CTI Analyst Field Manual, Israel Threat Actors CTI, Anomaly Detection Atlas, ITDR Handbook, and 1200km Medium research
+- Strong cross-links to AdversaryGraph docs, CTI Analyst Field Manual, Israel Threat Actors CTI, Anomaly Detection Atlas, ITDR Handbook, and 1200km Medium research
 
 ### v0.4.0 (2026-06-11)
 
@@ -1062,12 +1064,12 @@ Native MITRE ATLAS matrix ingestion is now integrated with the Docker sync pipel
 **Clickable TTP detail panels:**
 - Every technique ID throughout the UI is now a clickable link — click to open a slide-in detail panel
 - Panel shows: technique name and ID, tactics, platforms, full description, detection guidance, Anomaly Detection Atlas cross-references, Ecosystem Resources section
-- **Ecosystem Resources** links: Anomaly Detection Atlas (per-technique deep links), ITDR Handbook (auto-linked for identity techniques: T1078, T1098, T1110, T1111, T1136, T1531, T1539, T1550, T1552, T1555, T1556, T1558, T1606, T1621), CTI Analyst Field Manual, ThreatMapper Web Tool
+- **Ecosystem Resources** links: Anomaly Detection Atlas (per-technique deep links), ITDR Handbook (auto-linked for identity techniques: T1078, T1098, T1110, T1111, T1136, T1531, T1539, T1550, T1552, T1555, T1556, T1558, T1606, T1621), CTI Analyst Field Manual, AdversaryGraph Web Tool
 - Wired in: Navigator matrix cells, ATT&CK Group Library technique list, Compare (shared/gap/overview badges), Group vs Group (overlap badges and technique table)
 - Close with **Esc** or click outside
 
 **Ecosystem integration:**
-- Sidebar links added: ThreatMapper Web Tool (no-Docker browser version), CTI Knowledge Base, 1200km.com
+- Sidebar links added: AdversaryGraph Web Tool (no-Docker browser version), CTI Knowledge Base, 1200km.com
 - Anomaly Detection Atlas links now point to `https://1200km.com/anomaly-detection-atlas` (previously `localhost`) — works without running the full Docker stack
 
 ### v0.3.0 (2026-06-06)

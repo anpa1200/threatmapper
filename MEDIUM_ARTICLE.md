@@ -1,15 +1,15 @@
-# ThreatMapper AI: A Self-Hosted CTI-to-Detection Workbench — Here's How to Use It
+# AdversaryGraph AI: A Self-Hosted CTI-to-Detection Workbench — Here's How to Use It
 
 *Map adversary behaviour to MITRE ATT&CK in seconds, compare against the currently ingested ATT&CK group and campaign profiles, and generate analyst-ready outputs — self-hosted, with report content sent only to the LLM provider you configure.*
 
-> **Editor's note:** ThreatMapper now uses “Group & Campaign Similarity” terminology instead of “APT attribution.” TTP overlap and Jaccard similarity are analytical leads for hypothesis generation and prioritization, not attribution proof. In Docker mode, report content is sent only to the LLM provider configured by the operator unless a local/private LLM gateway is used. The public Web workspace does not perform LLM report extraction or backend private report storage.
+> **Editor's note:** AdversaryGraph now uses “Group & Campaign Similarity” terminology instead of “APT attribution.” TTP overlap and Jaccard similarity are analytical leads for hypothesis generation and prioritization, not attribution proof. In Docker mode, report content is sent only to the LLM provider configured by the operator unless a local/private LLM gateway is used. The public Web workspace does not perform LLM report extraction or backend private report storage.
 
 ---
 
 ## Table of Contents
 
 - [The Problem](#the-problem)
-- [What ThreatMapper Does](#what-threatmapper-does)
+- [What AdversaryGraph Does](#what-adversarygraph-does)
 - [Architecture in Brief](#architecture-in-brief)
 - [Setting Up (10 Minutes)](#setting-up-10-minutes)
 - [Core Workflow: Analysing a Threat Report](#core-workflow-analysing-a-threat-report)
@@ -37,11 +37,11 @@ Doing this manually is slow. You read the report, recognise a behaviour ("the im
 
 There are commercial platforms that do this, but analysts may also need a self-hosted control plane with explicit storage, networking, and provider choices.
 
-**ThreatMapper** is my attempt to provide that analyst-assisted workflow using operator-configured LLM providers.
+**AdversaryGraph** is my attempt to provide that analyst-assisted workflow using operator-configured LLM providers.
 
 ---
 
-## What ThreatMapper Does
+## What AdversaryGraph Does
 
 In one sentence: **you give it a threat report, it returns ATT&CK mapping candidates, group-similarity leads, extraction-confidence scores, and a PDF for analyst review.**
 
@@ -53,13 +53,13 @@ Concretely:
 - **Compare** — deep side-by-side comparison of your TTP set against groups, MITRE named campaigns, or your own stored report library; with visual matrix diff, tactic breakdown chart, and gap analysis
 - **Export** — ATT&CK Navigator-compatible JSON layers and multi-page PDF reports suitable for executive briefings
 
-ThreatMapper is self-hosted. In Docker mode, report content is sent only to the LLM provider configured by the operator. For fully private analysis, deploy with a local or private LLM gateway. The public Web workspace does not perform LLM report extraction or backend private report storage.
+AdversaryGraph is self-hosted. In Docker mode, report content is sent only to the LLM provider configured by the operator. For fully private analysis, deploy with a local or private LLM gateway. The public Web workspace does not perform LLM report extraction or backend private report storage.
 
 ---
 
 ## Architecture in Brief
 
-ThreatMapper is four containers:
+AdversaryGraph is four containers:
 
 ```
 React / Vite frontend  ←→  FastAPI backend  ←→  PostgreSQL
@@ -222,7 +222,7 @@ This visual immediately answers: *"Which of this group's known techniques am I n
 
 ### Importing an existing layer
 
-If you already have ATT&CK Navigator layers from previous work, click **↑ Import layer** and upload the JSON. ThreatMapper will load it as your active layer, which you can then enrich with AI analysis or compare against ATT&CK group profiles.
+If you already have ATT&CK Navigator layers from previous work, click **↑ Import layer** and upload the JSON. AdversaryGraph will load it as your active layer, which you can then enrich with AI analysis or compare against ATT&CK group profiles.
 
 ---
 
@@ -262,7 +262,7 @@ To delete a layer you no longer need, click the **✕** button next to it in the
 
 The Compare view has three modes — **Groups**, **Campaigns**, and **Reports** — selectable from a switcher at the top of the page. Each answers a different similarity or overlap question.
 
-> TTP overlap is not attribution evidence by itself. ThreatMapper uses overlap as an analytical lead for triage, prioritization, and investigation. Attribution requires additional evidence such as malware, infrastructure, victimology, timing, procedure detail, and external intelligence.
+> TTP overlap is not attribution evidence by itself. AdversaryGraph uses overlap as an analytical lead for triage, prioritization, and investigation. Attribution requires additional evidence such as malware, infrastructure, victimology, timing, procedure detail, and external intelligence.
 
 ### Mode 1 — Groups (DB 1)
 
@@ -313,7 +313,7 @@ When you investigate similarity leads, there are two different things you may wa
 1. **What MITRE says groups have done** — the curated ATT&CK dataset of group TTP profiles, including named campaigns (specific operations like "Operation Ghost")
 2. **What you have actually observed** — your own library of analysed reports, each with its own extracted TTP mapping
 
-ThreatMapper v0.3 builds both into a single comparison workflow via three modes in the **Compare** view.
+AdversaryGraph v0.3 builds both into a single comparison workflow via three modes in the **Compare** view.
 
 ### DB 1: MITRE Actor Profiles and Named Campaigns
 
@@ -323,7 +323,7 @@ The ATT&CK STIX 2.1 bundle contains more than just group TTP profiles. It also i
 - **`attributed-to` relationships** — which group conducted which campaign
 - **`uses` relationships at the campaign level** — the specific techniques observed in each named operation (often different from the group's aggregate profile)
 
-ThreatMapper parses all of this during ATT&CK ingestion. The result is two searchable, comparable datasets that both live in DB 1:
+AdversaryGraph parses all of this during ATT&CK ingestion. The result is two searchable, comparable datasets that both live in DB 1:
 
 | Dataset | What it contains | ID format |
 |---|---|---|
@@ -345,7 +345,7 @@ The **"Add to my TTPs"** button on each campaign card pushes all of that campaig
 
 ### DB 2: Your Report Library
 
-Every time you run an AI analysis in ThreatMapper, the result is stored: the extracted techniques, the summary, the group similarity leads, and the provider/model used. DB 2 is this library of past analyses.
+Every time you run an AI analysis in AdversaryGraph, the result is stored: the extracted techniques, the summary, the group similarity leads, and the provider/model used. DB 2 is this library of past analyses.
 
 Access it via **Compare → Reports (DB 2)**.
 
@@ -414,7 +414,7 @@ curl "http://localhost:8000/api/apt/campaigns?domain=enterprise-attack&group_id=
 
 ## Generating Reports
 
-ThreatMapper generates two types of PDF reports.
+AdversaryGraph generates two types of PDF reports.
 
 ### Analysis report
 
@@ -459,7 +459,7 @@ The **context** field at the bottom of the chat lets you paste additional inform
 
 ## Working with All Three ATT&CK Domains
 
-ThreatMapper supports Enterprise, Mobile, and ICS ATT&CK out of the box.
+AdversaryGraph supports Enterprise, Mobile, and ICS ATT&CK out of the box.
 
 Switch domains using the **Domain** dropdown in the Navigator toolbar or the Analyze page.
 
@@ -475,7 +475,7 @@ Each domain has its own set of tactics, techniques, and group profiles. When you
 
 ## API Usage (Headless / CI Integration)
 
-ThreatMapper exposes a full REST API. You can drive the entire workflow programmatically.
+AdversaryGraph exposes a full REST API. You can drive the entire workflow programmatically.
 
 ### Analyse a report via API
 
@@ -574,7 +574,7 @@ with httpx.stream(
 
 ## Keeping ATT&CK Data Fresh
 
-ATT&CK releases new versions periodically (approximately twice a year). ThreatMapper checks for new versions daily at 03:00 UTC via a Celery Beat job.
+ATT&CK releases new versions periodically (approximately twice a year). AdversaryGraph checks for new versions daily at 03:00 UTC via a Celery Beat job.
 
 The sidebar footer shows a pulsing amber indicator when a new version is available. Trigger an update:
 
@@ -600,7 +600,7 @@ The sync downloads only the new bundle version and ingests it alongside the exis
 
 **Chat is good for detection rules.** The AI assistant is particularly strong at generating SIGMA rules, KQL queries, and Splunk SPL from ATT&CK technique IDs. Give it the full ATT&CK technique description plus any specific context from your environment (OS, logging stack) and you'll get useful starting points rather than generic templates.
 
-**Import your existing layers.** If your team already maintains ATT&CK Navigator layers for your environment (e.g. a "what we detect" layer and a "what we've seen" layer), import them via the ↑ Import button. ThreatMapper will let you compare them against group profiles and run AI chat against the techniques in the layer.
+**Import your existing layers.** If your team already maintains ATT&CK Navigator layers for your environment (e.g. a "what we detect" layer and a "what we've seen" layer), import them via the ↑ Import button. AdversaryGraph will let you compare them against group profiles and run AI chat against the techniques in the layer.
 
 **Save named layers as investigation checkpoints.** After any significant piece of work — a completed AI analysis, a finished group-comparison session, a purple-team prep layer — click **↓ Save layer** and give it a meaningful name. This takes 10 seconds and means you never lose work between sessions. You can reload any saved layer instantly from **📂 Load layer** without re-running analysis.
 
@@ -610,16 +610,16 @@ The sync downloads only the new bundle version and ingests it alongside the exis
 
 ## Security Considerations
 
-ThreatMapper is designed for internal/intranet use. It has no built-in authentication — anyone who can reach the Docker network can use it.
+AdversaryGraph is designed for internal/intranet use. It has no built-in authentication — anyone who can reach the Docker network can use it.
 
 **For a team deployment:**
 
 1. Set a strong `DB_PASS` in `.env`
-2. Put ThreatMapper behind nginx / Caddy with TLS and HTTP Basic Auth (or integrate with your identity provider via OAuth)
+2. Put AdversaryGraph behind nginx / Caddy with TLS and HTTP Basic Auth (or integrate with your identity provider via OAuth)
 3. Run the Docker containers on an internal network that is not directly internet-accessible
 4. The `.env` file containing your LLM API keys should have `chmod 600` and never be committed to git
 
-Your threat intelligence reports are stored in PostgreSQL inside the Docker volume. If you need to comply with data handling policies, deploy ThreatMapper on infrastructure that meets those policies — since it's self-hosted, you retain full control.
+Your threat intelligence reports are stored in PostgreSQL inside the Docker volume. If you need to comply with data handling policies, deploy AdversaryGraph on infrastructure that meets those policies — since it's self-hosted, you retain full control.
 
 ---
 
@@ -636,11 +636,11 @@ The tool is functional but there is plenty of room to grow. Things I'm actively 
 
 ## Final Thoughts
 
-The core idea behind ThreatMapper is that the heavy lifting of ATT&CK mapping — reading a report, recognising a technique, looking it up, comparing it — is exactly the kind of repetitive, pattern-matching work that LLMs are well-suited for.
+The core idea behind AdversaryGraph is that the heavy lifting of ATT&CK mapping — reading a report, recognising a technique, looking it up, comparing it — is exactly the kind of repetitive, pattern-matching work that LLMs are well-suited for.
 
 The analyst's judgement is still essential: deciding which mappings to trust, what the attribution implications are, what to do about the gap analysis. But the mechanical translation layer — text to ATT&CK IDs — should not take most of your time.
 
-ThreatMapper tries to handle that translation layer so you can spend your time on the interesting parts.
+AdversaryGraph tries to handle that translation layer so you can spend your time on the interesting parts.
 
 The project is open source under the MIT licence. If you find it useful, have feature requests, or find bugs, open an issue on GitHub.
 
@@ -651,4 +651,4 @@ The project is open source under the MIT licence. If you find it useful, have fe
 
 ---
 
-*ThreatMapper uses the MITRE ATT&CK® framework. ATT&CK is a registered trademark of The MITRE Corporation. This project is not affiliated with or endorsed by MITRE.*
+*AdversaryGraph uses the MITRE ATT&CK® framework. ATT&CK is a registered trademark of The MITRE Corporation. This project is not affiliated with or endorsed by MITRE.*

@@ -80,7 +80,7 @@ new environment values:
 docker compose up -d --force-recreate api worker beat frontend
 ```
 
-ThreatMapper passes `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, and `DB_PASS` as
+AdversaryGraph passes `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, and `DB_PASS` as
 separate container variables and builds the SQLAlchemy URL inside Python. This
 allows normal strong passwords with URL-special characters such as `@`, `#`,
 `:`, and `/`.
@@ -113,7 +113,7 @@ For the current feature scope, review
 
 ## Reference Synchronization
 
-ThreatMapper synchronizes MITRE ATT&CK STIX data for the configured
+AdversaryGraph synchronizes MITRE ATT&CK STIX data for the configured
 `ATTCK_DOMAINS`. The sync includes matrices, tactics, techniques,
 sub-techniques, APT group profiles, campaigns, usage relationships, attribution
 links, and STIX references.
@@ -156,7 +156,7 @@ maliciousness, IOC confidence, or likelihood of compromise.
 
 ## Internet-Facing Deployments
 
-The default Compose deployment is not a hardened public SaaS. If exposing ThreatMapper:
+The default Compose deployment is not a hardened public SaaS. If exposing AdversaryGraph:
 
 - Put the frontend and API behind TLS.
 - Use an authenticating reverse proxy or identity-aware gateway.
@@ -191,7 +191,7 @@ Operators should define:
 
 ## OpenCTI Export
 
-ThreatMapper can export a completed analysis as a STIX 2.1 JSON bundle from:
+AdversaryGraph can export a completed analysis as a STIX 2.1 JSON bundle from:
 
 ```bash
 GET /api/export/analysis/{session_id}/stix

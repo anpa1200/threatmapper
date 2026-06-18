@@ -1,13 +1,13 @@
-# ThreatMapper v2.x Full Guide
+# AdversaryGraph v2.x Full Guide
 
-![ThreatMapper v2.0 cover](assets/threatmapper-v2/01-31Nq2VMJ9Mm9lgryHGJRQQ.webp)
+![AdversaryGraph v2.0 cover](assets/threatmapper-v2/01-31Nq2VMJ9Mm9lgryHGJRQQ.webp)
 
-ThreatMapper is a self-hosted CTI-to-detection workbench for turning threat
+AdversaryGraph is a self-hosted CTI-to-detection workbench for turning threat
 reports into MITRE ATT&CK mapping candidates, reviewing the supporting evidence,
 comparing TTP overlap against known groups and campaigns, identifying detection
 gaps, and exporting analyst-ready outputs.
 
-ThreatMapper is not an attribution engine. It helps analysts organize evidence
+AdversaryGraph is not an attribution engine. It helps analysts organize evidence
 and investigation leads. Final mappings, similarity conclusions, and detection
 handoffs require human review.
 
@@ -99,7 +99,7 @@ Health should return:
 
 ## 3. Core Concepts
 
-![ThreatMapper problem statement](assets/threatmapper-v2/02-69nMwI7Xj8eNIWHv_C_KVg.webp)
+![AdversaryGraph problem statement](assets/threatmapper-v2/02-69nMwI7Xj8eNIWHv_C_KVg.webp)
 
 | Concept | Meaning |
 |---|---|
@@ -110,7 +110,7 @@ Health should return:
 | Detection gap | A mapped behavior without sufficient telemetry, detection, or validation |
 | STIX export | OpenCTI-ready bundle containing report, ATT&CK attack-patterns, and similarity leads |
 
-![ThreatMapper workflow map](assets/threatmapper-v2/03-7jquz_YKO0Odni3r3InzYw.webp)
+![AdversaryGraph workflow map](assets/threatmapper-v2/03-7jquz_YKO0Odni3r3InzYw.webp)
 
 ## 4. Discover Intelligence
 
@@ -171,7 +171,7 @@ sub-techniques, or infer too much from actor/tool names.
 
 ### Review Status
 
-ThreatMapper supports four analyst review states for extracted mappings:
+AdversaryGraph supports four analyst review states for extracted mappings:
 
 - suggested
 - accepted
@@ -279,7 +279,7 @@ working layer.
 
 ## 9. Campaigns
 
-ThreatMapper ingests ATT&CK campaign objects and relationships where available.
+AdversaryGraph ingests ATT&CK campaign objects and relationships where available.
 
 Use campaigns when group-level profiles are too broad. Campaigns often represent
 more specific operations and may be better comparison targets for one incident
@@ -355,7 +355,7 @@ The DFIR Examples page indexes public DFIR Report metadata.
 
 ![DFIR Examples page](assets/threatmapper-v2/17-aSqu_irokLlGQa1Njwa0fQ.webp)
 
-ThreatMapper stores:
+AdversaryGraph stores:
 
 - title
 - source URL
@@ -364,7 +364,7 @@ ThreatMapper stores:
 - ATT&CK technique IDs
 - actor mappings where available
 
-ThreatMapper does not mirror third-party report text, screenshots, or artifacts.
+AdversaryGraph does not mirror third-party report text, screenshots, or artifacts.
 
 ![DFIR example detail and workflow](assets/threatmapper-v2/18-RL5VY8-RMrIQv_SIZpwPQQ.webp)
 
@@ -405,7 +405,7 @@ Sector Intelligence is a v2.1 workflow for client-facing relevance triage. It an
 - why the actor was ranked
 - which source supports the claim
 
-The initial local sync source is MISP Galaxy threat actors. ThreatMapper stores
+The initial local sync source is MISP Galaxy threat actors. AdversaryGraph stores
 observations locally, including targeted sectors, CFR target categories, suspected
 victim geographies, origin metadata, motivations, aliases, and references.
 
@@ -435,7 +435,7 @@ more weight.
 ## 15. IOC Intelligence
 
 IOC Intelligence adds source-backed observables to actor profiles. ATT&CK provides
-TTP and campaign relationships, but it does not provide live indicators. ThreatMapper
+TTP and campaign relationships, but it does not provide live indicators. AdversaryGraph
 therefore stores IOCs in a separate local database with source, freshness, confidence,
 and evidence.
 
@@ -443,7 +443,7 @@ Initial sources:
 
 - abuse.ch ThreatFox for recent malware-related IOCs. The recent IOC API supports
   1-7 day windows; use ThreatFox exports or custom feeds for larger windows.
-- AlienVault OTX actor-attributed pulses. Set `OTX_API_KEY`; ThreatMapper searches
+- AlienVault OTX actor-attributed pulses. Set `OTX_API_KEY`; AdversaryGraph searches
   actor names/aliases, imports pulse indicators, and links indicators when pulse
   adversary/title/tags match the actor.
 - custom or personal JSON, CSV, and TXT IOC feeds
@@ -478,7 +478,7 @@ value, type, actor_attack_id, actor_name, malware_family, campaign,
 source_url, first_seen, last_seen, confidence, tlp, tags, description
 ```
 
-TXT feeds are parsed as one IOC per line. ThreatMapper infers basic types such as
+TXT feeds are parsed as one IOC per line. AdversaryGraph infers basic types such as
 IPv4, URL, domain, email, MD5, SHA1, and SHA256.
 
 API:
@@ -561,7 +561,7 @@ The STIX bundle contains:
 - `report`
 - ATT&CK `attack-pattern` objects
 - optional `intrusion-set` objects for similarity leads
-- `x_threatmapper_*` custom metadata
+- `x_threatmapper_*` custom metadata. These legacy STIX custom fields are kept for compatibility with existing exports after the AdversaryGraph rename.
 
 This is not an IOC export. It is designed for report/TTP workflows in OpenCTI.
 Similarity leads are not attribution.
@@ -671,14 +671,14 @@ For private analysis:
 ## 23. Visual Appendix
 
 The following images are the screenshots, diagrams, and infographics used in
-the published ThreatMapper v2.0 article and retained here as local project
+the published AdversaryGraph v2.0 article and retained here as local project
 assets.
 
-![ThreatMapper v2.0 cover](assets/threatmapper-v2/01-31Nq2VMJ9Mm9lgryHGJRQQ.webp)
+![AdversaryGraph v2.0 cover](assets/threatmapper-v2/01-31Nq2VMJ9Mm9lgryHGJRQQ.webp)
 
 ![Problem overview](assets/threatmapper-v2/02-69nMwI7Xj8eNIWHv_C_KVg.webp)
 
-![ThreatMapper pages overview](assets/threatmapper-v2/03-7jquz_YKO0Odni3r3InzYw.webp)
+![AdversaryGraph pages overview](assets/threatmapper-v2/03-7jquz_YKO0Odni3r3InzYw.webp)
 
 ![Discover dashboard](assets/threatmapper-v2/04-VAfpLRWhfkB0pwRR5C4Nlw.webp)
 

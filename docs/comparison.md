@@ -1,8 +1,8 @@
 # Comparison With Related Tools
 
-ThreatMapper is not intended to replace existing CTI platforms. It focuses on the CTI-to-detection workflow between report reading, ATT&CK mapping, similarity review, and detection-gap planning.
+AdversaryGraph is not intended to replace existing CTI platforms. It focuses on the CTI-to-detection workflow between report reading, ATT&CK mapping, similarity review, and detection-gap planning.
 
-| Tool | Primary Strength | ThreatMapper Difference |
+| Tool | Primary Strength | AdversaryGraph Difference |
 |---|---|---|
 | MITRE ATT&CK Navigator | Manual ATT&CK layer visualization | Adds report extraction, group/campaign comparison, report library, and detection-gap workflow |
 | OpenCTI | Full CTI knowledge graph and operational CTI platform | Lighter self-hosted analyst workbench focused on ATT&CK mapping, sector relevance, source-backed IOC enrichment, and detection handoff |
@@ -11,7 +11,7 @@ ThreatMapper is not intended to replace existing CTI platforms. It focuses on th
 | Maltego | Link analysis and visual graph investigation | Focuses on ATT&CK techniques, actor/campaign overlap, and analyst exports |
 | Sigma tooling | Detection rule creation and conversion | Produces reviewed detection backlog context; generated rules require local engineering review |
 
-## When To Use ThreatMapper
+## When To Use AdversaryGraph
 
 - You have a threat report and need a reviewed ATT&CK mapping.
 - You want to compare selected TTPs against groups or campaigns.
@@ -21,7 +21,7 @@ ThreatMapper is not intended to replace existing CTI platforms. It focuses on th
 - You need a concise export for analyst handoff.
 - You want a self-hosted workflow that can be adapted to private reports.
 
-## When Not To Use ThreatMapper
+## When Not To Use AdversaryGraph
 
 - You need a full CTI knowledge graph with collaboration workflows.
 - You need high-volume IOC distribution, sharing communities, correlation rules, or event lifecycle management.

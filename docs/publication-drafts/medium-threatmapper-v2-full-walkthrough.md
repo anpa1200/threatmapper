@@ -1,4 +1,4 @@
-# ThreatMapper v2.0: I Built a Self-Hosted AI Threat Intelligence Platform — Now With Local LLMs, DFIR Examples, and OpenCTI Export
+# AdversaryGraph v2.0: I Built a Self-Hosted AI Threat Intelligence Platform — Now With Local LLMs, DFIR Examples, and OpenCTI Export
 
 Threat intelligence is useful only when it becomes operational.
 
@@ -11,9 +11,9 @@ A report is not enough. A PDF from a vendor, an incident response write-up, a ma
 - Which techniques become detection gaps?
 - How do I move the result into an analyst workflow, ATT&CK Navigator, PDF reporting, or OpenCTI?
 
-That is the problem ThreatMapper was built to solve.
+That is the problem AdversaryGraph was built to solve.
 
-ThreatMapper is an open-source, self-hosted CTI-to-detection workbench. It helps analysts map threat reports to MITRE ATT&CK, review evidence, compare TTP overlap against groups and campaigns, export reports, and hand off structured outputs to detection engineering or CTI platforms.
+AdversaryGraph is an open-source, self-hosted CTI-to-detection workbench. It helps analysts map threat reports to MITRE ATT&CK, review evidence, compare TTP overlap against groups and campaigns, export reports, and hand off structured outputs to detection engineering or CTI platforms.
 
 Version 2.0 adds the features that make it much more useful in real analyst workflows:
 
@@ -39,7 +39,7 @@ https://github.com/anpa1200/threatmapper/blob/main/docs/full-guide-v2.md
 
 ## Table of Contents
 
-- [What ThreatMapper Is](#what-threatmapper-is)
+- [What AdversaryGraph Is](#what-adversarygraph-is)
 - [Architecture](#architecture)
 - [Installation](#installation)
 - [Local LLM Support](#local-llm-support)
@@ -58,16 +58,16 @@ https://github.com/anpa1200/threatmapper/blob/main/docs/full-guide-v2.md
 - [ATT&CK Navigator Export](#attck-navigator-export)
 - [API](#api)
 - [Security And Privacy Notes](#security-and-privacy-notes)
-- [What ThreatMapper Is Not](#what-threatmapper-is-not)
+- [What AdversaryGraph Is Not](#what-adversarygraph-is-not)
 - [Recommended Workflow](#recommended-workflow)
 - [Release Evidence](#release-evidence)
 - [Links](#links)
 - [Final Thoughts](#final-thoughts)
 - [Follow My Work](#follow-my-work)
 
-## What ThreatMapper Is
+## What AdversaryGraph Is
 
-ThreatMapper is not a SIEM.
+AdversaryGraph is not a SIEM.
 
 It is not an EDR.
 
@@ -83,11 +83,11 @@ report -> ATT&CK mapping candidates -> analyst review -> group/campaign/report c
 
 This matters because most threat intelligence still arrives as prose. Someone has to read it, extract behaviors, map them to ATT&CK, check the evidence, and make the result useful for detection teams.
 
-ThreatMapper helps automate the repetitive parts while keeping analyst review in the loop.
+AdversaryGraph helps automate the repetitive parts while keeping analyst review in the loop.
 
 ## Architecture
 
-ThreatMapper runs as a self-hosted Docker Compose stack:
+AdversaryGraph runs as a self-hosted Docker Compose stack:
 
 - React / Vite frontend
 - FastAPI backend
@@ -154,11 +154,11 @@ Expected result:
 {"status":"ok","version":"2.0.0"}
 ```
 
-On first startup, ThreatMapper ingests MITRE ATT&CK STIX data into PostgreSQL. This can take a few minutes.
+On first startup, AdversaryGraph ingests MITRE ATT&CK STIX data into PostgreSQL. This can take a few minutes.
 
 ## Local LLM Support
 
-ThreatMapper v2.0 supports local LLMs through OpenAI-compatible APIs.
+AdversaryGraph v2.0 supports local LLMs through OpenAI-compatible APIs.
 
 This is important if you want to analyze sensitive reports without sending them to a public cloud provider.
 
@@ -246,11 +246,11 @@ The evidence field is the most important part.
 
 If the evidence does not show behavior, the mapping should not be accepted.
 
-For example, an actor name in a report does not automatically prove the techniques associated with that actor. A tool name does not automatically prove every technique that tool can perform. ThreatMapper helps generate candidates, but the analyst decides what is defensible.
+For example, an actor name in a report does not automatically prove the techniques associated with that actor. A tool name does not automatically prove every technique that tool can perform. AdversaryGraph helps generate candidates, but the analyst decides what is defensible.
 
 ## Review Status
 
-ThreatMapper supports analyst review states:
+AdversaryGraph supports analyst review states:
 
 - suggested
 - accepted
@@ -286,7 +286,7 @@ This is important because ATT&CK analysis is rarely finished after one model res
 
 ## ATT&CK Group Library
 
-ThreatMapper v2.0 improves the ATT&CK Group Library.
+AdversaryGraph v2.0 improves the ATT&CK Group Library.
 
 Actor pages now include:
 
@@ -311,7 +311,7 @@ Instead of only seeing a name and a list of techniques, you can inspect the supp
 
 ## Group And Campaign Comparison
 
-ThreatMapper compares selected TTPs against:
+AdversaryGraph compares selected TTPs against:
 
 - ATT&CK groups
 - ATT&CK campaigns
@@ -337,7 +337,7 @@ That difference matters.
 
 Attribution needs more evidence: infrastructure, malware, victimology, timing, tooling, procedures, and external intelligence.
 
-ThreatMapper helps you find overlap worth investigating.
+AdversaryGraph helps you find overlap worth investigating.
 
 ## Compare Modes
 
@@ -384,7 +384,7 @@ This is useful when you want to understand which behaviors are shared across act
 
 ## DFIR Examples
 
-ThreatMapper v2.0 adds DFIR Examples.
+AdversaryGraph v2.0 adds DFIR Examples.
 
 The page indexes public DFIR Report metadata:
 
@@ -395,14 +395,14 @@ The page indexes public DFIR Report metadata:
 - ATT&CK techniques
 - actor mappings where available
 
-ThreatMapper does not mirror third-party report content. It stores metadata only.
+AdversaryGraph does not mirror third-party report content. It stores metadata only.
 
 The workflow is:
 
 1. Open an indexed DFIR example.
 2. Go to the original report page.
 3. Save the source page as a local PDF.
-4. Upload the PDF to ThreatMapper AI Analysis.
+4. Upload the PDF to AdversaryGraph AI Analysis.
 5. Extract ATT&CK candidates.
 6. Review evidence.
 7. Compare against groups, campaigns, and stored reports.
@@ -413,7 +413,7 @@ This gives analysts a practical way to test the workflow with public material wh
 
 ATT&CK changes over time.
 
-ThreatMapper includes Reference Sync for:
+AdversaryGraph includes Reference Sync for:
 
 - Enterprise ATT&CK
 - Mobile ATT&CK
@@ -436,7 +436,7 @@ This matters because a report analyzed today may need to be compared again after
 
 This is one of the most important v2.0 additions.
 
-ThreatMapper can export a completed analysis as a STIX 2.1 bundle:
+AdversaryGraph can export a completed analysis as a STIX 2.1 bundle:
 
 ```text
 GET /api/export/analysis/{session_id}/stix
@@ -468,7 +468,7 @@ The custom metadata includes:
 
 Important: this is not an IOC export.
 
-ThreatMapper is not mainly about indicators.
+AdversaryGraph is not mainly about indicators.
 
 It is about reports, TTPs, ATT&CK mapping, evidence review, and detection handoff.
 
@@ -476,7 +476,7 @@ The OpenCTI export reflects that. It moves report and behavior context into a CT
 
 ## PDF Export
 
-ThreatMapper can export a completed AI analysis as a PDF report.
+AdversaryGraph can export a completed AI analysis as a PDF report.
 
 The PDF includes:
 
@@ -498,11 +498,11 @@ Navigator layers can be exported in ATT&CK Navigator-compatible JSON format.
 
 This is useful when your team already uses ATT&CK Navigator and wants to continue analysis there.
 
-You can also import existing Navigator layers into ThreatMapper.
+You can also import existing Navigator layers into AdversaryGraph.
 
 ## API
 
-ThreatMapper exposes API endpoints for integration.
+AdversaryGraph exposes API endpoints for integration.
 
 Common endpoints:
 
@@ -528,11 +528,11 @@ GET  /api/sync/status
 POST /api/sync/trigger
 ```
 
-The API makes it possible to connect ThreatMapper to internal workflows, report pipelines, or CTI tooling.
+The API makes it possible to connect AdversaryGraph to internal workflows, report pipelines, or CTI tooling.
 
 ## Security And Privacy Notes
 
-ThreatMapper should be deployed in controlled environments.
+AdversaryGraph should be deployed in controlled environments.
 
 For private work:
 
@@ -547,9 +547,9 @@ For private work:
 
 Do not upload confidential reports into public demos.
 
-## What ThreatMapper Is Not
+## What AdversaryGraph Is Not
 
-ThreatMapper is not:
+AdversaryGraph is not:
 
 - an attribution engine
 - a SIEM
@@ -590,7 +590,7 @@ Use similarity as a lead. Use evidence for conclusions.
 
 ## Release Evidence
 
-ThreatMapper v2.0.0 includes:
+AdversaryGraph v2.0.0 includes:
 
 - Docker Compose deployment
 - FastAPI backend
@@ -644,7 +644,7 @@ https://1200km.com/external-validation.html
 
 ## Final Thoughts
 
-The goal of ThreatMapper is simple: make threat intelligence easier to operationalize.
+The goal of AdversaryGraph is simple: make threat intelligence easier to operationalize.
 
 It does not replace analysts. It gives analysts a structured place to work.
 

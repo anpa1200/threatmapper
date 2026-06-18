@@ -1,18 +1,18 @@
 # Production Readiness
 
-ThreatMapper is moving from beta toward production readiness. This document
+AdversaryGraph is moving from beta toward production readiness. This document
 tracks what is currently true in the repository.
 
 ## Current Status
 
-ThreatMapper is suitable for:
+AdversaryGraph is suitable for:
 
 - local CTI labs
 - controlled self-hosted analyst workspaces
 - portfolio and demo use
 - internal evaluation with non-sensitive or approved data
 
-ThreatMapper is not yet a hardened public SaaS or a `v1.0` production platform.
+AdversaryGraph is not yet a hardened public SaaS or a `v1.0` production platform.
 
 ## Implemented Gates
 
@@ -45,7 +45,7 @@ ThreatMapper is not yet a hardened public SaaS or a `v1.0` production platform.
 ## Deployment Position
 
 Use the default Docker Compose deployment only in controlled environments. For
-internet-facing use, place ThreatMapper behind:
+internet-facing use, place AdversaryGraph behind:
 
 - TLS
 - an authenticating reverse proxy

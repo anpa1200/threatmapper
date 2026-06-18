@@ -13,12 +13,12 @@ export function InvestigationReport() {
 
   const exportReport = () => {
     const text = [
-      'ThreatMapper Investigation Report', `Generated: ${new Date().toISOString()}`, `Domain: ${domain}`, `Selected techniques: ${rows.length}`, `Covered techniques: ${rows.filter(row => row.covered).length}`, '',
+      'AdversaryGraph Investigation Report', `Generated: ${new Date().toISOString()}`, `Domain: ${domain}`, `Selected techniques: ${rows.length}`, `Covered techniques: ${rows.filter(row => row.covered).length}`, '',
       'Top behavior-overlap hypotheses:', ...matches.map((item, index) => `${index + 1}. ${item.group_name} (${item.group_attack_id}) — ${Math.round(item.similarity * 100)}% Jaccard overlap; ${item.shared_count} shared`), '',
       'Technique evidence:', ...rows.flatMap(row => [`${row.id} — ${row.name}`, `  Coverage: ${row.covered ? 'yes' : 'no'} | Mapping: ${row.assessment.mapping ?? 'weak'} | Confidence: ${row.assessment.confidence ?? 'low'} | Maturity: ${row.assessment.maturity ?? 'none'}`, `  Evidence: ${row.assessment.evidence ?? 'Not recorded'}`, `  Source: ${row.assessment.source ?? 'Not recorded'}`, `  Notes: ${row.assessment.notes ?? 'Not recorded'}`, '']),
       'Analytic caution: TTP overlap supports hypothesis generation and prioritization; it is not definitive attribution evidence.',
     ].join('\n');
-    const url = URL.createObjectURL(new Blob([text], { type: 'text/plain' })); const anchor = document.createElement('a'); anchor.href = url; anchor.download = 'threatmapper-investigation-report.txt'; anchor.click(); URL.revokeObjectURL(url);
+    const url = URL.createObjectURL(new Blob([text], { type: 'text/plain' })); const anchor = document.createElement('a'); anchor.href = url; anchor.download = 'adversarygraph-investigation-report.txt'; anchor.click(); URL.revokeObjectURL(url);
   };
 
   return <div className="flex flex-col h-full"><Header title="Investigation Report" /><div className="flex-1 overflow-y-auto p-6"><div className="max-w-6xl mx-auto">

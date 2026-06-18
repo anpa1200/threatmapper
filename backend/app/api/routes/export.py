@@ -21,7 +21,7 @@ from app.models.attack import AptGroup, Technique
 router = APIRouter(prefix="/export", tags=["Export"])
 
 _PDF_HEADERS = {
-    "Content-Disposition": 'attachment; filename="threatmapper-report.pdf"',
+    "Content-Disposition": 'attachment; filename="adversarygraph-report.pdf"',
     "Cache-Control": "no-store",
 }
 

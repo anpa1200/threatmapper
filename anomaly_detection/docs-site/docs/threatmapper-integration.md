@@ -1,6 +1,6 @@
-# ThreatMapper Reference-Book Integration
+# AdversaryGraph Reference-Book Integration
 
-ThreatMapper includes the Anomaly Detection Atlas as an autonomous Docker-served reference book.
+AdversaryGraph includes the Anomaly Detection Atlas as an autonomous Docker-served reference book.
 The integration connects each ATT&CK technique in the matrix to the exact relevant paragraphs in
 the activity, basic-rule, and statistical-anomaly catalogs.
 
@@ -8,15 +8,15 @@ the activity, basic-rule, and statistical-anomaly catalogs.
 
 With the Docker Compose stack running:
 
-- ThreatMapper: [http://localhost:3000](http://localhost:3000)
+- AdversaryGraph: [http://localhost:3000](http://localhost:3000)
 - Reference book: [http://localhost:3001/anomaly-detection-atlas/](http://localhost:3001/anomaly-detection-atlas/)
 - Generated TTP crosslink index: [http://localhost:3001/anomaly-detection-atlas/ttp-reference-index.json](http://localhost:3001/anomaly-detection-atlas/ttp-reference-index.json)
 
-The **Reference Book** item in the ThreatMapper sidebar opens the complete documentation site.
+The **Reference Book** item in the AdversaryGraph sidebar opens the complete documentation site.
 
 ## Exact TTP Crosslinks
 
-Selecting a technique in the ThreatMapper matrix opens its detail panel with:
+Selecting a technique in the AdversaryGraph matrix opens its detail panel with:
 
 - the complete ATT&CK description;
 - platforms, tactics, data sources, and detection notes;
@@ -29,7 +29,7 @@ Links target stable generated anchors such as:
 /attack-statistical-anomaly-mapping/#ttp-t1030
 ```
 
-When a technique appears in multiple relevant rows, ThreatMapper lists every matching paragraph.
+When a technique appears in multiple relevant rows, AdversaryGraph lists every matching paragraph.
 Catalogs without a matching technique paragraph are not shown.
 
 ## Autonomous Synchronization
@@ -52,7 +52,7 @@ Set `ATLAS_SYNC_INTERVAL=0` to disable remote synchronization.
 
 ## Synchronize Local Changes
 
-When `anomaly-detection-atlas` exists beside the ThreatMapper repository, synchronize unpushed
+When `anomaly-detection-atlas` exists beside the AdversaryGraph repository, synchronize unpushed
 local documentation changes with:
 
 ```bash
@@ -60,7 +60,7 @@ make sync-atlas
 docker compose up -d --build atlas-builder atlas-docs frontend
 ```
 
-The synchronization process preserves this ThreatMapper-specific integration guide while replacing
+The synchronization process preserves this AdversaryGraph-specific integration guide while replacing
 the authoritative atlas catalogs and reports.
 
 ## Docker Services

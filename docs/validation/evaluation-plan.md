@@ -1,10 +1,10 @@
 # Validation and Evaluation Plan
 
-This document defines how ThreatMapper mapping quality should be evaluated before resubmission to curated security lists.
+This document defines how AdversaryGraph mapping quality should be evaluated before resubmission to curated security lists.
 
 ## Goal
 
-Measure whether ThreatMapper produces useful ATT&CK mapping candidates that reduce analyst triage time without hiding uncertainty.
+Measure whether AdversaryGraph produces useful ATT&CK mapping candidates that reduce analyst triage time without hiding uncertainty.
 
 ## Dataset
 
@@ -49,4 +49,4 @@ For each report:
 
 ## Current Status
 
-The repo includes a demo dataset and sample outputs. A full multi-report evaluation should be completed before resubmitting ThreatMapper to curated awesome lists.
+The repo includes a demo dataset and sample outputs. A full multi-report evaluation should be completed before resubmitting AdversaryGraph to curated awesome lists.

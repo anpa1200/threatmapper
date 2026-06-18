@@ -1,12 +1,12 @@
 {
-  "name": "ThreatMapper Demo Layer",
+  "name": "AdversaryGraph Demo Layer",
   "versions": {
     "attack": "19.1",
     "navigator": "5.1.0",
     "layer": "4.5"
   },
   "domain": "enterprise-attack",
-  "description": "Synthetic demo layer generated from the ThreatMapper public demo excerpt.",
+  "description": "Synthetic demo layer generated from the AdversaryGraph public demo excerpt.",
   "techniques": [
     {"techniqueID": "T1566.001", "score": 95, "comment": "accepted: phishing attachment evidence"},
     {"techniqueID": "T1059.001", "score": 94, "comment": "accepted: encoded PowerShell evidence"},

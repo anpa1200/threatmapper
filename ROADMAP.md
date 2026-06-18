@@ -1,6 +1,6 @@
 # Roadmap
 
-This roadmap tracks the work needed to move ThreatMapper from an early CTI workbench into a mature product suitable for external curation.
+This roadmap tracks the work needed to move AdversaryGraph from an early CTI workbench into a mature product suitable for external curation.
 
 ## v0.9 - Maturity Evidence
 

@@ -64,7 +64,7 @@ export interface InvestigationWorkspace {
   updatedAt: string;
 }
 
-const STORAGE_KEY = 'threatmapper-docker-workbench-v1';
+const STORAGE_KEY = 'adversarygraph-docker-workbench-v1';
 const saved = (() => {
   try { return JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}'); } catch { return {}; }
 })();

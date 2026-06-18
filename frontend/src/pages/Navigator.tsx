@@ -95,7 +95,7 @@ export function Navigator() {
 
   // ── Exports ───────────────────────────────────────────────────────────────
   const exportNavigatorLayer = useCallback(() => {
-    downloadJson(buildNavigatorLayer(selectedTechniques, overlayTechniques, domain), 'threatmapper-layer.json');
+    downloadJson(buildNavigatorLayer(selectedTechniques, overlayTechniques, domain), 'adversarygraph-layer.json');
   }, [selectedTechniques, overlayTechniques, domain]);
 
   const exportJson = useCallback(() => {
@@ -254,10 +254,10 @@ function buildNavigatorLayer(
 ) {
   const userIds = Array.from(selectedTechniques);
   return {
-    name: 'ThreatMapper Export',
+    name: 'AdversaryGraph Export',
     versions: { attack: '19', navigator: '5.0', layer: '4.5' },
     domain,
-    description: `Exported from ThreatMapper. User TTPs: ${userIds.length}`,
+    description: `Exported from AdversaryGraph. User TTPs: ${userIds.length}`,
     techniques: [
       ...userIds.map(id => ({
         techniqueID: id,
@@ -294,6 +294,6 @@ function downloadJson(data: unknown, filename: string) {
 function exportBacklog(selected: Set<string>, overlay: Set<string>, coverage: Set<string>) {
   const target = overlay.size ? overlay : selected;
   const backlog = [...target].filter(id => !coverage.has(id)).sort();
-  const text = ['ThreatMapper Detection Backlog', `Generated: ${new Date().toISOString()}`, `Target techniques: ${target.size}`, `Covered: ${[...target].filter(id => coverage.has(id)).length}`, '', ...backlog.map(id => `- ${id}`)].join('\n');
-  const url = URL.createObjectURL(new Blob([text], { type: 'text/plain' })); const anchor = document.createElement('a'); anchor.href = url; anchor.download = 'threatmapper-detection-backlog.txt'; anchor.click(); URL.revokeObjectURL(url);
+  const text = ['AdversaryGraph Detection Backlog', `Generated: ${new Date().toISOString()}`, `Target techniques: ${target.size}`, `Covered: ${[...target].filter(id => coverage.has(id)).length}`, '', ...backlog.map(id => `- ${id}`)].join('\n');
+  const url = URL.createObjectURL(new Blob([text], { type: 'text/plain' })); const anchor = document.createElement('a'); anchor.href = url; anchor.download = 'adversarygraph-detection-backlog.txt'; anchor.click(); URL.revokeObjectURL(url);
 }

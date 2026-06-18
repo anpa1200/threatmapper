@@ -225,7 +225,7 @@ function AssessmentSelect({ value, values, onChange }: { value: string; values: 
   return <select value={value} onChange={event => onChange(event.target.value)} className="bg-gray-800 text-[10px] text-gray-300 px-1 py-1 rounded border border-gray-700">{values.map(item => <option key={item}>{item}</option>)}</select>;
 }
 function downloadHuntPlan(id: string, name: string, tactics: string[], dataSources: string[], resources: string[]) {
-  const text = [`ThreatMapper Hunt Plan: ${id} ${name}`, '', `Tactics: ${tactics.join(', ')}`, `Telemetry: ${dataSources.join(', ') || 'Define environment-specific telemetry'}`, '', `Hypothesis: If an adversary is using ${name}, telemetry should reveal activity inconsistent with expected context.`, '', 'Resources:', ...resources.map(item => `- ${item}`)].join('\n');
+  const text = [`AdversaryGraph Hunt Plan: ${id} ${name}`, '', `Tactics: ${tactics.join(', ')}`, `Telemetry: ${dataSources.join(', ') || 'Define environment-specific telemetry'}`, '', `Hypothesis: If an adversary is using ${name}, telemetry should reveal activity inconsistent with expected context.`, '', 'Resources:', ...resources.map(item => `- ${item}`)].join('\n');
   const url = URL.createObjectURL(new Blob([text], { type: 'text/plain' })); const anchor = document.createElement('a'); anchor.href = url; anchor.download = `${id}-hunt-plan.txt`; anchor.click(); URL.revokeObjectURL(url);
 }
 

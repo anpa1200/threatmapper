@@ -1,16 +1,16 @@
-# ThreatMapper And CTI Publishing Kit
+# AdversaryGraph And CTI Publishing Kit
 
-Use this file for consistent external publishing of ThreatMapper and the related
+Use this file for consistent external publishing of AdversaryGraph and the related
 1200km CTI ecosystem. The core message is CTI-to-detection, not automated
 attribution.
 
 ## Canonical Links
 
-- ThreatMapper project hub: https://1200km.com/threatmapper/
-- ThreatMapper live web workspace: https://1200km.com/threat-matrix/
-- ThreatMapper docs: https://1200km.com/threatmapper-docs/
-- ThreatMapper GitHub: https://github.com/anpa1200/threatmapper
-- ThreatMapper article: https://medium.com/@1200km/threatmapper-i-built-a-self-hosted-ai-threat-intelligence-platform-heres-how-to-use-it-0aa7673e6bd8
+- AdversaryGraph project hub: https://1200km.com/threatmapper/
+- AdversaryGraph live web workspace: https://1200km.com/threat-matrix/
+- AdversaryGraph docs: https://1200km.com/threatmapper-docs/
+- AdversaryGraph GitHub: https://github.com/anpa1200/threatmapper
+- AdversaryGraph article: https://medium.com/@1200km/threatmapper-i-built-a-self-hosted-ai-threat-intelligence-platform-heres-how-to-use-it-0aa7673e6bd8
 - CTI as a Code: https://1200km.com/CTI_as_a_Code/
 - CTI Analyst Field Manual: https://1200km.com/cti-analyst-field-manual/
 - Operation Desert Hydra: https://1200km.com/operation-desert-hydra/
@@ -19,13 +19,13 @@ attribution.
 
 ## One-Line Pitch
 
-ThreatMapper is an AI-assisted CTI-to-detection workbench that turns threat
+AdversaryGraph is an AI-assisted CTI-to-detection workbench that turns threat
 reports into ATT&CK mappings, TTP-overlap comparisons, Navigator-style views,
 detection gaps, and analyst-ready outputs.
 
 ## Short Description
 
-ThreatMapper helps analysts operationalize CTI. It extracts ATT&CK technique
+AdversaryGraph helps analysts operationalize CTI. It extracts ATT&CK technique
 candidates from reports, keeps supporting evidence visible, compares selected
 TTPs against known groups and campaigns, surfaces detection gaps, and exports
 analyst-ready outputs. The web version is a public browser workspace for ATT&CK
@@ -34,7 +34,7 @@ PostgreSQL-backed analyses, APIs, and report generation.
 
 ## Safety And Accuracy Statement
 
-ThreatMapper does not perform definitive attribution. TTP overlap and group
+AdversaryGraph does not perform definitive attribution. TTP overlap and group
 similarity are investigation leads for analyst review, not proof of actor
 identity. LLM-assisted extraction can produce false positives, false negatives,
 or ambiguous technique mappings; analysts must validate every mapping against
@@ -47,13 +47,13 @@ the source evidence and ATT&CK definitions.
 Title:
 
 ```text
-Show HN: ThreatMapper - CTI reports to ATT&CK mappings and detection gaps
+Show HN: AdversaryGraph - CTI reports to ATT&CK mappings and detection gaps
 ```
 
 Body:
 
 ```text
-I built ThreatMapper to reduce the manual gap between threat reports and
+I built AdversaryGraph to reduce the manual gap between threat reports and
 detection engineering.
 
 The workflow is:
@@ -77,7 +77,7 @@ GitHub: https://github.com/anpa1200/threatmapper
 ### Reddit r/threatintel
 
 ```text
-I built ThreatMapper as a CTI-to-detection workflow tool and would appreciate
+I built AdversaryGraph as a CTI-to-detection workflow tool and would appreciate
 feedback from CTI analysts.
 
 The goal is not automated attribution. The goal is to make the mechanical part
@@ -93,7 +93,7 @@ GitHub: https://github.com/anpa1200/threatmapper
 ### Reddit r/blueteamsec
 
 ```text
-I released ThreatMapper, a CTI-to-detection workbench focused on turning threat
+I released AdversaryGraph, a CTI-to-detection workbench focused on turning threat
 reports into detection backlog material.
 
 It maps report evidence to ATT&CK technique candidates, compares TTP overlap
@@ -113,7 +113,7 @@ Repo: https://github.com/anpa1200/threatmapper
 ```text
 CTI should not stop at a PDF.
 
-I built ThreatMapper to help move from threat reports to detection-ready work:
+I built AdversaryGraph to help move from threat reports to detection-ready work:
 
 1. ingest report text/PDF/DOCX
 2. extract ATT&CK technique candidates with evidence
@@ -122,7 +122,7 @@ I built ThreatMapper to help move from threat reports to detection-ready work:
 5. identify detection gaps
 6. export analyst-ready reports
 
-ThreatMapper does not perform definitive attribution. TTP overlap is an
+AdversaryGraph does not perform definitive attribution. TTP overlap is an
 investigation lead, and every mapping requires analyst validation.
 
 Live workspace: https://1200km.com/threat-matrix/
@@ -133,7 +133,7 @@ GitHub: https://github.com/anpa1200/threatmapper
 ### X / Twitter Thread
 
 ```text
-1/ I built ThreatMapper: a CTI-to-detection workbench for turning threat reports
+1/ I built AdversaryGraph: a CTI-to-detection workbench for turning threat reports
 into ATT&CK mappings, TTP-overlap comparisons, and detection gaps.
 
 2/ Workflow:
@@ -143,7 +143,7 @@ report -> evidence -> ATT&CK technique candidates -> group/campaign comparison
 3/ Public web mode is browser-native. Docker mode adds self-hosted AI
 extraction, private PostgreSQL-backed analyses, APIs, and PDF reports.
 
-4/ Important limitation: ThreatMapper is not an attribution engine. TTP overlap
+4/ Important limitation: AdversaryGraph is not an attribution engine. TTP overlap
 is an investigation lead, not proof.
 
 5/ Live: https://1200km.com/threat-matrix/
@@ -156,7 +156,7 @@ GitHub: https://github.com/anpa1200/threatmapper
 ### OpenCTI Community
 
 ```text
-I built ThreatMapper as a CTI-to-detection workbench around ATT&CK evidence
+I built AdversaryGraph as a CTI-to-detection workbench around ATT&CK evidence
 mapping, group/campaign TTP-overlap comparison, detection gaps, and analyst
 reporting. It complements OpenCTI-style workflows by helping analysts turn raw
 reports into structured ATT&CK hypotheses before promotion into a CTI knowledge
@@ -170,7 +170,7 @@ Related OpenCTI workflow: https://1200km.com/operation-desert-hydra/
 ### MISP Community
 
 ```text
-ThreatMapper is a CTI-to-detection workbench for analyst-reviewed ATT&CK mapping
+AdversaryGraph is a CTI-to-detection workbench for analyst-reviewed ATT&CK mapping
 and detection-gap analysis. It is not a MISP replacement; the useful integration
 angle is turning report evidence into structured technique hypotheses and
 observable context that can later feed MISP/OpenCTI-style workflows.
@@ -182,7 +182,7 @@ Docs: https://1200km.com/threatmapper-docs/
 ### Sigma / Detection Engineering Communities
 
 ```text
-ThreatMapper focuses on the step before rule writing: turning CTI report
+AdversaryGraph focuses on the step before rule writing: turning CTI report
 evidence into ATT&CK technique candidates, hunting hypotheses, detection gaps,
 and analyst-reviewed backlog items. It is intended to feed Sigma/KQL/SPL work,
 not replace detection engineering validation.
@@ -196,7 +196,7 @@ CTI Field Manual: https://1200km.com/cti-analyst-field-manual/
 Subject:
 
 ```text
-ThreatMapper: CTI reports to ATT&CK mapping and detection backlog
+AdversaryGraph: CTI reports to ATT&CK mapping and detection backlog
 ```
 
 Body:
@@ -204,7 +204,7 @@ Body:
 ```text
 Hi,
 
-I released ThreatMapper, an open-source CTI-to-detection workbench for mapping
+I released AdversaryGraph, an open-source CTI-to-detection workbench for mapping
 threat reports to MITRE ATT&CK, comparing TTP overlap with known groups and
 campaigns, identifying detection gaps, and exporting analyst-ready outputs.
 
@@ -236,7 +236,7 @@ Andrey Pautov
 - Hacker News: use Show HN only once the demo path is stable.
 - Reddit: post different angles to `r/threatintel`, `r/blueteamsec`, and
   `r/cybersecurity`; do not repost the same text.
-- OpenCTI / Filigran community: position ThreatMapper as pre-graph analysis and
+- OpenCTI / Filigran community: position AdversaryGraph as pre-graph analysis and
   report-to-ATT&CK workflow.
 - MISP community: position it as report evidence and detection-gap workflow, not
   a replacement TIP.

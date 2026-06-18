@@ -1,8 +1,8 @@
-# ThreatMapper v2.1.0 Release Summary
+# AdversaryGraph v2.1.0 Release Summary
 
-ThreatMapper v2.1.0 is the sector relevance and IOC intelligence release.
+AdversaryGraph v2.1.0 is the sector relevance and IOC intelligence release.
 
-The release keeps ThreatMapper's core position as a self-hosted
+The release keeps AdversaryGraph's core position as a self-hosted
 CTI-to-detection workbench: reports are mapped to ATT&CK or ATLAS, analysts
 review the evidence, and selected TTPs are compared against actor, campaign,
 report, and Navigator views. v2.1 adds two daily-use CTI workflows on top of
@@ -27,7 +27,7 @@ actor information, TTPs, IOCs, and a Navigator overlay for relevant techniques.
 
 ### IOC Intelligence
 
-IOC Intelligence adds a local observable layer without turning ThreatMapper into
+IOC Intelligence adds a local observable layer without turning AdversaryGraph into
 a MISP replacement. IOCs are source-backed, actor-linked only when evidence
 exists, and stored separately from ATT&CK data.
 

@@ -604,7 +604,7 @@ function ActorIOCs({
       <div className="rounded border border-gray-800 bg-gray-900/50 p-4">
         <h3 className="text-sm font-semibold text-white">Extract IOCs From Report</h3>
         <p className="mt-2 text-xs text-gray-500">
-          Upload PDF, DOCX, or TXT. ThreatMapper extracts common IOCs and maps them to {actorName}.
+          Upload PDF, DOCX, or TXT. AdversaryGraph extracts common IOCs and maps them to {actorName}.
         </p>
         <div className="mt-3 flex flex-wrap items-center gap-3">
           <label className="secondary-action cursor-pointer">

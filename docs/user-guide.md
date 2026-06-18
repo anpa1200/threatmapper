@@ -1,6 +1,6 @@
 # User Guide
 
-ThreatMapper is built around a defensive CTI workflow:
+AdversaryGraph is built around a defensive CTI workflow:
 
 ```text
 client context/report -> ATT&CK mapping candidates -> analyst review -> actor/campaign/sector relevance -> IOC enrichment -> detection gaps -> exports
@@ -64,7 +64,7 @@ Supported inputs:
 - PDF.
 - DOCX.
 
-ThreatMapper extracts candidate ATT&CK mappings. These are suggestions, not final intelligence.
+AdversaryGraph extracts candidate ATT&CK mappings. These are suggestions, not final intelligence.
 
 ### 3. Review Technique Evidence
 

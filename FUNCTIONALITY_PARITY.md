@@ -1,8 +1,8 @@
-# ThreatMapper Functionality Parity
+# AdversaryGraph Functionality Parity
 
 ## Product rule
 
-The Docker platform is the superset product: ThreatMapper Web analyst workflow plus
+The Docker platform is the superset product: AdversaryGraph Web analyst workflow plus
 private/server capabilities and AI functions.
 
 ## Shared workflow
@@ -31,7 +31,7 @@ workspaces, shareable entity links, and investigation reports.
 
 ## Current architecture note
 
-ThreatMapper Docker now ingests MITRE ATLAS as a first-class `atlas` domain in
+AdversaryGraph Docker now ingests MITRE ATLAS as a first-class `atlas` domain in
 PostgreSQL beside Enterprise, Mobile, and ICS ATT&CK. ATLAS currently contributes
 matrix, tactic, technique, and sub-technique objects; APT groups and campaigns remain
 ATT&CK datasets because the upstream ATLAS bundle does not publish intrusion-set or

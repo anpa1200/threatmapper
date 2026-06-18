@@ -1,6 +1,6 @@
 # Limitations
 
-ThreatMapper is designed to assist CTI analysts. It does not replace analyst judgment.
+AdversaryGraph is designed to assist CTI analysts. It does not replace analyst judgment.
 
 ## ATT&CK Mapping
 
@@ -12,7 +12,7 @@ ThreatMapper is designed to assist CTI analysts. It does not replace analyst jud
 
 ## Attribution
 
-ThreatMapper does not prove attribution.
+AdversaryGraph does not prove attribution.
 
 Group and campaign comparison uses TTP overlap. TTP overlap can result from:
 

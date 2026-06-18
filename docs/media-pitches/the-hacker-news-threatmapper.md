@@ -1,28 +1,28 @@
-# The Hacker News Pitch: ThreatMapper
+# The Hacker News Pitch: AdversaryGraph
 
 Prepared: 2026-06-16
 
 ## Positioning
 
-Pitch ThreatMapper as a new open-source CTI tool release, not as a tutorial or
+Pitch AdversaryGraph as a new open-source CTI tool release, not as a tutorial or
 portfolio update.
 
-**Core angle:** ThreatMapper is an open-source, self-hosted AI-assisted CTI
+**Core angle:** AdversaryGraph is an open-source, self-hosted AI-assisted CTI
 workbench that maps threat reports to MITRE ATT&CK and supports the handoff
 from threat intelligence to detection engineering.
 
 ## Recommended Subject Lines
 
 ```text
-Research pitch: Open-source ThreatMapper maps threat reports to MITRE ATT&CK with self-hosted AI workflows
+Research pitch: Open-source AdversaryGraph maps threat reports to MITRE ATT&CK with self-hosted AI workflows
 ```
 
 ```text
-Tool release: ThreatMapper helps CTI teams turn threat reports into ATT&CK mappings and detection handoff artifacts
+Tool release: AdversaryGraph helps CTI teams turn threat reports into ATT&CK mappings and detection handoff artifacts
 ```
 
 ```text
-Open-source CTI platform ThreatMapper adds AI-assisted ATT&CK mapping and TTP comparison workflows
+Open-source CTI platform AdversaryGraph adds AI-assisted ATT&CK mapping and TTP comparison workflows
 ```
 
 ## Short Submission
@@ -33,7 +33,7 @@ Hi The Hacker News team,
 I’m Andrey Pautov, a Threat Intelligence Research Engineer and creator of the
 1200km security research ecosystem.
 
-I recently released ThreatMapper v2.0.0, an open-source self-hosted CTI
+I recently released AdversaryGraph v2.0.0, an open-source self-hosted CTI
 platform that helps analysts convert threat reports into MITRE ATT&CK mappings,
 compare TTP overlap against known groups and campaigns, and generate
 analyst-ready outputs for detection engineering handoff.
@@ -79,15 +79,15 @@ I’m Andrey Pautov, a Threat Intelligence Research Engineer and creator of
 1200km.com, where I publish practical CTI, detection engineering, malware
 analysis, OpenCTI, cloud security, and AI-assisted security tooling research.
 
-I’m submitting ThreatMapper as a potential tool-release / research story.
-ThreatMapper v2.0.0 is an open-source, self-hosted CTI-to-detection workbench
+I’m submitting AdversaryGraph as a potential tool-release / research story.
+AdversaryGraph v2.0.0 is an open-source, self-hosted CTI-to-detection workbench
 for mapping threat reports to MITRE ATT&CK, comparing extracted TTP overlap with
 known groups and campaigns, and producing analyst-ready outputs.
 
 The problem it addresses is a common CTI operations gap: threat reports often
 contain useful behavioral evidence, but the path from report text to ATT&CK
 mapping, group/campaign comparison, detection coverage review, and SOC handoff
-is still highly manual. ThreatMapper is designed to make that workflow more
+is still highly manual. AdversaryGraph is designed to make that workflow more
 structured while keeping analyst review explicit.
 
 The v2.0.0 release includes:
@@ -100,7 +100,7 @@ The v2.0.0 release includes:
 - demo dataset, expected mappings, sample outputs, screenshots, release notes,
   validation rubric, and CI
 
-Important limitation: ThreatMapper is not an attribution engine. TTP overlap is
+Important limitation: AdversaryGraph is not an attribution engine. TTP overlap is
 presented as an investigation lead, and LLM-assisted mappings require analyst
 review.
 
@@ -123,12 +123,12 @@ Andrey Pautov
 **Headline idea:**
 
 ```text
-Open-Source ThreatMapper Aims to Bridge CTI Reports and Detection Engineering with ATT&CK Mapping
+Open-Source AdversaryGraph Aims to Bridge CTI Reports and Detection Engineering with ATT&CK Mapping
 ```
 
 **Summary:**
 
-ThreatMapper is a self-hosted CTI-to-detection platform that helps analysts map
+AdversaryGraph is a self-hosted CTI-to-detection platform that helps analysts map
 threat reports to MITRE ATT&CK, compare observed TTPs with known groups and
 campaigns, and produce outputs that can support detection engineering handoff.
 The project emphasizes analyst review, reproducible demo data, and self-hosted
@@ -144,7 +144,7 @@ quickstart, and security/limitations documentation.
 
 1. CTI teams still struggle to move from narrative reports to detection-ready
    artifacts.
-2. ThreatMapper turns report text into ATT&CK mapping candidates with analyst
+2. AdversaryGraph turns report text into ATT&CK mapping candidates with analyst
    review.
 3. The platform compares TTP overlap against ATT&CK groups and campaigns.
 4. Analysts can export Navigator layers, JSON, reports, and coverage-gap
@@ -160,7 +160,7 @@ quickstart, and security/limitations documentation.
 
 | Item | Value |
 |---|---|
-| Project | ThreatMapper |
+| Project | AdversaryGraph |
 | Release | v2.0.0 |
 | Release date | 2026-06-16 |
 | License | MIT |
@@ -197,7 +197,7 @@ Public copied versions are also available on 1200km.com:
 ## One-Paragraph Boilerplate
 
 ```text
-ThreatMapper is an open-source, self-hosted CTI-to-detection workbench created
+AdversaryGraph is an open-source, self-hosted CTI-to-detection workbench created
 by Andrey Pautov. It helps analysts map threat reports to MITRE ATT&CK, compare
 TTP overlap with known groups and campaigns, and export analyst-ready outputs
 for investigation and detection engineering workflows. The project is designed
@@ -207,7 +207,7 @@ demo data, sample outputs, and validation material.
 
 ## Do Not Claim
 
-- Do not claim ThreatMapper proves attribution.
+- Do not claim AdversaryGraph proves attribution.
 - Do not claim AI mappings are fully automatic or always correct.
 - Do not claim open PRs are accepted validation.
 - Do not frame it as a hacking tutorial.

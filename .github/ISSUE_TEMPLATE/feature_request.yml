@@ -21,7 +21,7 @@ body:
     id: proposed
     attributes:
       label: Proposed behavior
-      description: What should ThreatMapper do?
+      description: What should AdversaryGraph do?
     validations:
       required: true
   - type: textarea

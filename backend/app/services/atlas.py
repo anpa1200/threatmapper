@@ -2,7 +2,7 @@ from __future__ import annotations
 
 
 def normalize_atlas(payload: dict) -> dict:
-    """Normalize MITRE ATLAS STIX or the public ThreatMapper web data shape."""
+    """Normalize MITRE ATLAS STIX or the public AdversaryGraph web data shape."""
     if payload.get("type") == "bundle":
         techniques = [
             {

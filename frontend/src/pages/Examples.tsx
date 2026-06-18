@@ -42,7 +42,7 @@ export function Examples() {
               <div>
                 <h2 className="text-base font-semibold text-white">Indexed Public DFIR Report Examples</h2>
                 <p className="mt-2 text-sm text-gray-400 max-w-4xl">
-                  Linked metadata from The DFIR Report public pages. ThreatMapper stores report titles, URLs, dates, tags, ATT&CK IDs, and actor mappings only; full report text and images stay on the source site.
+                  Linked metadata from The DFIR Report public pages. AdversaryGraph stores report titles, URLs, dates, tags, ATT&CK IDs, and actor mappings only; full report text and images stay on the source site.
                 </p>
                 {data?.license_note && <p className="mt-2 text-xs text-gray-500">{data.license_note}</p>}
               </div>
@@ -153,12 +153,12 @@ function openPdfWorkflow(report: DfirExampleReport) {
     `1. Use the opened original DFIR Report tab.`,
     `2. Press Ctrl+P.`,
     `3. Select "Save to PDF".`,
-    `4. Upload the saved PDF in ThreatMapper > AI Analysis.`,
+    `4. Upload the saved PDF in AdversaryGraph > AI Analysis.`,
     ``,
     `Indexed TTPs: ${report.techniques.join(', ') || 'none indexed'}`,
     `Indexed actors: ${report.actors.join(', ') || 'none indexed'}`,
     ``,
-    `Copyright note: this workflow does not mirror the report inside ThreatMapper. The PDF is created from the original source page by the user for local analysis.`,
+    `Copyright note: this workflow does not mirror the report inside AdversaryGraph. The PDF is created from the original source page by the user for local analysis.`,
     ``,
   ].join('\n');
   const blob = new Blob([payload], { type: 'text/plain' });

@@ -1,6 +1,6 @@
 # Security Model
 
-ThreatMapper is a self-hosted analyst workbench, not a managed SaaS.
+AdversaryGraph is a self-hosted analyst workbench, not a managed SaaS.
 
 ## Trust Boundaries
 
@@ -58,7 +58,7 @@ LLM output is treated as untrusted:
 
 ## File Parsing
 
-ThreatMapper supports text, PDF, and DOCX extraction. Operators should treat uploaded documents as untrusted and run the platform in a controlled environment.
+AdversaryGraph supports text, PDF, and DOCX extraction. Operators should treat uploaded documents as untrusted and run the platform in a controlled environment.
 
 ## IOC Feeds
 

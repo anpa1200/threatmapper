@@ -75,7 +75,7 @@ const config = {
         src: 'img/logo.svg',
       },
       items: [
-        { to: '/threatmapper-integration', label: 'ThreatMapper Integration', position: 'left' },
+        { to: '/threatmapper-integration', label: 'AdversaryGraph Integration', position: 'left' },
         { to: '/attack-activity-log-source-catalog', label: 'ATT&CK Activities', position: 'left' },
         { to: '/attack-basic-detection-rule-catalog', label: 'Basic Rules', position: 'left' },
         { to: '/attack-statistical-anomaly-mapping', label: 'Anomaly Mappings', position: 'left' },
@@ -110,7 +110,7 @@ const config = {
           title: 'Project',
           items: [
             {
-              label: 'ThreatMapper',
+              label: 'AdversaryGraph',
               href: 'https://github.com/anpa1200/threatmapper',
             },
             {

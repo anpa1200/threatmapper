@@ -1,6 +1,6 @@
 # Release Process
 
-Use this checklist for reviewer-friendly ThreatMapper releases.
+Use this checklist for reviewer-friendly AdversaryGraph releases.
 
 ## Pre-Release
 

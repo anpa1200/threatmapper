@@ -20,7 +20,7 @@ export function Discover() {
 
   return <div className="flex min-h-0 flex-1 flex-col"><Header title="Discover Intelligence" /><div className="min-h-0 flex-1 overflow-y-auto px-6 pb-6 pt-8">
     <div className="mx-auto max-w-7xl">
-      <p className="text-sm text-gray-400 max-w-3xl mb-6">Start with an actor, behavior, report, AI analysis, or detection gap. ThreatMapper connects live ATT&amp;CK data, private analysis, and the shared 1200km research ecosystem.</p>
+      <p className="text-sm text-gray-400 max-w-3xl mb-6">Start with an actor, behavior, report, AI analysis, or detection gap. AdversaryGraph connects live ATT&amp;CK data, private analysis, and the shared 1200km research ecosystem.</p>
       <div className="grid md:grid-cols-4 gap-3 mb-7">
         <Start title="Investigate actor" text="Profiles, campaigns, reports, aliases, and behavior." onClick={() => navigate('/apt')} />
         <Start title="Analyze report with AI" text="Extract ATT&CK evidence using your configured LLM." onClick={() => navigate('/analyze')} />

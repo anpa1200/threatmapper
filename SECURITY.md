@@ -2,7 +2,7 @@
 
 ## Supported Versions
 
-ThreatMapper is currently pre-`v1.0`. Security fixes are applied to the latest release branch only.
+AdversaryGraph is currently pre-`v1.0`. Security fixes are applied to the latest release branch only.
 
 | Version | Supported |
 |---|---|
@@ -30,7 +30,7 @@ Include:
 
 ## Data Handling Model
 
-- ThreatMapper Docker stores report analysis data in the operator-controlled PostgreSQL database.
+- AdversaryGraph Docker stores report analysis data in the operator-controlled PostgreSQL database.
 - Uploaded report text is sent only to the LLM provider configured by the operator.
 - The public web workspace is for exploration and should not receive confidential, customer-sensitive, classified, or internal reports.
 - Operators who need private processing should use a local or private LLM gateway and isolate the deployment behind an authenticated reverse proxy.

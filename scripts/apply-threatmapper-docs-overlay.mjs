@@ -24,9 +24,9 @@ let config = fs.readFileSync(configPath, 'utf8');
 if (!config.includes("to: '/threatmapper-integration'")) {
   config = config.replace(
     "items: [\n        { to: '/attack-activity-log-source-catalog'",
-    "items: [\n        { to: '/threatmapper-integration', label: 'ThreatMapper Integration', position: 'left' },\n        { to: '/attack-activity-log-source-catalog'",
+    "items: [\n        { to: '/threatmapper-integration', label: 'AdversaryGraph Integration', position: 'left' },\n        { to: '/attack-activity-log-source-catalog'",
   );
   fs.writeFileSync(configPath, config);
 }
 
-console.log(`Applied ThreatMapper documentation overlay to ${siteDir}`);
+console.log(`Applied AdversaryGraph documentation overlay to ${siteDir}`);

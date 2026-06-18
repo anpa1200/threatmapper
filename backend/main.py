@@ -34,7 +34,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="ThreatMapper API",
+    title="AdversaryGraph API",
     description="ATT&CK-based threat intelligence mapping with AI analysis",
     version="2.1.0",
     lifespan=lifespan,
