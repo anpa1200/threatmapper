@@ -8,8 +8,8 @@ class Settings(BaseSettings):
     database_url: str = ""
     db_host: str = "localhost"
     db_port: int = 5432
-    db_name: str = "threatmapper"
-    db_user: str = "tm_user"
+    db_name: str = "adversarygraph"
+    db_user: str = "ag_user"
     db_pass: str = "changeme"
 
     # Redis / Celery

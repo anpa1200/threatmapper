@@ -2,7 +2,7 @@
 
 **AI-assisted CTI-to-detection workbench for MITRE ATT&CK mapping and detection-gap analysis.**
 
-[![CI](https://github.com/anpa1200/threatmapper/actions/workflows/ci.yml/badge.svg)](https://github.com/anpa1200/threatmapper/actions/workflows/ci.yml)
+[![CI](https://github.com/anpa1200/adversarygraph/actions/workflows/ci.yml/badge.svg)](https://github.com/anpa1200/adversarygraph/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/badge/release-v2.1.0-blue)](VERSION)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Security policy](https://img.shields.io/badge/security-policy-blue)](SECURITY.md)
@@ -12,21 +12,21 @@
 [![Awesome Threat Intelligence](https://img.shields.io/badge/awesome--threat--intelligence-submitted-yellow)](https://github.com/hslatman/awesome-threat-intelligence/pull/385)
 [![Threat Hunting](https://img.shields.io/badge/awesome--threat--hunting-submitted-yellow)](https://github.com/threat-hunting/awesome_Threat-Hunting/pull/5)
 
-**Current release: v2.1.0 · [Release Summary](docs/release-summary-v2.1.0.md) · [Live Intelligence Workspace](https://1200km.com/threat-matrix/) · [Documentation & Usage Guide](https://1200km.com/threatmapper-docs/) · [Full v2 Guide](docs/full-guide-v2.md) · [1200km Article](https://1200km.com/articles/threatmapper-v2-self-hosted-ai-cti-platform.html) · [Medium Walkthrough](https://medium.com/@1200km/threatmapper-v2-0-i-built-a-self-hosted-ai-threat-intelligence-platform-941a80cc5a65)**
+**Current release: v2.1.0 · [Release Summary](docs/release-summary-v2.1.0.md) · [Live Intelligence Workspace](https://1200km.com/threat-matrix/) · [Documentation & Usage Guide](https://1200km.com/adversarygraph-docs/) · [Full v2 Guide](docs/full-guide-v2.md) · [1200km Article](https://1200km.com/articles/adversarygraph-v2-self-hosted-ai-cti-platform.html) · [Medium Archive](https://medium.com/@1200km)**
 
 AdversaryGraph AI is a self-hosted CTI-to-detection workbench for mapping threat reports to MITRE ATT&CK, comparing TTP overlap with known groups and campaigns, identifying detection gaps, and exporting analyst-ready outputs.
 
-> **Rename note:** AdversaryGraph was previously named ThreatMapper. Existing repository URLs, site slugs, database defaults, Docker helper paths, and STIX custom fields may retain `threatmapper` identifiers for backward compatibility during the rename.
+> **Rename note:** AdversaryGraph is the canonical product name. Legacy public URLs are preserved as static redirect pages where possible.
 
 **Live Web Workspace:** https://1200km.com/threat-matrix/
 
-**Project Hub:** https://1200km.com/threatmapper/
+**Project Hub:** https://1200km.com/adversarygraph/
 
-**Documentation:** https://1200km.com/threatmapper-docs/
+**Documentation:** https://1200km.com/adversarygraph-docs/
 
-**1200km Article:** https://1200km.com/articles/threatmapper-v2-self-hosted-ai-cti-platform.html
+**1200km Article:** https://1200km.com/articles/adversarygraph-v2-self-hosted-ai-cti-platform.html
 
-**Medium Walkthrough:** https://medium.com/@1200km/threatmapper-v2-0-i-built-a-self-hosted-ai-threat-intelligence-platform-941a80cc5a65
+**Medium Archive:** https://medium.com/@1200km
 
 > **Validation and attribution limitation:** AdversaryGraph assists analysts but does not replace analyst validation. LLM-generated mappings may contain false positives, false negatives, or ambiguous technique assignments. Group/campaign similarity is based on TTP overlap and is an investigation lead, not attribution proof.
 
@@ -194,8 +194,8 @@ User uploads report
 ### 1 — Clone and configure
 
 ```bash
-git clone https://github.com/anpa1200/threatmapper.git
-cd threatmapper
+git clone https://github.com/anpa1200/adversarygraph.git
+cd adversarygraph
 cp .env.example .env
 ```
 
@@ -214,8 +214,8 @@ LOCAL_LLM_API_KEY=local
 LOCAL_LLM_MODEL=llama3.1:8b
 
 # Database (defaults are fine for local use)
-DB_NAME=threatmapper
-DB_USER=tm_user
+DB_NAME=adversarygraph
+DB_USER=ag_user
 DB_PASS=changeme_strong_password
 
 # ATT&CK / ATLAS domains to ingest (comma-separated)
@@ -789,8 +789,8 @@ All configuration is via environment variables in `.env`.
 
 | Variable | Default | Description |
 |---|---|---|
-| `DB_NAME` | `threatmapper` | PostgreSQL database name. The legacy default is kept so existing deployments continue to start after upgrade. |
-| `DB_USER` | `tm_user` | Database user |
+| `DB_NAME` | `adversarygraph` | PostgreSQL database name. The legacy default is kept so existing deployments continue to start after upgrade. |
+| `DB_USER` | `ag_user` | Database user |
 | `DB_PASS` | `changeme` | Database password — **change this** |
 | `ANTHROPIC_API_KEY` | — | Anthropic / Claude API key |
 | `OPENAI_API_KEY` | — | OpenAI API key |
@@ -815,7 +815,7 @@ ATTCK_DOMAINS=enterprise-attack
 ### Project structure
 
 ```
-threatmapper/
+adversarygraph/
 ├── backend/
 │   ├── app/
 │   │   ├── api/routes/

@@ -47,6 +47,6 @@ elif [ -d /seed-overlay ]; then
 else
   OVERLAY_DIR="$(CDPATH= cd -- "$SCRIPT_DIR/../anomaly_detection/docs-overlay" && pwd)"
 fi
-node "$SCRIPT_DIR/apply-threatmapper-docs-overlay.mjs" "$TARGET_DIR" "$OVERLAY_DIR"
+node "$SCRIPT_DIR/apply-adversarygraph-docs-overlay.mjs" "$TARGET_DIR" "$OVERLAY_DIR"
 
 echo "Synchronized Anomaly Detection Atlas from $SOURCE_DIR to $TARGET_DIR"

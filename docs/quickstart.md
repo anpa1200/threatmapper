@@ -13,8 +13,8 @@ The public browser workspace at <https://1200km.com/threat-matrix/> does not req
 ## 1. Clone
 
 ```bash
-git clone https://github.com/anpa1200/threatmapper.git
-cd threatmapper
+git clone https://github.com/anpa1200/adversarygraph.git
+cd adversarygraph
 ```
 
 ## 2. Configure
@@ -78,7 +78,7 @@ Expected health response:
 If the API exits during startup with:
 
 ```text
-asyncpg.exceptions.InvalidPasswordError: password authentication failed for user "tm_user"
+asyncpg.exceptions.InvalidPasswordError: password authentication failed for user "ag_user"
 ```
 
 the PostgreSQL volume was probably created with an older `DB_PASS`. Docker does
@@ -115,7 +115,7 @@ Manual equivalent:
 
 ```bash
 docker compose exec -T postgres sh -lc 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -v pass="$POSTGRES_PASSWORD" <<'"'"'SQL'"'"'
-ALTER USER tm_user WITH PASSWORD :'"'"'pass'"'"';
+ALTER USER ag_user WITH PASSWORD :'"'"'pass'"'"';
 SQL'
 docker compose up -d --force-recreate api worker beat frontend
 ```

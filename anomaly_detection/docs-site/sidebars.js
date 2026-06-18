@@ -1,6 +1,6 @@
 module.exports = {
   referenceSidebar: [
-    'threatmapper-integration',
+    'adversarygraph-integration',
     'attack-activity-log-source-catalog',
     'attack-basic-detection-rule-catalog',
     'attack-statistical-anomaly-mapping',

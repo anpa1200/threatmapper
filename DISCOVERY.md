@@ -6,11 +6,11 @@ attribution.
 
 ## Canonical Links
 
-- AdversaryGraph project hub: https://1200km.com/threatmapper/
+- AdversaryGraph project hub: https://1200km.com/adversarygraph/
 - AdversaryGraph live web workspace: https://1200km.com/threat-matrix/
-- AdversaryGraph docs: https://1200km.com/threatmapper-docs/
-- AdversaryGraph GitHub: https://github.com/anpa1200/threatmapper
-- AdversaryGraph article: https://medium.com/@1200km/threatmapper-i-built-a-self-hosted-ai-threat-intelligence-platform-heres-how-to-use-it-0aa7673e6bd8
+- AdversaryGraph docs: https://1200km.com/adversarygraph-docs/
+- AdversaryGraph GitHub: https://github.com/anpa1200/adversarygraph
+- AdversaryGraph article: https://1200km.com/articles/adversarygraph-v2-self-hosted-ai-cti-platform.html
 - CTI as a Code: https://1200km.com/CTI_as_a_Code/
 - CTI Analyst Field Manual: https://1200km.com/cti-analyst-field-manual/
 - Operation Desert Hydra: https://1200km.com/operation-desert-hydra/
@@ -70,8 +70,8 @@ It is not an attribution engine. TTP overlap is an investigation lead, and every
 LLM-assisted mapping needs analyst validation.
 
 Live workspace: https://1200km.com/threat-matrix/
-Docs: https://1200km.com/threatmapper-docs/
-GitHub: https://github.com/anpa1200/threatmapper
+Docs: https://1200km.com/adversarygraph-docs/
+GitHub: https://github.com/anpa1200/adversarygraph
 ```
 
 ### Reddit r/threatintel
@@ -86,8 +86,8 @@ supporting evidence, compare TTP overlap with groups/campaigns, identify
 detection gaps, and export analyst-ready outputs.
 
 Public workspace: https://1200km.com/threat-matrix/
-Docs: https://1200km.com/threatmapper-docs/
-GitHub: https://github.com/anpa1200/threatmapper
+Docs: https://1200km.com/adversarygraph-docs/
+GitHub: https://github.com/anpa1200/adversarygraph
 ```
 
 ### Reddit r/blueteamsec
@@ -105,7 +105,7 @@ The important constraint: it is not an attribution engine. The output is
 analyst-review seed material for hunting and detection engineering.
 
 Live: https://1200km.com/threat-matrix/
-Repo: https://github.com/anpa1200/threatmapper
+Repo: https://github.com/anpa1200/adversarygraph
 ```
 
 ### LinkedIn
@@ -126,8 +126,8 @@ AdversaryGraph does not perform definitive attribution. TTP overlap is an
 investigation lead, and every mapping requires analyst validation.
 
 Live workspace: https://1200km.com/threat-matrix/
-Docs: https://1200km.com/threatmapper-docs/
-GitHub: https://github.com/anpa1200/threatmapper
+Docs: https://1200km.com/adversarygraph-docs/
+GitHub: https://github.com/anpa1200/adversarygraph
 ```
 
 ### X / Twitter Thread
@@ -147,8 +147,8 @@ extraction, private PostgreSQL-backed analyses, APIs, and PDF reports.
 is an investigation lead, not proof.
 
 5/ Live: https://1200km.com/threat-matrix/
-Docs: https://1200km.com/threatmapper-docs/
-GitHub: https://github.com/anpa1200/threatmapper
+Docs: https://1200km.com/adversarygraph-docs/
+GitHub: https://github.com/anpa1200/adversarygraph
 ```
 
 ## Community Submission Copy
@@ -162,8 +162,8 @@ reporting. It complements OpenCTI-style workflows by helping analysts turn raw
 reports into structured ATT&CK hypotheses before promotion into a CTI knowledge
 graph.
 
-Docs: https://1200km.com/threatmapper-docs/
-GitHub: https://github.com/anpa1200/threatmapper
+Docs: https://1200km.com/adversarygraph-docs/
+GitHub: https://github.com/anpa1200/adversarygraph
 Related OpenCTI workflow: https://1200km.com/operation-desert-hydra/
 ```
 
@@ -175,8 +175,8 @@ and detection-gap analysis. It is not a MISP replacement; the useful integration
 angle is turning report evidence into structured technique hypotheses and
 observable context that can later feed MISP/OpenCTI-style workflows.
 
-Project: https://github.com/anpa1200/threatmapper
-Docs: https://1200km.com/threatmapper-docs/
+Project: https://github.com/anpa1200/adversarygraph
+Docs: https://1200km.com/adversarygraph-docs/
 ```
 
 ### Sigma / Detection Engineering Communities
@@ -215,8 +215,8 @@ self-hosted Docker version adds AI-assisted extraction, private analysis
 storage, APIs, and PDF reporting.
 
 Live: https://1200km.com/threat-matrix/
-Docs: https://1200km.com/threatmapper-docs/
-GitHub: https://github.com/anpa1200/threatmapper
+Docs: https://1200km.com/adversarygraph-docs/
+GitHub: https://github.com/anpa1200/adversarygraph
 
 Best,
 Andrey Pautov

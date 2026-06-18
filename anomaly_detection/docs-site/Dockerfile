@@ -9,7 +9,7 @@ RUN npm ci
 COPY anomaly_detection/docs-site/ /seed/
 COPY scripts/sync-anomaly-atlas.sh /usr/local/bin/sync-anomaly-atlas
 COPY scripts/generate-ttp-reference-index.mjs /usr/local/bin/generate-ttp-reference-index.mjs
-COPY scripts/apply-threatmapper-docs-overlay.mjs /usr/local/bin/apply-threatmapper-docs-overlay.mjs
+COPY scripts/apply-adversarygraph-docs-overlay.mjs /usr/local/bin/apply-adversarygraph-docs-overlay.mjs
 COPY anomaly_detection/docs-overlay/ /seed-overlay/
 COPY anomaly_detection/docker/sync-and-build.sh /usr/local/bin/sync-and-build
 

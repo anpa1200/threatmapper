@@ -75,14 +75,14 @@ const config = {
         src: 'img/logo.svg',
       },
       items: [
-        { to: '/threatmapper-integration', label: 'AdversaryGraph Integration', position: 'left' },
+        { to: '/adversarygraph-integration', label: 'AdversaryGraph Integration', position: 'left' },
         { to: '/attack-activity-log-source-catalog', label: 'ATT&CK Activities', position: 'left' },
         { to: '/attack-basic-detection-rule-catalog', label: 'Basic Rules', position: 'left' },
         { to: '/attack-statistical-anomaly-mapping', label: 'Anomaly Mappings', position: 'left' },
         { to: '/statistical-anomaly-taxonomy', label: 'Anomaly Taxonomy', position: 'left' },
         { to: '/security-log-source-taxonomy', label: 'Log Sources', position: 'left' },
         {
-          href: 'https://github.com/anpa1200/threatmapper/tree/main/anomaly_detection',
+          href: 'https://github.com/anpa1200/adversarygraph/tree/main/anomaly_detection',
           label: 'GitHub',
           position: 'right',
         },
@@ -111,7 +111,7 @@ const config = {
           items: [
             {
               label: 'AdversaryGraph',
-              href: 'https://github.com/anpa1200/threatmapper',
+              href: 'https://github.com/anpa1200/adversarygraph',
             },
             {
               label: 'Medium',

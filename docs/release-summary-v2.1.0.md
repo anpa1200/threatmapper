@@ -72,6 +72,6 @@ Release preparation verification:
 
 ## Release Links
 
-- GitHub release: https://github.com/anpa1200/threatmapper/releases/tag/v2.1.0
+- GitHub release: https://github.com/anpa1200/adversarygraph/releases/tag/v2.1.0
 - Full guide: `docs/full-guide-v2.md`
 - Release notes: `docs/release-notes/v2.1.0.md`

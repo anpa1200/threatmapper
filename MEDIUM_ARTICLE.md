@@ -84,8 +84,8 @@ LLM calls go directly from the FastAPI backend to Anthropic / OpenAI / Google us
 ### Step 1: Clone and configure
 
 ```bash
-git clone https://github.com/anpa1200/threatmapper.git
-cd threatmapper
+git clone https://github.com/anpa1200/adversarygraph.git
+cd adversarygraph
 cp .env.example .env
 ```
 
@@ -646,7 +646,7 @@ The project is open source under the MIT licence. If you find it useful, have fe
 
 ---
 
-**GitHub:** https://github.com/anpa1200/threatmapper  
+**GitHub:** https://github.com/anpa1200/adversarygraph
 **API Docs:** http://localhost:8000/docs (after starting with `docker compose up`)
 
 ---

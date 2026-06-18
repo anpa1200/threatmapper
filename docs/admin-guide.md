@@ -41,7 +41,7 @@ Important settings:
 Back up PostgreSQL regularly:
 
 ```bash
-docker compose exec postgres pg_dump -U "$DB_USER" "$DB_NAME" > threatmapper-backup.sql
+docker compose exec postgres pg_dump -U "$DB_USER" "$DB_NAME" > adversarygraph-backup.sql
 ```
 
 Test restore procedures before relying on backups.
@@ -89,7 +89,7 @@ Manual equivalent:
 
 ```bash
 docker compose exec -T postgres sh -lc 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -v pass="$POSTGRES_PASSWORD" <<'"'"'SQL'"'"'
-ALTER USER tm_user WITH PASSWORD :'"'"'pass'"'"';
+ALTER USER ag_user WITH PASSWORD :'"'"'pass'"'"';
 SQL'
 docker compose up -d --force-recreate api worker beat frontend
 ```
@@ -202,7 +202,7 @@ The bundle is report/TTP-centric:
 - STIX `report` for the analysis session
 - ATT&CK `attack-pattern` objects for extracted techniques
 - optional `intrusion-set` objects for group-similarity leads
-- `x_threatmapper_*` custom fields for confidence, review status, model, provider, domain, and similarity metadata
+- `x_adversarygraph_*` custom fields for confidence, review status, model, provider, domain, and similarity metadata
 
 This STIX export intentionally does not model IOCs. Similarity leads are
 investigation leads based on TTP overlap and must not be treated as attribution.

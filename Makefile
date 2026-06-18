@@ -16,7 +16,7 @@ shell-api:
 	docker compose exec api bash
 
 shell-db:
-	docker compose exec postgres psql -U tm_user -d threatmapper
+	docker compose exec postgres psql -U ag_user -d adversarygraph
 
 ingest:
 	docker compose exec api python -c "import asyncio; from app.services.attck.ingestor import run_ingest; asyncio.run(run_ingest())"

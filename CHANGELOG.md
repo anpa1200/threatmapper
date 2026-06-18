@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- Renamed user-facing product branding from ThreatMapper to AdversaryGraph while
+- Renamed user-facing product branding from AdversaryGraph to AdversaryGraph while
   retaining legacy repository URLs, database defaults, and STIX custom fields for
   compatibility.
 

@@ -29,7 +29,7 @@ def build_analysis_stix_bundle(
     now = _stix_time(datetime.now(timezone.utc))
     session_id = str(session.id)
 
-    identity_id = _stix_id("identity", "threatmapper-source")
+    identity_id = _stix_id("identity", "adversarygraph-source")
     report_id = _stix_id("report", f"analysis:{session_id}")
     objects: list[dict[str, Any]] = [
         {
@@ -85,11 +85,11 @@ def build_analysis_stix_bundle(
                 "external_id": session_id,
             }
         ],
-        "x_threatmapper_session_id": session_id,
-        "x_threatmapper_domain": session.domain,
-        "x_threatmapper_provider": session.llm_provider,
-        "x_threatmapper_model": session.model,
-        "x_threatmapper_note": (
+        "x_adversarygraph_session_id": session_id,
+        "x_adversarygraph_domain": session.domain,
+        "x_adversarygraph_provider": session.llm_provider,
+        "x_adversarygraph_model": session.model,
+        "x_adversarygraph_note": (
             "Similarity leads are TTP-overlap investigation leads, not attribution claims."
         ),
     }
@@ -131,10 +131,10 @@ def _attack_pattern_object(
         "description": meta.get("description") or item.get("evidence") or "",
         "external_references": refs,
         "x_mitre_id": attack_id,
-        "x_threatmapper_tactic": item.get("tactic") or "",
-        "x_threatmapper_confidence": item.get("confidence"),
-        "x_threatmapper_review_status": item.get("review_status", "suggested"),
-        "x_threatmapper_evidence_source": item.get("evidence_source", "llm"),
+        "x_adversarygraph_tactic": item.get("tactic") or "",
+        "x_adversarygraph_confidence": item.get("confidence"),
+        "x_adversarygraph_review_status": item.get("review_status", "suggested"),
+        "x_adversarygraph_evidence_source": item.get("evidence_source", "llm"),
     }
 
 
@@ -169,10 +169,10 @@ def _intrusion_set_object(
             }
         ],
         "x_mitre_id": attack_id,
-        "x_threatmapper_similarity": match.get("similarity"),
-        "x_threatmapper_shared_count": match.get("shared_count"),
-        "x_threatmapper_shared_techniques": match.get("shared_techniques", []),
-        "x_threatmapper_note": "TTP-overlap lead only; validate independently before attribution.",
+        "x_adversarygraph_similarity": match.get("similarity"),
+        "x_adversarygraph_shared_count": match.get("shared_count"),
+        "x_adversarygraph_shared_techniques": match.get("shared_techniques", []),
+        "x_adversarygraph_note": "TTP-overlap lead only; validate independently before attribution.",
     }
 
 

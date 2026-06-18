@@ -2,10 +2,10 @@
 
 **Target outlet:** The Hacker News
 **Draft type:** Feature / tool release / expert insight
-**Source article:** https://infosecwriteups.com/threatmapper-i-built-a-self-hosted-ai-threat-intelligence-platform-heres-how-to-use-it-0aa7673e6bd8
-**Canonical project:** https://github.com/anpa1200/threatmapper
-**Project hub:** https://1200km.com/threatmapper/
-**Release:** https://github.com/anpa1200/threatmapper/releases/tag/v2.0.0
+**Source article:** https://infosecwriteups.com/adversarygraph-i-built-a-self-hosted-ai-threat-intelligence-platform-heres-how-to-use-it-0aa7673e6bd8
+**Canonical project:** https://github.com/anpa1200/adversarygraph
+**Project hub:** https://1200km.com/adversarygraph/
+**Release:** https://github.com/anpa1200/adversarygraph/releases/tag/v2.0.0
 **External validation:** https://1200km.com/external-validation.html
 
 ## Editorial Positioning Notes
@@ -254,9 +254,9 @@ The project is open source and designed for self-hosted operation. The v2.0.0 re
 
 AdversaryGraph is available on GitHub under the MIT license.
 
-- GitHub: https://github.com/anpa1200/threatmapper
-- Release v2.0.0: https://github.com/anpa1200/threatmapper/releases/tag/v2.0.0
-- Project hub: https://1200km.com/threatmapper/
+- GitHub: https://github.com/anpa1200/adversarygraph
+- Release v2.0.0: https://github.com/anpa1200/adversarygraph/releases/tag/v2.0.0
+- Project hub: https://1200km.com/adversarygraph/
 - Public ATT&CK workspace: https://1200km.com/threat-matrix/
 - External validation and publications: https://1200km.com/external-validation.html
 

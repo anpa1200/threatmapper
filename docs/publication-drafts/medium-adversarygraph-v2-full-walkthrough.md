@@ -27,15 +27,15 @@ Version 2.0 adds the features that make it much more useful in real analyst work
 
 GitHub:
 
-https://github.com/anpa1200/threatmapper
+https://github.com/anpa1200/adversarygraph
 
 Release v2.0.0:
 
-https://github.com/anpa1200/threatmapper/releases/tag/v2.0.0
+https://github.com/anpa1200/adversarygraph/releases/tag/v2.0.0
 
 Full guide:
 
-https://github.com/anpa1200/threatmapper/blob/main/docs/full-guide-v2.md
+https://github.com/anpa1200/adversarygraph/blob/main/docs/full-guide-v2.md
 
 ## Table of Contents
 
@@ -105,8 +105,8 @@ The public browser workspace is for exploration and manual ATT&CK work. Do not u
 Clone the repository:
 
 ```bash
-git clone https://github.com/anpa1200/threatmapper.git
-cd threatmapper
+git clone https://github.com/anpa1200/adversarygraph.git
+cd adversarygraph
 ```
 
 Create the environment file:
@@ -453,7 +453,7 @@ The bundle contains:
 - STIX `report`
 - ATT&CK `attack-pattern` objects for extracted techniques
 - optional `intrusion-set` objects for group-similarity leads
-- `x_threatmapper_*` metadata
+- `x_adversarygraph_*` metadata
 
 The custom metadata includes:
 
@@ -620,19 +620,19 @@ Frontend build: passed
 
 GitHub:
 
-https://github.com/anpa1200/threatmapper
+https://github.com/anpa1200/adversarygraph
 
 Release:
 
-https://github.com/anpa1200/threatmapper/releases/tag/v2.0.0
+https://github.com/anpa1200/adversarygraph/releases/tag/v2.0.0
 
 Full guide:
 
-https://github.com/anpa1200/threatmapper/blob/main/docs/full-guide-v2.md
+https://github.com/anpa1200/adversarygraph/blob/main/docs/full-guide-v2.md
 
 Project hub:
 
-https://1200km.com/threatmapper/
+https://1200km.com/adversarygraph/
 
 Public ATT&CK workspace:
 

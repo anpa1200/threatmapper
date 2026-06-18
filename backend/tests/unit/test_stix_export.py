@@ -72,14 +72,14 @@ def test_analysis_stix_export_models_ttp_report_not_iocs():
 
     report = next(item for item in bundle["objects"] if item["type"] == "report")
     assert report["name"] == "DFIR report analysis"
-    assert report["x_threatmapper_domain"] == "enterprise-attack"
-    assert "not attribution claims" in report["x_threatmapper_note"]
+    assert report["x_adversarygraph_domain"] == "enterprise-attack"
+    assert "not attribution claims" in report["x_adversarygraph_note"]
 
     attack_pattern = next(item for item in bundle["objects"] if item["type"] == "attack-pattern")
     assert attack_pattern["id"] == "attack-pattern--11111111-1111-4111-8111-111111111111"
     assert attack_pattern["x_mitre_id"] == "T1566.002"
-    assert attack_pattern["x_threatmapper_review_status"] == "accepted"
+    assert attack_pattern["x_adversarygraph_review_status"] == "accepted"
 
     intrusion_set = next(item for item in bundle["objects"] if item["type"] == "intrusion-set")
     assert intrusion_set["id"] == "intrusion-set--22222222-2222-4222-8222-222222222222"
-    assert intrusion_set["x_threatmapper_similarity"] == 0.31
+    assert intrusion_set["x_adversarygraph_similarity"] == 0.31

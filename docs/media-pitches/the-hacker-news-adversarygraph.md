@@ -50,13 +50,13 @@ Why it may be relevant to your readers:
 - ships as an open-source project with release artifacts and documentation
 
 Project:
-https://github.com/anpa1200/threatmapper
+https://github.com/anpa1200/adversarygraph
 
 Release:
-https://github.com/anpa1200/threatmapper/releases/tag/v2.0.0
+https://github.com/anpa1200/adversarygraph/releases/tag/v2.0.0
 
 Project hub:
-https://1200km.com/threatmapper/
+https://1200km.com/adversarygraph/
 
 External validation / publications:
 https://1200km.com/external-validation.html
@@ -105,9 +105,9 @@ presented as an investigation lead, and LLM-assisted mappings require analyst
 review.
 
 Links:
-- GitHub: https://github.com/anpa1200/threatmapper
-- Release: https://github.com/anpa1200/threatmapper/releases/tag/v2.0.0
-- Project hub: https://1200km.com/threatmapper/
+- GitHub: https://github.com/anpa1200/adversarygraph
+- Release: https://github.com/anpa1200/adversarygraph/releases/tag/v2.0.0
+- Project hub: https://1200km.com/adversarygraph/
 - Public ATT&CK workspace: https://1200km.com/threat-matrix/
 - External validation: https://1200km.com/external-validation.html
 
@@ -164,9 +164,9 @@ quickstart, and security/limitations documentation.
 | Release | v2.0.0 |
 | Release date | 2026-06-16 |
 | License | MIT |
-| GitHub | https://github.com/anpa1200/threatmapper |
-| Release URL | https://github.com/anpa1200/threatmapper/releases/tag/v2.0.0 |
-| Project hub | https://1200km.com/threatmapper/ |
+| GitHub | https://github.com/anpa1200/adversarygraph |
+| Release URL | https://github.com/anpa1200/adversarygraph/releases/tag/v2.0.0 |
+| Project hub | https://1200km.com/adversarygraph/ |
 | Public workspace | https://1200km.com/threat-matrix/ |
 | External validation | https://1200km.com/external-validation.html |
 | Current GitHub stats | 8 stars, 1 fork at preparation time |
@@ -191,8 +191,8 @@ Use this short workflow video when an editor asks for a demo:
 
 Public copied versions are also available on 1200km.com:
 
-- `https://1200km.com/assets/validation/threatmapper-dashboard.png`
-- `https://1200km.com/assets/validation/threatmapper-analysis.png`
+- `https://1200km.com/assets/validation/adversarygraph-dashboard.png`
+- `https://1200km.com/assets/validation/adversarygraph-analysis.png`
 
 ## One-Paragraph Boilerplate
 

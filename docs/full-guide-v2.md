@@ -1,6 +1,6 @@
 # AdversaryGraph v2.x Full Guide
 
-![AdversaryGraph v2.0 cover](assets/threatmapper-v2/01-31Nq2VMJ9Mm9lgryHGJRQQ.webp)
+![AdversaryGraph v2.0 cover](assets/adversarygraph-v2/01-31Nq2VMJ9Mm9lgryHGJRQQ.webp)
 
 AdversaryGraph is a self-hosted CTI-to-detection workbench for turning threat
 reports into MITRE ATT&CK mapping candidates, reviewing the supporting evidence,
@@ -13,8 +13,8 @@ handoffs require human review.
 
 Public article and visual walkthrough:
 
-- 1200km article: https://1200km.com/articles/threatmapper-v2-self-hosted-ai-cti-platform.html
-- Medium publication: https://medium.com/@1200km/threatmapper-v2-0-i-built-a-self-hosted-ai-threat-intelligence-platform-941a80cc5a65
+- 1200km article: https://1200km.com/articles/adversarygraph-v2-self-hosted-ai-cti-platform.html
+- Medium archive: https://medium.com/@1200km
 
 ## 1. Operating Modes
 
@@ -54,8 +54,8 @@ Use Docker mode for:
 ### Clone And Configure
 
 ```bash
-git clone https://github.com/anpa1200/threatmapper.git
-cd threatmapper
+git clone https://github.com/anpa1200/adversarygraph.git
+cd adversarygraph
 cp .env.example .env
 ```
 
@@ -99,7 +99,7 @@ Health should return:
 
 ## 3. Core Concepts
 
-![AdversaryGraph problem statement](assets/threatmapper-v2/02-69nMwI7Xj8eNIWHv_C_KVg.webp)
+![AdversaryGraph problem statement](assets/adversarygraph-v2/02-69nMwI7Xj8eNIWHv_C_KVg.webp)
 
 | Concept | Meaning |
 |---|---|
@@ -110,13 +110,13 @@ Health should return:
 | Detection gap | A mapped behavior without sufficient telemetry, detection, or validation |
 | STIX export | OpenCTI-ready bundle containing report, ATT&CK attack-patterns, and similarity leads |
 
-![AdversaryGraph workflow map](assets/threatmapper-v2/03-7jquz_YKO0Odni3r3InzYw.webp)
+![AdversaryGraph workflow map](assets/adversarygraph-v2/03-7jquz_YKO0Odni3r3InzYw.webp)
 
 ## 4. Discover Intelligence
 
 The Discover page is the starting dashboard.
 
-![Discover Intelligence dashboard](assets/threatmapper-v2/04-VAfpLRWhfkB0pwRR5C4Nlw.webp)
+![Discover Intelligence dashboard](assets/adversarygraph-v2/04-VAfpLRWhfkB0pwRR5C4Nlw.webp)
 
 Use it to:
 
@@ -134,7 +134,7 @@ The page is designed for orientation, not final analysis.
 
 AI Analysis accepts:
 
-![AI Analysis provider and upload panel](assets/threatmapper-v2/05-Up-LNxuga22bScwyZiFuHA.webp)
+![AI Analysis provider and upload panel](assets/adversarygraph-v2/05-Up-LNxuga22bScwyZiFuHA.webp)
 
 - pasted report text
 - PDF files
@@ -163,11 +163,11 @@ Workflow:
 Review every mapping. The model may over-map broad behaviors, miss
 sub-techniques, or infer too much from actor/tool names.
 
-![AI Analysis workflow and extracted mappings](assets/threatmapper-v2/15-89fT-TuOac6OMSNdZ61vag.webp)
+![AI Analysis workflow and extracted mappings](assets/adversarygraph-v2/15-89fT-TuOac6OMSNdZ61vag.webp)
 
-![AI Analysis result with group similarity leads](assets/threatmapper-v2/16-FpAXPkiL1j3fiuOkL7tp8A.webp)
+![AI Analysis result with group similarity leads](assets/adversarygraph-v2/16-FpAXPkiL1j3fiuOkL7tp8A.webp)
 
-![AI Analysis raw structured output](assets/threatmapper-v2/19-T8D25vI8Mt2T7iWmqEJkfA.webp)
+![AI Analysis raw structured output](assets/adversarygraph-v2/19-T8D25vI8Mt2T7iWmqEJkfA.webp)
 
 ### Review Status
 
@@ -181,7 +181,7 @@ AdversaryGraph supports four analyst review states for extracted mappings:
 Use these states to separate raw model suggestions from analyst-reviewed
 findings before exporting or injecting TTPs into Navigator.
 
-![Review status controls](assets/threatmapper-v2/33-Rai3eOrk1Upsd4zeHxtroA.webp)
+![Review status controls](assets/adversarygraph-v2/33-Rai3eOrk1Upsd4zeHxtroA.webp)
 
 ## 6. Local LLM Mode
 
@@ -217,7 +217,7 @@ weak ATT&CK mappings.
 
 Navigator provides the ATT&CK matrix workspace.
 
-![Navigator matrix workspace](assets/threatmapper-v2/06-4zLLN71CBFHIMCEPOrTxmw.webp)
+![Navigator matrix workspace](assets/adversarygraph-v2/06-4zLLN71CBFHIMCEPOrTxmw.webp)
 
 Capabilities:
 
@@ -243,17 +243,17 @@ Color logic:
 
 Navigator is where reviewed AI results become an analyst-controlled TTP layer.
 
-![Navigator selected TTP layer](assets/threatmapper-v2/20-q9LHKlOmbS1119qTlPKjIA.webp)
+![Navigator selected TTP layer](assets/adversarygraph-v2/20-q9LHKlOmbS1119qTlPKjIA.webp)
 
-![Navigator actor overlay and technique detail](assets/threatmapper-v2/21-QkMDTHSy82_j4PA96Q3j6A.webp)
+![Navigator actor overlay and technique detail](assets/adversarygraph-v2/21-QkMDTHSy82_j4PA96Q3j6A.webp)
 
-![Navigator domain and selected TTP controls](assets/threatmapper-v2/34-lp9MmZunILgId0X7JHQVbw.webp)
+![Navigator domain and selected TTP controls](assets/adversarygraph-v2/34-lp9MmZunILgId0X7JHQVbw.webp)
 
 ## 8. ATT&CK Group Library
 
 The group library provides enriched ATT&CK actor context.
 
-![ATT&CK Group Library actor page](assets/threatmapper-v2/07-Dw7KTqHRijCEkYvUrdBMbQ.webp)
+![ATT&CK Group Library actor page](assets/adversarygraph-v2/07-Dw7KTqHRijCEkYvUrdBMbQ.webp)
 
 Each actor page includes:
 
@@ -275,7 +275,7 @@ Each actor page includes:
 Use it to understand actor behavior profiles and to load actor TTPs into your
 working layer.
 
-![Group tactic and platform coverage](assets/threatmapper-v2/28-lLkb-oRUX5Tns2S85SS16g.webp)
+![Group tactic and platform coverage](assets/adversarygraph-v2/28-lLkb-oRUX5Tns2S85SS16g.webp)
 
 ## 9. Campaigns
 
@@ -289,7 +289,7 @@ or report.
 
 Compare has three modes:
 
-![Compare page modes](assets/threatmapper-v2/26-aJW4II93D-bLqFMexDlW1g.webp)
+![Compare page modes](assets/adversarygraph-v2/26-aJW4II93D-bLqFMexDlW1g.webp)
 
 - Groups
 - Campaigns
@@ -307,7 +307,7 @@ Use for:
 
 Do not use similarity alone as attribution.
 
-![Group comparison results](assets/threatmapper-v2/27-_Dlqijzjnt_Ehr1ULHPmrg.webp)
+![Group comparison results](assets/adversarygraph-v2/27-_Dlqijzjnt_Ehr1ULHPmrg.webp)
 
 ### Campaigns
 
@@ -319,14 +319,14 @@ Use for:
 - narrower comparison than full group profiles
 - retrospective behavior matching
 
-![Campaign comparison and overlap review](assets/threatmapper-v2/29-0dTCvSgZ4dMeQDXkbutXPA.webp)
+![Campaign comparison and overlap review](assets/adversarygraph-v2/29-0dTCvSgZ4dMeQDXkbutXPA.webp)
 
 ### Reports
 
 Compares current TTPs against previous AI analyses stored in the local report
 database.
 
-![Stored report comparison](assets/threatmapper-v2/30-ecTDnydMYwWX8-Ncuk8GfQ.webp)
+![Stored report comparison](assets/adversarygraph-v2/30-ecTDnydMYwWX8-Ncuk8GfQ.webp)
 
 Use for:
 
@@ -338,7 +338,7 @@ Use for:
 
 Group vs Group compares multiple ATT&CK group profiles.
 
-![Group vs Group comparison](assets/threatmapper-v2/08-07j05Kn78RJY96S3Ga4IVQ.webp)
+![Group vs Group comparison](assets/adversarygraph-v2/08-07j05Kn78RJY96S3Ga4IVQ.webp)
 
 Views:
 
@@ -353,7 +353,7 @@ techniques are more distinctive.
 
 The DFIR Examples page indexes public DFIR Report metadata.
 
-![DFIR Examples page](assets/threatmapper-v2/17-aSqu_irokLlGQa1Njwa0fQ.webp)
+![DFIR Examples page](assets/adversarygraph-v2/17-aSqu_irokLlGQa1Njwa0fQ.webp)
 
 AdversaryGraph stores:
 
@@ -366,7 +366,7 @@ AdversaryGraph stores:
 
 AdversaryGraph does not mirror third-party report text, screenshots, or artifacts.
 
-![DFIR example detail and workflow](assets/threatmapper-v2/18-RL5VY8-RMrIQv_SIZpwPQQ.webp)
+![DFIR example detail and workflow](assets/adversarygraph-v2/18-RL5VY8-RMrIQv_SIZpwPQQ.webp)
 
 Workflow:
 
@@ -381,7 +381,7 @@ Workflow:
 
 Reference Sync shows the state of ATT&CK data.
 
-![Reference Sync page](assets/threatmapper-v2/25-lKoiwInK4AuBHDFSINWekA.webp)
+![Reference Sync page](assets/adversarygraph-v2/25-lKoiwInK4AuBHDFSINWekA.webp)
 
 Capabilities:
 
@@ -534,7 +534,7 @@ Treat these as analyst workflow scaffolding and integration points.
 
 ### PDF Report
 
-![PDF export action](assets/threatmapper-v2/22-62_zstQMYPoqj4kSTn4nBg.webp)
+![PDF export action](assets/adversarygraph-v2/22-62_zstQMYPoqj4kSTn4nBg.webp)
 
 From AI Analysis:
 
@@ -546,7 +546,7 @@ From AI Analysis:
 - group similarity leads
 - tactic coverage
 
-![Stored report PDF actions](assets/threatmapper-v2/32-oyHjzN-tAx7Lx19Xg0IPyA.webp)
+![Stored report PDF actions](assets/adversarygraph-v2/32-oyHjzN-tAx7Lx19Xg0IPyA.webp)
 
 ### STIX/OpenCTI
 
@@ -561,12 +561,12 @@ The STIX bundle contains:
 - `report`
 - ATT&CK `attack-pattern` objects
 - optional `intrusion-set` objects for similarity leads
-- `x_threatmapper_*` custom metadata. These legacy STIX custom fields are kept for compatibility with existing exports after the AdversaryGraph rename.
+- `x_adversarygraph_*` custom metadata. These legacy STIX custom fields are kept for compatibility with existing exports after the AdversaryGraph rename.
 
 This is not an IOC export. It is designed for report/TTP workflows in OpenCTI.
 Similarity leads are not attribution.
 
-![STIX/OpenCTI export](assets/threatmapper-v2/23-XfbZTKCAGTSArnhi3tiMOA.webp)
+![STIX/OpenCTI export](assets/adversarygraph-v2/23-XfbZTKCAGTSArnhi3tiMOA.webp)
 
 ### ATT&CK Navigator Layer
 
@@ -584,13 +584,13 @@ From Navigator:
 - tactic/platform metadata
 - printable working-layer summary
 
-![ATT&CK Navigator export controls](assets/threatmapper-v2/24-m1Zh30Hm7e6wmzZq1Mjdog.webp)
+![ATT&CK Navigator export controls](assets/adversarygraph-v2/24-m1Zh30Hm7e6wmzZq1Mjdog.webp)
 
 ## 19. API Overview
 
 Common endpoints:
 
-![FastAPI Swagger documentation](assets/threatmapper-v2/13-CsGSK7APVQvnvTDCLxXKNA.webp)
+![FastAPI Swagger documentation](assets/adversarygraph-v2/13-CsGSK7APVQvnvTDCLxXKNA.webp)
 
 ```text
 GET  /api/health
@@ -620,13 +620,13 @@ POST /api/ioc/import
 GET  /api/ioc/actors/{actor_id}
 ```
 
-![API terminal output and health checks](assets/threatmapper-v2/09-z711T5SOrORpjITlM2IY9A.webp)
+![API terminal output and health checks](assets/adversarygraph-v2/09-z711T5SOrORpjITlM2IY9A.webp)
 
-![Docker Compose startup logs](assets/threatmapper-v2/11-z4L2KcZIixQjdkrcBt8OlA.webp)
+![Docker Compose startup logs](assets/adversarygraph-v2/11-z4L2KcZIixQjdkrcBt8OlA.webp)
 
 ## 20. Analyst Review Rules
 
-![Practical attribution workflow](assets/threatmapper-v2/31-JDE0azpONj0OVW95p9yZkg.webp)
+![Practical attribution workflow](assets/adversarygraph-v2/31-JDE0azpONj0OVW95p9yZkg.webp)
 
 Use these rules before promoting output:
 
@@ -674,70 +674,70 @@ The following images are the screenshots, diagrams, and infographics used in
 the published AdversaryGraph v2.0 article and retained here as local project
 assets.
 
-![AdversaryGraph v2.0 cover](assets/threatmapper-v2/01-31Nq2VMJ9Mm9lgryHGJRQQ.webp)
+![AdversaryGraph v2.0 cover](assets/adversarygraph-v2/01-31Nq2VMJ9Mm9lgryHGJRQQ.webp)
 
-![Problem overview](assets/threatmapper-v2/02-69nMwI7Xj8eNIWHv_C_KVg.webp)
+![Problem overview](assets/adversarygraph-v2/02-69nMwI7Xj8eNIWHv_C_KVg.webp)
 
-![AdversaryGraph pages overview](assets/threatmapper-v2/03-7jquz_YKO0Odni3r3InzYw.webp)
+![AdversaryGraph pages overview](assets/adversarygraph-v2/03-7jquz_YKO0Odni3r3InzYw.webp)
 
-![Discover dashboard](assets/threatmapper-v2/04-VAfpLRWhfkB0pwRR5C4Nlw.webp)
+![Discover dashboard](assets/adversarygraph-v2/04-VAfpLRWhfkB0pwRR5C4Nlw.webp)
 
-![AI Analysis provider panel](assets/threatmapper-v2/05-Up-LNxuga22bScwyZiFuHA.webp)
+![AI Analysis provider panel](assets/adversarygraph-v2/05-Up-LNxuga22bScwyZiFuHA.webp)
 
-![Navigator matrix](assets/threatmapper-v2/06-4zLLN71CBFHIMCEPOrTxmw.webp)
+![Navigator matrix](assets/adversarygraph-v2/06-4zLLN71CBFHIMCEPOrTxmw.webp)
 
-![ATT&CK Group Library](assets/threatmapper-v2/07-Dw7KTqHRijCEkYvUrdBMbQ.webp)
+![ATT&CK Group Library](assets/adversarygraph-v2/07-Dw7KTqHRijCEkYvUrdBMbQ.webp)
 
-![Group vs Group comparison](assets/threatmapper-v2/08-07j05Kn78RJY96S3Ga4IVQ.webp)
+![Group vs Group comparison](assets/adversarygraph-v2/08-07j05Kn78RJY96S3Ga4IVQ.webp)
 
-![Terminal command output](assets/threatmapper-v2/09-z711T5SOrORpjITlM2IY9A.webp)
+![Terminal command output](assets/adversarygraph-v2/09-z711T5SOrORpjITlM2IY9A.webp)
 
-![Architecture infographic](assets/threatmapper-v2/10-a6c9YTdIktlPk1w0FRQHaA.webp)
+![Architecture infographic](assets/adversarygraph-v2/10-a6c9YTdIktlPk1w0FRQHaA.webp)
 
-![Docker startup logs](assets/threatmapper-v2/11-z4L2KcZIixQjdkrcBt8OlA.webp)
+![Docker startup logs](assets/adversarygraph-v2/11-z4L2KcZIixQjdkrcBt8OlA.webp)
 
-![Discover matrix view](assets/threatmapper-v2/12-l_EPylZmZEnAaDF6JjQE4w.webp)
+![Discover matrix view](assets/adversarygraph-v2/12-l_EPylZmZEnAaDF6JjQE4w.webp)
 
-![FastAPI Swagger API documentation](assets/threatmapper-v2/13-CsGSK7APVQvnvTDCLxXKNA.webp)
+![FastAPI Swagger API documentation](assets/adversarygraph-v2/13-CsGSK7APVQvnvTDCLxXKNA.webp)
 
-![Local LLM provider selection](assets/threatmapper-v2/14-EsC2UAT23n0xRDPv29oEWg.webp)
+![Local LLM provider selection](assets/adversarygraph-v2/14-EsC2UAT23n0xRDPv29oEWg.webp)
 
-![AI Analysis extracted JSON](assets/threatmapper-v2/15-89fT-TuOac6OMSNdZ61vag.webp)
+![AI Analysis extracted JSON](assets/adversarygraph-v2/15-89fT-TuOac6OMSNdZ61vag.webp)
 
-![APT match tab](assets/threatmapper-v2/16-FpAXPkiL1j3fiuOkL7tp8A.webp)
+![APT match tab](assets/adversarygraph-v2/16-FpAXPkiL1j3fiuOkL7tp8A.webp)
 
-![DFIR Examples list](assets/threatmapper-v2/17-aSqu_irokLlGQa1Njwa0fQ.webp)
+![DFIR Examples list](assets/adversarygraph-v2/17-aSqu_irokLlGQa1Njwa0fQ.webp)
 
-![DFIR report analysis workflow](assets/threatmapper-v2/18-RL5VY8-RMrIQv_SIZpwPQQ.webp)
+![DFIR report analysis workflow](assets/adversarygraph-v2/18-RL5VY8-RMrIQv_SIZpwPQQ.webp)
 
-![Raw analysis response](assets/threatmapper-v2/19-T8D25vI8Mt2T7iWmqEJkfA.webp)
+![Raw analysis response](assets/adversarygraph-v2/19-T8D25vI8Mt2T7iWmqEJkfA.webp)
 
-![Navigator selected layer](assets/threatmapper-v2/20-q9LHKlOmbS1119qTlPKjIA.webp)
+![Navigator selected layer](assets/adversarygraph-v2/20-q9LHKlOmbS1119qTlPKjIA.webp)
 
-![Navigator overlay detail](assets/threatmapper-v2/21-QkMDTHSy82_j4PA96Q3j6A.webp)
+![Navigator overlay detail](assets/adversarygraph-v2/21-QkMDTHSy82_j4PA96Q3j6A.webp)
 
-![PDF export control](assets/threatmapper-v2/22-62_zstQMYPoqj4kSTn4nBg.webp)
+![PDF export control](assets/adversarygraph-v2/22-62_zstQMYPoqj4kSTn4nBg.webp)
 
-![STIX/OpenCTI export flow](assets/threatmapper-v2/23-XfbZTKCAGTSArnhi3tiMOA.webp)
+![STIX/OpenCTI export flow](assets/adversarygraph-v2/23-XfbZTKCAGTSArnhi3tiMOA.webp)
 
-![ATT&CK Navigator export controls](assets/threatmapper-v2/24-m1Zh30Hm7e6wmzZq1Mjdog.webp)
+![ATT&CK Navigator export controls](assets/adversarygraph-v2/24-m1Zh30Hm7e6wmzZq1Mjdog.webp)
 
-![Reference Sync status](assets/threatmapper-v2/25-lKoiwInK4AuBHDFSINWekA.webp)
+![Reference Sync status](assets/adversarygraph-v2/25-lKoiwInK4AuBHDFSINWekA.webp)
 
-![Compare mode landing](assets/threatmapper-v2/26-aJW4II93D-bLqFMexDlW1g.webp)
+![Compare mode landing](assets/adversarygraph-v2/26-aJW4II93D-bLqFMexDlW1g.webp)
 
-![Group comparison graph](assets/threatmapper-v2/27-_Dlqijzjnt_Ehr1ULHPmrg.webp)
+![Group comparison graph](assets/adversarygraph-v2/27-_Dlqijzjnt_Ehr1ULHPmrg.webp)
 
-![Tactic coverage chart](assets/threatmapper-v2/28-lLkb-oRUX5Tns2S85SS16g.webp)
+![Tactic coverage chart](assets/adversarygraph-v2/28-lLkb-oRUX5Tns2S85SS16g.webp)
 
-![Campaign comparison](assets/threatmapper-v2/29-0dTCvSgZ4dMeQDXkbutXPA.webp)
+![Campaign comparison](assets/adversarygraph-v2/29-0dTCvSgZ4dMeQDXkbutXPA.webp)
 
-![Stored report comparison](assets/threatmapper-v2/30-ecTDnydMYwWX8-Ncuk8GfQ.webp)
+![Stored report comparison](assets/adversarygraph-v2/30-ecTDnydMYwWX8-Ncuk8GfQ.webp)
 
-![Practical attribution workflow infographic](assets/threatmapper-v2/31-JDE0azpONj0OVW95p9yZkg.webp)
+![Practical attribution workflow infographic](assets/adversarygraph-v2/31-JDE0azpONj0OVW95p9yZkg.webp)
 
-![Previous report PDF actions](assets/threatmapper-v2/32-oyHjzN-tAx7Lx19Xg0IPyA.webp)
+![Previous report PDF actions](assets/adversarygraph-v2/32-oyHjzN-tAx7Lx19Xg0IPyA.webp)
 
-![Review status controls](assets/threatmapper-v2/33-Rai3eOrk1Upsd4zeHxtroA.webp)
+![Review status controls](assets/adversarygraph-v2/33-Rai3eOrk1Upsd4zeHxtroA.webp)
 
-![Domain and selected TTP controls](assets/threatmapper-v2/34-lp9MmZunILgId0X7JHQVbw.webp)
+![Domain and selected TTP controls](assets/adversarygraph-v2/34-lp9MmZunILgId0X7JHQVbw.webp)

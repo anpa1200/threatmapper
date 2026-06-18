@@ -21,7 +21,7 @@ rm -rf "$WORK_DIR"
 mkdir -p "$WORK_DIR"
 cp -R /seed/. "$WORK_DIR/"
 node /usr/local/bin/generate-ttp-reference-index.mjs "$WORK_DIR"
-node /usr/local/bin/apply-threatmapper-docs-overlay.mjs "$WORK_DIR" /seed-overlay
+node /usr/local/bin/apply-adversarygraph-docs-overlay.mjs "$WORK_DIR" /seed-overlay
 build_site
 
 while [ "$ATLAS_SYNC_INTERVAL" -gt 0 ]; do
