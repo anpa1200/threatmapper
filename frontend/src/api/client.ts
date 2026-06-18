@@ -25,6 +25,15 @@ http.interceptors.response.use(
     const message = Array.isArray(detail)
       ? detail.map((item: { msg?: string }) => item.msg).filter(Boolean).join('; ')
       : detail || error.response?.data?.message || error.message || 'Unknown API error';
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('adversarygraph:api-error', {
+        detail: {
+          message,
+          status: error.response?.status,
+          url: error.config?.url,
+        },
+      }));
+    }
     return Promise.reject(new Error(message));
   },
 );

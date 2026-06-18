@@ -45,7 +45,6 @@ services:
 
   selftest:
     image: curlimages/curl:8.11.1
-    profiles: ["tools"]
     restart: "no"
     depends_on:
       api:

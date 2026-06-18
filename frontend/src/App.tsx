@@ -14,6 +14,7 @@ import { Sync } from '@/pages/Sync';
 import { Examples } from '@/pages/Examples';
 import { SectorIntel } from '@/pages/SectorIntel';
 import { SystemSelfTestPopup } from '@/components/SystemSelfTestPopup';
+import { GlobalErrorPopup } from '@/components/GlobalErrorPopup';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -47,6 +48,7 @@ export default function App() {
               <Route path="/sector-intel" element={<SectorIntel />} />
             </Routes>
           </main>
+          <GlobalErrorPopup />
           <SystemSelfTestPopup />
         </div>
       </BrowserRouter>
