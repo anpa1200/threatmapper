@@ -9,6 +9,15 @@ interface ApiErrorDetail {
 
 type PopupState = 'error' | 'checking' | 'ok';
 
+const providerRequirements = [
+  { provider: 'threatfox', envVar: 'THREATFOX_AUTH_KEY', match: ['/ioc/sync/threatfox', 'THREATFOX_AUTH_KEY'] },
+  { provider: 'otx', envVar: 'OTX_API_KEY', match: ['/ioc/sync/otx', '/enrich/otx', 'OTX_API_KEY'] },
+  { provider: 'virustotal', envVar: 'VIRUSTOTAL_API_KEY', match: ['/ioc/virustotal', 'VIRUSTOTAL_API_KEY'] },
+  { provider: 'anthropic', envVar: 'ANTHROPIC_API_KEY', match: ['provider=claude', 'ANTHROPIC_API_KEY'] },
+  { provider: 'openai', envVar: 'OPENAI_API_KEY', match: ['provider=openai', 'OPENAI_API_KEY'] },
+  { provider: 'gemini', envVar: 'GEMINI_API_KEY', match: ['provider=gemini', 'GEMINI_API_KEY'] },
+];
+
 export function GlobalErrorPopup() {
   const [error, setError] = useState<ApiErrorDetail | null>(null);
   const [popupState, setPopupState] = useState<PopupState>('error');
@@ -35,10 +44,21 @@ export function GlobalErrorPopup() {
   }).toString()}`;
 
   const recheck = async () => {
+    const originalError = error;
     setPopupState('checking');
     try {
       const result = await systemApi.selftest();
       if (result.status === 'ok') {
+        const stillMissing = missingRequiredProvider(originalError, result);
+        if (stillMissing) {
+          setPopupState('error');
+          setError({
+            message: `${stillMissing.envVar} is still missing. The base deployment is healthy, but this action requires ${stillMissing.envVar}. Add it to .env and restart the API container.`,
+            status: originalError.status,
+            url: originalError.url,
+          });
+          return;
+        }
         setPopupState('ok');
         setError({ message: 'All correct.', status: 200, url: '/system/selftest' });
       } else {
@@ -111,5 +131,16 @@ export function GlobalErrorPopup() {
         </button>
       </div>
     </div>
+  );
+}
+
+function missingRequiredProvider(error: ApiErrorDetail, result: Awaited<ReturnType<typeof systemApi.selftest>>) {
+  const haystack = `${error.url ?? ''} ${error.message ?? ''}`.toLowerCase();
+  const apiKeyCheck = result.checks.find(check => check.name === 'api_keys');
+  const details = apiKeyCheck?.details as { missing_optional?: string[] } | undefined;
+  const missing = new Set((details?.missing_optional ?? []).map(item => String(item).toLowerCase()));
+  return providerRequirements.find(requirement =>
+    missing.has(requirement.provider) &&
+    requirement.match.some(marker => haystack.includes(marker.toLowerCase()))
   );
 }

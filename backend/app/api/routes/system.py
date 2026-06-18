@@ -38,17 +38,17 @@ def _check(name: str, ok: bool, message: str, details: dict[str, Any] | None = N
 
 
 def _api_key_check() -> SelfTestCheck:
-    providers = {
-        "anthropic": bool(settings.anthropic_api_key),
-        "openai": bool(settings.openai_api_key),
-        "gemini": bool(settings.gemini_api_key),
-        "local_llm_base_url": bool(settings.local_llm_base_url),
-        "threatfox": bool(settings.threatfox_auth_key),
-        "otx": bool(settings.otx_api_key),
-        "virustotal": bool(settings.virustotal_api_key),
+    providers: dict[str, dict[str, Any]] = {
+        "anthropic": {"configured": bool(settings.anthropic_api_key), "env_var": "ANTHROPIC_API_KEY", "required_for": ["Claude AI analysis"]},
+        "openai": {"configured": bool(settings.openai_api_key), "env_var": "OPENAI_API_KEY", "required_for": ["OpenAI AI analysis"]},
+        "gemini": {"configured": bool(settings.gemini_api_key), "env_var": "GEMINI_API_KEY", "required_for": ["Gemini AI analysis"]},
+        "local_llm_base_url": {"configured": bool(settings.local_llm_base_url), "env_var": "LOCAL_LLM_BASE_URL", "required_for": ["local LLM analysis"]},
+        "threatfox": {"configured": bool(settings.threatfox_auth_key), "env_var": "THREATFOX_AUTH_KEY", "required_for": ["ThreatFox IOC sync"]},
+        "otx": {"configured": bool(settings.otx_api_key), "env_var": "OTX_API_KEY", "required_for": ["OTX IOC sync"]},
+        "virustotal": {"configured": bool(settings.virustotal_api_key), "env_var": "VIRUSTOTAL_API_KEY", "required_for": ["VirusTotal IOC lookup"]},
     }
-    configured = [name for name, present in providers.items() if present]
-    missing_optional = [name for name, present in providers.items() if not present]
+    configured = [name for name, data in providers.items() if data["configured"]]
+    missing_optional = [name for name, data in providers.items() if not data["configured"]]
     return _check(
         "api_keys",
         True,
@@ -56,6 +56,7 @@ def _api_key_check() -> SelfTestCheck:
         {
             "configured": configured,
             "missing_optional": missing_optional,
+            "providers": providers,
             "secrets_exposed": False,
         },
     )
