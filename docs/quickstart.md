@@ -80,9 +80,10 @@ Run the deployment self-test:
 docker compose run --rm selftest
 ```
 
-The self-test validates API startup, database connectivity, Redis, and
-ATT&CK/ATLAS data ingestion. The same check is available in the UI through
-error-popup `Recheck` actions and the internal troubleshooting page:
+The self-test validates API startup, database connectivity, Redis,
+ATT&CK/ATLAS data ingestion, and provider key configuration without exposing
+secret values. The same check is available in the UI through error-popup
+`Recheck` actions and the internal troubleshooting page:
 
 ```text
 http://localhost:3000/troubleshooting

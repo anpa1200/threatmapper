@@ -37,6 +37,30 @@ def _check(name: str, ok: bool, message: str, details: dict[str, Any] | None = N
     )
 
 
+def _api_key_check() -> SelfTestCheck:
+    providers = {
+        "anthropic": bool(settings.anthropic_api_key),
+        "openai": bool(settings.openai_api_key),
+        "gemini": bool(settings.gemini_api_key),
+        "local_llm_base_url": bool(settings.local_llm_base_url),
+        "threatfox": bool(settings.threatfox_auth_key),
+        "otx": bool(settings.otx_api_key),
+        "virustotal": bool(settings.virustotal_api_key),
+    }
+    configured = [name for name, present in providers.items() if present]
+    missing_optional = [name for name, present in providers.items() if not present]
+    return _check(
+        "api_keys",
+        True,
+        f"API key configuration checked: {len(configured)} configured, {len(missing_optional)} missing optional.",
+        {
+            "configured": configured,
+            "missing_optional": missing_optional,
+            "secrets_exposed": False,
+        },
+    )
+
+
 @router.get("/selftest", response_model=SelfTestResult)
 async def selftest() -> SelfTestResult:
     started = perf_counter()
@@ -114,6 +138,8 @@ async def selftest() -> SelfTestResult:
         checks.append(_check("redis", True, "Redis connection succeeded."))
     except Exception as exc:
         checks.append(_check("redis", False, f"Redis self-test failed: {type(exc).__name__}: {exc}"))
+
+    checks.append(_api_key_check())
 
     failed = [check for check in checks if check.status != "ok"]
     status = "ok" if not failed else "error"

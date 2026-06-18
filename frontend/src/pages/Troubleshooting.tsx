@@ -4,7 +4,7 @@ import { useSearchParams } from 'react-router-dom';
 const checks = [
   {
     title: 'Run the built-in self-test',
-    body: 'This validates API, database, Redis, and ATT&CK/ATLAS data from inside Docker.',
+    body: 'This validates API, database, Redis, ATT&CK/ATLAS data, and configured provider keys from inside Docker.',
     command: 'docker compose run --rm selftest',
   },
   {

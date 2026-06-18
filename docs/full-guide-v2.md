@@ -103,9 +103,10 @@ Run the built-in deployment self-test after Docker startup:
 docker compose run --rm selftest
 ```
 
-The self-test verifies database connectivity, Redis connectivity, and
-ATT&CK/ATLAS reference data. If an API request fails in the UI, the error popup
-shows the request context and provides:
+The self-test verifies database connectivity, Redis connectivity,
+ATT&CK/ATLAS reference data, and configured provider keys without exposing
+secret values. If an API request fails in the UI, the error popup shows the
+request context and provides:
 
 - `Recheck` to rerun `/api/system/selftest`
 - `Open troubleshooting` to open the internal Docker troubleshooting page
