@@ -4,6 +4,26 @@
 
 No unreleased changes.
 
+## v2.2.0 - 2026-06-18
+
+- Added an internal Docker troubleshooting page at `/troubleshooting` with
+  deployment checks, self-test commands, log commands, ATT&CK data probes, and
+  recovery order.
+- Added contextual troubleshooting links to API and startup self-test error
+  popups.
+- Added a global API error popup with clear HTTP status, request path, and
+  message context.
+- Added a `Recheck` action on API error popups that reruns the AdversaryGraph
+  self-test and turns the popup green with `All correct.` when the deployment
+  is healthy.
+- Added `/api/system/selftest` and a Docker `selftest` service for validating
+  database connectivity, ATT&CK/ATLAS ingestion, and Redis connectivity after
+  `docker compose up`.
+- Improved startup behavior by retrying matrix data queries and refreshing
+  matrix/discover/sync data after self-test passes.
+- Documented the v2.2 operational troubleshooting workflow in release notes,
+  release summary, quickstart, and full guide examples.
+
 ## v2.1.1 - 2026-06-18
 
 - Published the project under the canonical AdversaryGraph name after the

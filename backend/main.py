@@ -36,7 +36,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="AdversaryGraph API",
     description="ATT&CK-based threat intelligence mapping with AI analysis",
-    version="2.1.1",
+    version="2.2.0",
     lifespan=lifespan,
 )
 
@@ -63,4 +63,4 @@ app.include_router(system.router, prefix="/api")
 
 @app.get("/api/health")
 async def health():
-    return {"status": "ok", "version": "2.1.1"}
+    return {"status": "ok", "version": "2.2.0"}

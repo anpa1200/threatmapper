@@ -94,7 +94,28 @@ Open:
 Health should return:
 
 ```json
-{"status":"ok","version":"2.1.1"}
+{"status":"ok","version":"2.2.0"}
+```
+
+Run the built-in deployment self-test after Docker startup:
+
+```bash
+docker compose run --rm selftest
+```
+
+The self-test verifies database connectivity, Redis connectivity, and
+ATT&CK/ATLAS reference data. If an API request fails in the UI, the error popup
+shows the request context and provides:
+
+- `Recheck` to rerun `/api/system/selftest`
+- `Open troubleshooting` to open the internal Docker troubleshooting page
+
+When recheck passes, the popup turns green and shows `All correct.`.
+
+Internal troubleshooting page:
+
+```text
+http://localhost:3000/troubleshooting
 ```
 
 ## 3. Core Concepts

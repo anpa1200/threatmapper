@@ -3,7 +3,7 @@
 **AI-assisted CTI-to-detection workbench for MITRE ATT&CK mapping and detection-gap analysis.**
 
 [![CI](https://github.com/anpa1200/adversarygraph/actions/workflows/ci.yml/badge.svg)](https://github.com/anpa1200/adversarygraph/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/badge/release-v2.1.1-blue)](VERSION)
+[![Release](https://img.shields.io/badge/release-v2.2.0-blue)](VERSION)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Security policy](https://img.shields.io/badge/security-policy-blue)](SECURITY.md)
 [![Roadmap](https://img.shields.io/badge/roadmap-public-blue)](ROADMAP.md)
@@ -12,7 +12,7 @@
 [![Awesome Threat Intelligence](https://img.shields.io/badge/awesome--threat--intelligence-submitted-yellow)](https://github.com/hslatman/awesome-threat-intelligence/pull/385)
 [![Threat Hunting](https://img.shields.io/badge/awesome--threat--hunting-submitted-yellow)](https://github.com/threat-hunting/awesome_Threat-Hunting/pull/5)
 
-**Current release: v2.1.1 · [Release Summary](docs/release-summary-v2.1.1.md) · [Live Intelligence Workspace](https://1200km.com/threat-matrix/) · [Documentation & Usage Guide](https://1200km.com/adversarygraph-docs/) · [Full v2 Guide](docs/full-guide-v2.md) · [1200km Article](https://1200km.com/articles/adversarygraph-v2-self-hosted-ai-cti-platform.html) · [Medium Archive](https://medium.com/@1200km)**
+**Current release: v2.2.0 · [Release Summary](docs/release-summary-v2.2.0.md) · [Live Intelligence Workspace](https://1200km.com/threat-matrix/) · [Documentation & Usage Guide](https://1200km.com/adversarygraph-docs/) · [Full v2 Guide](docs/full-guide-v2.md) · [1200km Article](https://1200km.com/articles/adversarygraph-v2-self-hosted-ai-cti-platform.html) · [Medium Archive](https://medium.com/@1200km)**
 
 AdversaryGraph AI is a self-hosted CTI-to-detection workbench for mapping threat reports to MITRE ATT&CK, comparing TTP overlap with known groups and campaigns, identifying detection gaps, and exporting analyst-ready outputs.
 
@@ -32,7 +32,7 @@ AdversaryGraph AI is a self-hosted CTI-to-detection workbench for mapping threat
 
 ## Project Maturity Evidence
 
-AdversaryGraph v2.1.1 publishes the operational evidence expected from a serious self-hosted CTI tool:
+AdversaryGraph v2.2.0 publishes the operational evidence expected from a serious self-hosted CTI tool:
 
 | Area | Evidence |
 |---|---|
@@ -47,7 +47,7 @@ AdversaryGraph v2.1.1 publishes the operational evidence expected from a serious
 
 The current documentation is intended to make external review practical rather than promotional.
 
-For the current release scope, see the [v2.1.1 release summary](docs/release-summary-v2.1.1.md) and [release notes](docs/release-notes/v2.1.1.md).
+For the current release scope, see the [v2.2.0 release summary](docs/release-summary-v2.2.0.md) and [release notes](docs/release-notes/v2.2.0.md).
 
 ## Public Demo Privacy Note
 
@@ -998,6 +998,17 @@ copy, newsletter pitch text, and current external submission tracking.
 ---
 
 ## Changelog
+
+### v2.2.0 (2026-06-18)
+
+**Operational troubleshooting and self-test release:**
+- Added internal Docker troubleshooting page at `/troubleshooting`
+- Added contextual troubleshooting links from API and startup self-test error messages
+- Added `Recheck` button on API error popups to rerun deployment self-test
+- Error popup turns green and shows `All correct.` when the recheck passes
+- Added `/api/system/selftest` and Docker `selftest` service for API, database, Redis, and ATT&CK/ATLAS validation
+- Improved startup recovery by refreshing matrix/discover/sync data after self-test passes
+- Added longer matrix query retries during Docker startup
 
 ### v2.1.1 (2026-06-18)
 
