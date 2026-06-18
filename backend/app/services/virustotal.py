@@ -18,6 +18,20 @@ from app.models.attack import AptGroup, AptGroupTechnique, AttackVersion, Techni
 VT_BASE_URL = "https://www.virustotal.com/api/v3"
 ATTACK_ID_RE = re.compile(r"\bT\d{4}(?:\.\d{3})?\b", re.IGNORECASE)
 HASH_RE = re.compile(r"^[A-Fa-f0-9]{32}$|^[A-Fa-f0-9]{40}$|^[A-Fa-f0-9]{64}$")
+NOISY_ACTOR_TERMS = {
+    "apt",
+    "rat",
+    "trojan",
+    "malware",
+    "ransomware",
+    "backdoor",
+    "loader",
+    "stealer",
+    "phishing",
+    "windows",
+    "linux",
+    "macos",
+}
 
 
 @dataclass(frozen=True)
@@ -96,10 +110,12 @@ async def lookup_virustotal_ioc(
                     raise
 
     attributes = object_response.get("data", {}).get("attributes", {})
-    context_text = _flatten_text([attributes, mitre_response or {}])
-    technique_ids = sorted(set(_extract_attack_ids(mitre_response or {}) | _extract_attack_ids(attributes)))
+    ttp_evidence = _extract_ttp_evidence(attributes, "object attributes")
+    ttp_evidence.extend(_extract_ttp_evidence(mitre_response or {}, "behavior MITRE tree"))
+    technique_ids = sorted({item["attack_id"] for item in ttp_evidence})
     techniques = await _resolve_techniques(session, technique_ids, domain)
     actors = await _match_local_actors(session, attributes, mitre_response or {}, domain)
+    context_text = _flatten_text([attributes, mitre_response or {}])
 
     return {
         "indicator": target.value,
@@ -108,13 +124,25 @@ async def lookup_virustotal_ioc(
         "permalink": attributes.get("permalink") or target.vt_url,
         "summary": _summary(attributes),
         "reputation": attributes.get("reputation", 0),
+        "total_votes": attributes.get("total_votes") or {},
         "last_analysis_stats": attributes.get("last_analysis_stats", {}),
         "last_analysis_date": attributes.get("last_analysis_date"),
+        "first_submission_date": attributes.get("first_submission_date"),
+        "last_submission_date": attributes.get("last_submission_date"),
+        "last_modification_date": attributes.get("last_modification_date"),
+        "names": _names(attributes),
         "tags": _dedupe_str_list(attributes.get("tags", [])),
         "threat_names": _threat_names(attributes),
         "detections": _detections(attributes),
         "ttps": techniques,
+        "ttp_evidence": ttp_evidence[:80],
         "actors": actors,
+        "rules": _crowdsourced_rules(attributes),
+        "sandbox_verdicts": _sandbox_verdicts(attributes),
+        "dns_records": _dns_records(attributes),
+        "resolutions": _resolutions(attributes),
+        "whois": _short_text(attributes.get("whois", ""), 1200),
+        "network": _network_metadata(attributes),
         "context": _context(attributes, mitre_response, context_text),
     }
 
@@ -159,6 +187,15 @@ def _threat_names(attributes: dict[str, Any]) -> list[str]:
     return _dedupe_str_list(names)
 
 
+def _names(attributes: dict[str, Any]) -> list[str]:
+    names: list[Any] = []
+    for key in ("meaningful_name", "display_name", "title"):
+        if attributes.get(key):
+            names.append(attributes[key])
+    names.extend(attributes.get("names") or [])
+    return _dedupe_str_list(names)[:40]
+
+
 def _detections(attributes: dict[str, Any], limit: int = 18) -> list[dict[str, str]]:
     results = attributes.get("last_analysis_results") or {}
     rows = []
@@ -173,8 +210,66 @@ def _detections(attributes: dict[str, Any], limit: int = 18) -> list[dict[str, s
     return rows[:limit]
 
 
-def _extract_attack_ids(value: Any) -> set[str]:
-    return {match.upper() for match in ATTACK_ID_RE.findall(_flatten_text(value))}
+def _extract_ttp_evidence(value: Any, source: str) -> list[dict[str, str]]:
+    rows: list[dict[str, str]] = []
+
+    def walk(item: Any, path: str, parent: dict[str, Any] | None = None) -> None:
+        if isinstance(item, dict):
+            candidate_id = item.get("technique_id") or item.get("attack_id") or item.get("external_id")
+            candidate_name = item.get("technique") or item.get("technique_name") or item.get("name")
+            tactic = item.get("tactic") or item.get("tactic_name")
+            if candidate_id and ATTACK_ID_RE.fullmatch(str(candidate_id).strip(),):
+                rows.append({
+                    "attack_id": str(candidate_id).strip().upper(),
+                    "name": str(candidate_name or ""),
+                    "tactic": str(tactic or ""),
+                    "source": source,
+                    "evidence": _short_text(_flatten_text(item), 260),
+                })
+            for key, child in item.items():
+                walk(child, f"{path}.{key}" if path else str(key), item)
+            return
+        if isinstance(item, list):
+            for index, child in enumerate(item):
+                walk(child, f"{path}[{index}]", parent)
+            return
+        text = str(item) if item is not None else ""
+        for match in ATTACK_ID_RE.findall(text):
+            rows.append({
+                "attack_id": match.upper(),
+                "name": _related_name(parent),
+                "tactic": _related_tactic(parent),
+                "source": source,
+                "evidence": _short_text(text if len(text) > 12 else path, 260),
+            })
+
+    walk(value, "")
+    seen = set()
+    output = []
+    for row in rows:
+        key = (row["attack_id"], row["source"], row["evidence"].lower())
+        if key not in seen:
+            seen.add(key)
+            output.append(row)
+    return output
+
+
+def _related_name(parent: dict[str, Any] | None) -> str:
+    if not parent:
+        return ""
+    for key in ("technique_name", "technique", "name", "rule_name", "signature_name"):
+        if parent.get(key):
+            return str(parent[key])
+    return ""
+
+
+def _related_tactic(parent: dict[str, Any] | None) -> str:
+    if not parent:
+        return ""
+    for key in ("tactic", "tactic_name", "kill_chain_phase"):
+        if parent.get(key):
+            return str(parent[key])
+    return ""
 
 
 async def _resolve_techniques(session: AsyncSession, attack_ids: list[str], domain: str) -> list[dict[str, Any]]:
@@ -210,8 +305,8 @@ async def _match_local_actors(
     mitre_response: dict[str, Any],
     domain: str,
 ) -> list[dict[str, Any]]:
-    names = _candidate_actor_terms(attributes, mitre_response)
-    if not names:
+    actor_context = _actor_context(attributes, mitre_response)
+    if not actor_context["text"]:
         return []
     try:
         version_id = await _latest_version_id(session, domain)
@@ -223,11 +318,10 @@ async def _match_local_actors(
             .where(AptGroup.version_id == version_id)
         )
         matches = []
-        lower_terms = {term.lower() for term in names if len(term) >= 3}
         for group in rows.scalars().all():
             aliases = [str(alias) for alias in (group.aliases or [])]
-            actor_terms = {group.name.lower(), *(alias.lower() for alias in aliases)}
-            matched = sorted(actor_terms & lower_terms)
+            actor_terms = [group.name, *aliases]
+            matched, evidence = _match_actor_terms(actor_terms, actor_context)
             if matched:
                 technique_ids = sorted({usage.technique.attack_id for usage in group.technique_usages if usage.technique})
                 matches.append({
@@ -235,10 +329,11 @@ async def _match_local_actors(
                     "name": group.name,
                     "aliases": aliases,
                     "matched_terms": matched,
+                    "evidence": evidence,
                     "technique_ids": technique_ids,
                     "url": group.url,
                 })
-        return sorted(matches, key=lambda item: item["name"].lower())[:12]
+        return sorted(matches, key=lambda item: (-len(item["matched_terms"]), item["name"].lower()))[:12]
     except Exception:
         return []
 
@@ -248,21 +343,152 @@ async def _latest_version_id(session: AsyncSession, domain: str) -> int | None:
     return row.scalar_one_or_none()
 
 
-def _candidate_actor_terms(attributes: dict[str, Any], mitre_response: dict[str, Any]) -> set[str]:
-    terms = set(_threat_names(attributes))
-    for key in ("tags", "crowdsourced_yara_results", "crowdsourced_ids_results", "sigma_analysis_results"):
-        value = attributes.get(key)
-        if isinstance(value, list):
-            for item in value:
-                if isinstance(item, str):
-                    terms.add(item)
-                elif isinstance(item, dict):
-                    for subkey in ("rule_name", "rule_category", "description", "source", "author"):
-                        if item.get(subkey):
-                            terms.add(str(item[subkey]))
-    terms.update(ATTACK_ID_RE.sub(" ", _flatten_text(mitre_response)).split())
-    clean = {term.strip(" _-:/()[]{}.,").strip() for term in terms}
-    return {term for term in clean if len(term) >= 3 and not term.upper().startswith("T")}
+def _actor_context(attributes: dict[str, Any], mitre_response: dict[str, Any]) -> dict[str, Any]:
+    fields: list[dict[str, str]] = []
+
+    def add(source: str, value: Any) -> None:
+        text = _short_text(_flatten_text(value), 700)
+        if text:
+            fields.append({"source": source, "text": text})
+
+    add("threat labels", _threat_names(attributes))
+    add("tags", attributes.get("tags"))
+    add("names", _names(attributes))
+    add("popular threat classification", attributes.get("popular_threat_classification"))
+    add("crowdsourced YARA", attributes.get("crowdsourced_yara_results"))
+    add("crowdsourced IDS", attributes.get("crowdsourced_ids_results"))
+    add("Sigma analysis", attributes.get("sigma_analysis_results"))
+    add("sandbox verdicts", attributes.get("sandbox_verdicts"))
+    add("malware config", attributes.get("malware_config"))
+    add("behavior MITRE tree", mitre_response)
+    text = "\n".join(item["text"] for item in fields).lower()
+    return {"fields": fields, "text": text}
+
+
+def _match_actor_terms(actor_terms: list[str], context: dict[str, Any]) -> tuple[list[str], list[dict[str, str]]]:
+    matched: list[str] = []
+    evidence: list[dict[str, str]] = []
+    full_text = context["text"]
+    for term in actor_terms:
+        clean = term.strip()
+        if not _actor_term_is_useful(clean):
+            continue
+        pattern = _term_pattern(clean)
+        if not pattern.search(full_text):
+            continue
+        matched.append(clean)
+        for field in context["fields"]:
+            if pattern.search(field["text"].lower()):
+                evidence.append({
+                    "term": clean,
+                    "source": field["source"],
+                    "evidence": _snippet(field["text"], clean),
+                })
+                break
+    return _dedupe_str_list(matched), evidence[:8]
+
+
+def _actor_term_is_useful(term: str) -> bool:
+    lowered = term.lower()
+    if len(lowered) < 4 or lowered in NOISY_ACTOR_TERMS:
+        return False
+    return bool(re.search(r"[a-z0-9]", lowered))
+
+
+def _term_pattern(term: str) -> re.Pattern[str]:
+    escaped = re.escape(term.lower())
+    escaped = escaped.replace(r"\ ", r"[\s_.:/-]+")
+    return re.compile(rf"(?<![a-z0-9]){escaped}(?![a-z0-9])")
+
+
+def _snippet(text: str, term: str, size: int = 180) -> str:
+    lowered = text.lower()
+    index = lowered.find(term.lower())
+    if index < 0:
+        return _short_text(text, size)
+    start = max(0, index - size // 3)
+    end = min(len(text), index + len(term) + size)
+    return _short_text(text[start:end], size)
+
+
+def _crowdsourced_rules(attributes: dict[str, Any]) -> list[dict[str, str]]:
+    rows: list[dict[str, str]] = []
+    mappings = [
+        ("YARA", "crowdsourced_yara_results"),
+        ("IDS", "crowdsourced_ids_results"),
+        ("Sigma", "sigma_analysis_results"),
+    ]
+    for rule_type, key in mappings:
+        for item in attributes.get(key) or []:
+            if not isinstance(item, dict):
+                continue
+            rows.append({
+                "type": rule_type,
+                "name": str(item.get("rule_name") or item.get("rule_title") or item.get("name") or item.get("alert_context") or ""),
+                "source": str(item.get("source") or item.get("author") or item.get("ruleset_name") or ""),
+                "severity": str(item.get("rule_severity") or item.get("severity") or item.get("rule_category") or ""),
+                "description": _short_text(item.get("description") or item.get("rule_description") or item.get("match_context") or "", 260),
+            })
+    return [row for row in rows if row["name"] or row["description"]][:30]
+
+
+def _sandbox_verdicts(attributes: dict[str, Any]) -> list[dict[str, str]]:
+    verdicts = attributes.get("sandbox_verdicts") or {}
+    rows = []
+    if isinstance(verdicts, dict):
+        for sandbox, item in verdicts.items():
+            if not isinstance(item, dict):
+                continue
+            rows.append({
+                "sandbox": str(sandbox),
+                "category": str(item.get("category") or ""),
+                "malware_classification": str(item.get("malware_classification") or ""),
+                "malware_names": ", ".join(_dedupe_str_list(_as_list(item.get("malware_names")))[:8]),
+                "confidence": str(item.get("confidence") or ""),
+            })
+    return rows[:20]
+
+
+def _dns_records(attributes: dict[str, Any]) -> list[dict[str, str]]:
+    rows = []
+    for item in attributes.get("last_dns_records") or []:
+        if not isinstance(item, dict):
+            continue
+        rows.append({
+            "type": str(item.get("type") or ""),
+            "value": str(item.get("value") or ""),
+            "ttl": str(item.get("ttl") or ""),
+        })
+    return rows[:30]
+
+
+def _resolutions(attributes: dict[str, Any]) -> list[dict[str, str]]:
+    rows = []
+    for item in attributes.get("resolutions") or []:
+        if not isinstance(item, dict):
+            continue
+        rows.append({
+            "host_name": str(item.get("host_name") or ""),
+            "ip_address": str(item.get("ip_address") or ""),
+            "date": str(item.get("date") or ""),
+        })
+    return rows[:30]
+
+
+def _network_metadata(attributes: dict[str, Any]) -> dict[str, Any]:
+    keys = (
+        "as_owner",
+        "asn",
+        "continent",
+        "country",
+        "jarm",
+        "network",
+        "registrar",
+        "whois_date",
+        "creation_date",
+        "last_update_date",
+    )
+    return {key: attributes[key] for key in keys if attributes.get(key) is not None}
 
 
 def _context(attributes: dict[str, Any], mitre_response: dict[str, Any] | None, context_text: str) -> dict[str, Any]:
@@ -271,6 +497,8 @@ def _context(attributes: dict[str, Any], mitre_response: dict[str, Any] | None, 
         "crowdsourced_yara_count": len(attributes.get("crowdsourced_yara_results") or []),
         "crowdsourced_ids_count": len(attributes.get("crowdsourced_ids_results") or []),
         "sigma_result_count": len(attributes.get("sigma_analysis_results") or []),
+        "sandbox_verdict_count": len(attributes.get("sandbox_verdicts") or {}),
+        "has_network_metadata": bool(_network_metadata(attributes)),
         "context_terms": _dedupe_str_list(context_text.split())[:40],
     }
 
@@ -297,3 +525,20 @@ def _dedupe_str_list(values: list[Any]) -> list[str]:
             seen.add(key)
             output.append(text)
     return output
+
+
+def _as_list(value: Any) -> list[Any]:
+    if value is None:
+        return []
+    if isinstance(value, list):
+        return value
+    if isinstance(value, tuple):
+        return list(value)
+    return [value]
+
+
+def _short_text(value: Any, limit: int) -> str:
+    text = " ".join(str(value).split())
+    if len(text) <= limit:
+        return text
+    return f"{text[:limit - 1].rstrip()}..."

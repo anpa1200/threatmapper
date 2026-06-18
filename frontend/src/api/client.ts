@@ -150,20 +150,33 @@ export interface VirusTotalLookupResult {
   permalink: string;
   summary: string;
   reputation: number;
+  total_votes: Record<string, number>;
   last_analysis_stats: Record<string, number>;
   last_analysis_date: number | null;
+  first_submission_date: number | null;
+  last_submission_date: number | null;
+  last_modification_date: number | null;
+  names: string[];
   tags: string[];
   threat_names: string[];
   detections: Array<{ engine: string; category: string; result: string }>;
   ttps: Array<{ attack_id: string; name: string; tactics: string[]; url: string }>;
+  ttp_evidence: Array<{ attack_id: string; name: string; tactic: string; source: string; evidence: string }>;
   actors: Array<{
     attack_id: string;
     name: string;
     aliases: string[];
     matched_terms: string[];
+    evidence: Array<{ term: string; source: string; evidence: string }>;
     technique_ids: string[];
     url: string;
   }>;
+  rules: Array<{ type: string; name: string; source: string; severity: string; description: string }>;
+  sandbox_verdicts: Array<{ sandbox: string; category: string; malware_classification: string; malware_names: string; confidence: string }>;
+  dns_records: Array<{ type: string; value: string; ttl: string }>;
+  resolutions: Array<{ host_name: string; ip_address: string; date: string }>;
+  whois: string;
+  network: Record<string, unknown>;
   context: Record<string, unknown>;
 }
 

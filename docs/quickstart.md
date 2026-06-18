@@ -174,4 +174,6 @@ http://localhost:3000/virustotal
 
 Paste an IP, domain, URL, MD5, SHA1, or SHA256. The page shows a structured
 VirusTotal summary and provides actions to add found TTPs to `My TTPs`, show
-found TTPs on the matrix, and open any matched local adversary profile.
+found TTPs on the matrix, and open any matched local adversary profile. It also
+shows VT rule, sandbox, DNS/WHOIS, and evidence snippets for extracted TTPs and
+actor links when those fields are present in the VT response.

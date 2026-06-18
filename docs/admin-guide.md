@@ -252,9 +252,15 @@ Request:
 {"indicator":"8.8.8.8","domain":"enterprise-attack"}
 ```
 
-The response includes VirusTotal verdict counts, selected detection rows, tags,
-threat labels, extracted ATT&CK IDs, and local actor matches when a returned
-name/tag/label matches an ingested ATT&CK group name or alias.
+The response includes VirusTotal verdict counts, community votes, selected
+detection rows, tags, threat labels, object names, crowdsourced YARA/IDS/Sigma
+rules, sandbox verdicts, DNS/WHOIS/network metadata, extracted ATT&CK IDs, and
+TTP evidence records.
+
+Actor matching compares local ATT&CK group names and aliases with VT labels,
+tags, filenames, crowdsourced rule text, sandbox verdicts, malware
+configuration, and behavior context. The API returns the matched terms and
+evidence field for each actor match.
 
 In the UI, use `VirusTotal Lookup` to add found TTPs to `My TTPs`, show found
 TTPs on the Navigator matrix, open a matched adversary page, or overlay a

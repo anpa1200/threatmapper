@@ -557,9 +557,15 @@ The page displays:
 
 - malicious, suspicious, harmless, and undetected verdict counts
 - selected engine detections
-- VirusTotal tags and threat labels
-- ATT&CK technique IDs found in VirusTotal context
-- local adversary matches when names or aliases match ATT&CK group profiles
+- VirusTotal community votes, object names, tags, and threat labels
+- crowdsourced YARA, IDS, and Sigma rule metadata
+- sandbox verdicts and malware names when VT returns them
+- DNS records, resolutions, WHOIS, ASN, registrar, and network metadata
+- ATT&CK technique IDs found in VirusTotal object attributes or behavior MITRE trees
+- evidence snippets explaining why each TTP was extracted
+- local adversary matches when VT labels, tags, filenames, rule text, sandbox
+  verdicts, malware config, or behavior context match ATT&CK group names or aliases
+- evidence snippets explaining why each adversary was linked
 
 Available actions:
 

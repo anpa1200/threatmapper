@@ -127,6 +127,7 @@ class VirusTotalActorOut(BaseModel):
     name: str
     aliases: list[str] = Field(default_factory=list)
     matched_terms: list[str] = Field(default_factory=list)
+    evidence: list[dict[str, str]] = Field(default_factory=list)
     technique_ids: list[str] = Field(default_factory=list)
     url: str = ""
 
@@ -137,6 +138,42 @@ class VirusTotalDetectionOut(BaseModel):
     result: str
 
 
+class VirusTotalTtpEvidenceOut(BaseModel):
+    attack_id: str
+    name: str = ""
+    tactic: str = ""
+    source: str
+    evidence: str
+
+
+class VirusTotalRuleOut(BaseModel):
+    type: str
+    name: str = ""
+    source: str = ""
+    severity: str = ""
+    description: str = ""
+
+
+class VirusTotalSandboxVerdictOut(BaseModel):
+    sandbox: str
+    category: str = ""
+    malware_classification: str = ""
+    malware_names: str = ""
+    confidence: str = ""
+
+
+class VirusTotalDnsRecordOut(BaseModel):
+    type: str = ""
+    value: str = ""
+    ttl: str = ""
+
+
+class VirusTotalResolutionOut(BaseModel):
+    host_name: str = ""
+    ip_address: str = ""
+    date: str = ""
+
+
 class VirusTotalLookupOut(BaseModel):
     indicator: str
     type: str
@@ -144,13 +181,25 @@ class VirusTotalLookupOut(BaseModel):
     permalink: str
     summary: str
     reputation: int
+    total_votes: dict[str, int] = Field(default_factory=dict)
     last_analysis_stats: dict[str, int] = Field(default_factory=dict)
     last_analysis_date: int | None = None
+    first_submission_date: int | None = None
+    last_submission_date: int | None = None
+    last_modification_date: int | None = None
+    names: list[str] = Field(default_factory=list)
     tags: list[str] = Field(default_factory=list)
     threat_names: list[str] = Field(default_factory=list)
     detections: list[VirusTotalDetectionOut] = Field(default_factory=list)
     ttps: list[VirusTotalTechniqueOut] = Field(default_factory=list)
+    ttp_evidence: list[VirusTotalTtpEvidenceOut] = Field(default_factory=list)
     actors: list[VirusTotalActorOut] = Field(default_factory=list)
+    rules: list[VirusTotalRuleOut] = Field(default_factory=list)
+    sandbox_verdicts: list[VirusTotalSandboxVerdictOut] = Field(default_factory=list)
+    dns_records: list[VirusTotalDnsRecordOut] = Field(default_factory=list)
+    resolutions: list[VirusTotalResolutionOut] = Field(default_factory=list)
+    whois: str = ""
+    network: dict[str, Any] = Field(default_factory=dict)
     context: dict[str, Any] = Field(default_factory=dict)
 
 

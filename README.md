@@ -689,9 +689,16 @@ Supported inputs:
 - URL
 - MD5, SHA1, or SHA256
 
-The page displays verdict counts, selected engine detections, tags, threat
-labels, ATT&CK IDs found in VirusTotal context, and local actor matches when a
-returned name/tag/label matches an ingested ATT&CK group name or alias.
+The page displays verdict counts, community votes, selected engine detections,
+object names, tags, threat labels, crowdsourced YARA/IDS/Sigma rules, sandbox
+verdicts, DNS/WHOIS/network metadata, and ATT&CK IDs found in VirusTotal
+context. TTP matches include source evidence from VT object attributes or
+behavior MITRE trees.
+
+Local actor matching checks ATT&CK group names and aliases against VT threat
+labels, tags, filenames, crowdsourced rule text, sandbox verdicts, malware
+configuration, and behavior context. Matched actors include evidence showing
+which VT field produced the match.
 
 Actions:
 
