@@ -13,6 +13,7 @@ import { Pipeline } from '@/pages/Pipeline';
 import { Sync } from '@/pages/Sync';
 import { Examples } from '@/pages/Examples';
 import { SectorIntel } from '@/pages/SectorIntel';
+import { SystemSelfTestPopup } from '@/components/SystemSelfTestPopup';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -46,6 +47,7 @@ export default function App() {
               <Route path="/sector-intel" element={<SectorIntel />} />
             </Routes>
           </main>
+          <SystemSelfTestPopup />
         </div>
       </BrowserRouter>
     </QueryClientProvider>

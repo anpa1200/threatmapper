@@ -18,6 +18,17 @@ const http = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
+http.interceptors.response.use(
+  response => response,
+  error => {
+    const detail = error.response?.data?.detail;
+    const message = Array.isArray(detail)
+      ? detail.map((item: { msg?: string }) => item.msg).filter(Boolean).join('; ')
+      : detail || error.response?.data?.message || error.message || 'Unknown API error';
+    return Promise.reject(new Error(message));
+  },
+);
+
 // ── ATT&CK ───────────────────────────────────────────────────────────────────
 
 export const attackApi = {
@@ -250,6 +261,26 @@ export const layersApi = {
 export const healthApi = {
   check: (): Promise<{ status: string }> =>
     http.get('/health').then(r => r.data),
+};
+
+export interface SelfTestCheck {
+  name: string;
+  status: 'ok' | 'error';
+  message: string;
+  details: Record<string, unknown>;
+}
+
+export interface SelfTestResult {
+  status: 'ok' | 'error';
+  version: string;
+  checked_at: string;
+  duration_ms: number;
+  checks: SelfTestCheck[];
+}
+
+export const systemApi = {
+  selftest: (): Promise<SelfTestResult> =>
+    http.get('/system/selftest').then(r => r.data),
 };
 
 // ── MITRE Sync ────────────────────────────────────────────────────────────────
