@@ -369,16 +369,19 @@ def _match_actor_terms(actor_terms: list[str], context: dict[str, Any]) -> tuple
     matched: list[str] = []
     evidence: list[dict[str, str]] = []
     full_text = context["text"]
+    normalized_full_text = _compact_actor_text(full_text)
     for term in actor_terms:
         clean = term.strip()
         if not _actor_term_is_useful(clean):
             continue
         pattern = _term_pattern(clean)
-        if not pattern.search(full_text):
+        normalized_term = _compact_actor_text(clean)
+        if not pattern.search(full_text) and normalized_term not in normalized_full_text:
             continue
         matched.append(clean)
         for field in context["fields"]:
-            if pattern.search(field["text"].lower()):
+            field_text = field["text"].lower()
+            if pattern.search(field_text) or normalized_term in _compact_actor_text(field_text):
                 evidence.append({
                     "term": clean,
                     "source": field["source"],
@@ -399,6 +402,10 @@ def _term_pattern(term: str) -> re.Pattern[str]:
     escaped = re.escape(term.lower())
     escaped = escaped.replace(r"\ ", r"[\s_.:/-]+")
     return re.compile(rf"(?<![a-z0-9]){escaped}(?![a-z0-9])")
+
+
+def _compact_actor_text(value: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "", value.lower())
 
 
 def _snippet(text: str, term: str, size: int = 180) -> str:
