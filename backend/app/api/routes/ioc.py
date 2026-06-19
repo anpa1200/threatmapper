@@ -203,11 +203,29 @@ class IOCDetailOut(IOCLibraryItemOut):
     raw: dict[str, Any] = Field(default_factory=dict)
 
 
+class ReportIOCPreviewOut(BaseModel):
+    value: str
+    type: str
+    source: str
+    source_url: str
+    first_seen: str | None
+    last_seen: str | None
+    confidence: int
+    tlp: str
+    malware_family: str
+    campaign: str
+    technique_ids: list[str] = Field(default_factory=list)
+    tags: list[str] = Field(default_factory=list)
+    description: str
+    relationship: str
+    evidence: str
+
+
 class ReportIOCImportOut(BaseModel):
     filename: str
     extracted: int
     imported: SyncOut
-    preview: list[IOCOut]
+    preview: list[ReportIOCPreviewOut]
 
 
 class IOCCountsOut(BaseModel):

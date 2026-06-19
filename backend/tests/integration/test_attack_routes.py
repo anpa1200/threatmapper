@@ -8,6 +8,8 @@ for these particular tests since we verify the API shape and error responses).
 import pytest
 from httpx import AsyncClient
 
+from main import app
+
 
 # ── Health ─────────────────────────────────────────────────────────────────────
 
@@ -17,7 +19,7 @@ async def test_health(client: AsyncClient):
     assert resp.status_code == 200
     body = resp.json()
     assert body["status"] == "ok"
-    assert "version" in body
+    assert body["version"] == app.version
 
 
 # ── /api/attack/versions ───────────────────────────────────────────────────────

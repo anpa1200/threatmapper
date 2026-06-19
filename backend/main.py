@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.routes import attack, apt, analyze, sync, export, ioc, layers, operations, pipeline, sector, system
 from app.core.config import settings
 from app.core.database import async_session_factory, create_tables
+from app.core.version import APP_VERSION
 
 logging.basicConfig(
     level=getattr(logging, settings.log_level.upper(), logging.INFO),
@@ -54,7 +55,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="AdversaryGraph API",
     description="ATT&CK-based threat intelligence mapping with AI analysis",
-    version="2.5.9",
+    version=APP_VERSION,
     lifespan=lifespan,
 )
 
@@ -81,4 +82,4 @@ app.include_router(system.router, prefix="/api")
 
 @app.get("/api/health")
 async def health():
-    return {"status": "ok", "version": "2.5.9"}
+    return {"status": "ok", "version": app.version}

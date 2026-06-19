@@ -9,6 +9,7 @@ from sqlalchemy import func, select, text
 
 from app.core.config import settings
 from app.core.database import async_session_factory
+from app.core.version import APP_VERSION
 from app.models.attack import AptGroup, AttackVersion, Tactic, Technique
 from app.models.ioc import IOCIndicator, IOCSource
 
@@ -199,7 +200,7 @@ async def selftest() -> SelfTestResult:
     status = "ok" if not failed else "error"
     return SelfTestResult(
         status=status,
-        version="2.6.0",
+        version=APP_VERSION,
         checked_at=datetime.now(timezone.utc).isoformat(),
         duration_ms=int((perf_counter() - started) * 1000),
         checks=checks,

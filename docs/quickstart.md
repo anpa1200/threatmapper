@@ -114,7 +114,7 @@ curl "http://localhost:8000/api/attack/versions"
 Expected health response:
 
 ```json
-{"status":"ok","version":"2.5.9"}
+{"status":"ok","version":"2.6.0"}
 ```
 
 Run the deployment self-test:

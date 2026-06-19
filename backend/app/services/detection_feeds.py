@@ -15,6 +15,7 @@ import requests
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.version import APP_USER_AGENT
 from app.models.pipeline import CollectionRun, CollectionSource, DetectionVersion
 from app.services.detections import validate_detection
 
@@ -34,7 +35,7 @@ YARA_RULE_URLS = [
 ]
 HTTP_HEADERS = {
     "Accept": "application/vnd.github+json, application/json, text/plain, */*",
-    "User-Agent": "AdversaryGraph/2.5.9 detection-feed-sync",
+    "User-Agent": f"{APP_USER_AGENT} detection-feed-sync",
 }
 
 

@@ -1,0 +1,2 @@
+APP_VERSION = "2.6.0"
+APP_USER_AGENT = f"AdversaryGraph/{APP_VERSION}"

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+import asyncio
 import json
 import re
 from io import StringIO
@@ -324,7 +325,7 @@ async def sync_custom_source(
         raise ValueError(f"IOC source {source_id} has no URL")
 
     try:
-        response = requests.get(source.url, timeout=90)
+        response = await asyncio.to_thread(requests.get, source.url, timeout=90)
         response.raise_for_status()
         items = _parse_custom_feed(response.text, source.kind, source_id, source.url)
     except Exception as exc:
@@ -426,7 +427,7 @@ async def sync_malpedia_families(
     """Sync public Malpedia malware family metadata and actor attributions."""
     await ensure_ioc_sources(session)
     try:
-        payload = _malpedia_get_families()
+        payload = await _malpedia_get_families()
     except Exception as exc:
         await _mark_ioc_source(session, MALPEDIA_SOURCE_ID, "error", str(exc))
         await session.commit()
@@ -508,7 +509,7 @@ async def sync_otx_actor_pulses(
         for alias in _group_search_aliases(group)[:aliases_per_group]:
             searched_aliases += 1
             try:
-                pulses = _otx_search_pulses(alias, limit=pulses_per_alias)
+                pulses = await _otx_search_pulses(alias, limit=pulses_per_alias)
             except Exception as exc:
                 await _mark_ioc_source(session, OTX_SOURCE_ID, "error", str(exc))
                 await session.commit()
@@ -518,7 +519,7 @@ async def sync_otx_actor_pulses(
                 if not pulse_id or pulse_id in seen_pulses:
                     continue
                 seen_pulses.add(pulse_id)
-                detail = _otx_pulse_detail(pulse_id)
+                detail = await _otx_pulse_detail(pulse_id)
                 if not _pulse_matches_group(detail, group):
                     continue
                 for item in _otx_pulse_to_import_items(detail):
@@ -575,13 +576,13 @@ async def enrich_actor_from_otx(
     seen_pulses: set[str] = set()
     for alias in _group_search_aliases(group)[:aliases_per_group]:
         searched_aliases += 1
-        pulses = _otx_search_pulses(alias, limit=pulses_per_alias)
+        pulses = await _otx_search_pulses(alias, limit=pulses_per_alias)
         for pulse in pulses:
             pulse_id = str(pulse.get("id") or "")
             if not pulse_id or pulse_id in seen_pulses:
                 continue
             seen_pulses.add(pulse_id)
-            detail = _otx_pulse_detail(pulse_id)
+            detail = await _otx_pulse_detail(pulse_id)
             if not _pulse_matches_group(detail, group):
                 continue
             matched_pulses += 1
@@ -632,7 +633,7 @@ async def sync_otx_subscribed_pulses(
 
     groups = await _latest_groups(session, domain)
     try:
-        pulses = _otx_subscribed_pulses(limit=limit)
+        pulses = await _otx_subscribed_pulses(limit=limit)
     except Exception as exc:
         await _mark_ioc_source(session, OTX_SOURCE_ID, "error", str(exc))
         await session.commit()
@@ -695,7 +696,8 @@ async def sync_threatfox(
         await session.commit()
         raise RuntimeError(error)
     try:
-        response = requests.post(
+        response = await asyncio.to_thread(
+            requests.post,
             THREATFOX_API_URL,
             json={"query": "get_iocs", "days": days},
             headers={"Auth-Key": settings.threatfox_auth_key},
@@ -1304,8 +1306,8 @@ def _threatfox_item_to_import(item: dict[str, Any]) -> IOCImportItem:
     )
 
 
-def _malpedia_get_families() -> dict[str, Any]:
-    response = requests.get(f"{MALPEDIA_API_URL}/get/families", timeout=120)
+async def _malpedia_get_families() -> dict[str, Any]:
+    response = await asyncio.to_thread(requests.get, f"{MALPEDIA_API_URL}/get/families", timeout=120)
     response.raise_for_status()
     payload = response.json()
     return payload if isinstance(payload, dict) else {}
@@ -1357,8 +1359,9 @@ def _malpedia_family_to_import_item(family_id: str, family: dict[str, Any]) -> I
     )
 
 
-def _otx_search_pulses(alias: str, limit: int = 5) -> list[dict[str, Any]]:
-    response = requests.get(
+async def _otx_search_pulses(alias: str, limit: int = 5) -> list[dict[str, Any]]:
+    response = await asyncio.to_thread(
+        requests.get,
         f"{OTX_API_URL}/search/pulses",
         params={"q": alias, "limit": limit},
         headers={"X-OTX-API-KEY": settings.otx_api_key},
@@ -1369,8 +1372,9 @@ def _otx_search_pulses(alias: str, limit: int = 5) -> list[dict[str, Any]]:
     return [item for item in payload.get("results", []) if isinstance(item, dict)]
 
 
-def _otx_subscribed_pulses(limit: int = 100) -> list[dict[str, Any]]:
-    response = requests.get(
+async def _otx_subscribed_pulses(limit: int = 100) -> list[dict[str, Any]]:
+    response = await asyncio.to_thread(
+        requests.get,
         f"{OTX_API_URL}/pulses/subscribed",
         params={"limit": max(1, min(limit, 500))},
         headers={"X-OTX-API-KEY": settings.otx_api_key},
@@ -1381,8 +1385,9 @@ def _otx_subscribed_pulses(limit: int = 100) -> list[dict[str, Any]]:
     return [item for item in payload.get("results", []) if isinstance(item, dict)]
 
 
-def _otx_pulse_detail(pulse_id: str) -> dict[str, Any]:
-    response = requests.get(
+async def _otx_pulse_detail(pulse_id: str) -> dict[str, Any]:
+    response = await asyncio.to_thread(
+        requests.get,
         f"{OTX_API_URL}/pulses/{pulse_id}",
         headers={"X-OTX-API-KEY": settings.otx_api_key},
         timeout=45,
