@@ -200,6 +200,7 @@ services:
     restart: unless-stopped
     volumes:
       - ./frontend/src:/app/src
+      - ./frontend/public:/app/public
       - ./frontend/index.html:/app/index.html
     environment:
       VITE_API_URL: http://api:8000

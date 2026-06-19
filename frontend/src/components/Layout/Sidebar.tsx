@@ -6,6 +6,7 @@ import clsx from 'clsx';
 import { GlobalSearch } from '@/components/GlobalSearch';
 import { useAppStore } from '@/store';
 import { useState } from 'react';
+import adversaryGraphIcon from '@/assets/adversarygraph-ai-icon-192.png';
 
 const nav = [
   { to: '/discover',      label: 'Discover',      icon: '⌕' },
@@ -41,7 +42,7 @@ export function Sidebar() {
       {/* Logo */}
       <div className="px-5 py-5 border-b border-gray-700">
         <div className="flex items-center gap-2">
-          <img src="/adversarygraph-ai-icon-192.png" alt="" className="h-8 w-8 rounded-lg object-cover" />
+          <img src={adversaryGraphIcon} alt="" className="h-8 w-8 rounded-lg object-cover" />
           <div>
             <div className="text-sm font-bold text-white tracking-wide">AdversaryGraph</div>
             <div className="text-xs text-gray-400">ATT&CK Intelligence</div>
