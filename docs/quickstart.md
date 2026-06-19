@@ -36,11 +36,18 @@ For private analysis, use an operator-controlled LLM gateway and review the prov
 Optional IOC enrichment providers:
 
 ```env
+# abuse.ch ThreatFox recent IOC sync
 THREATFOX_AUTH_KEY=
 AUTO_THREATFOX_SYNC_ON_STARTUP=true
 AUTO_THREATFOX_SYNC_DAYS=7
+
+# AlienVault OTX actor-attributed pulse enrichment
 OTX_API_KEY=
+
+# VirusTotal on-demand IOC reputation and relationship lookup
 VIRUSTOTAL_API_KEY=
+
+# Daily dynamic DB refresh schedule in UTC
 DYNAMIC_DB_SYNC_HOUR=3
 DYNAMIC_DB_SYNC_MINUTE=30
 DYNAMIC_DB_IOC_SYNC_DAYS=7
@@ -48,6 +55,16 @@ DYNAMIC_DB_IOC_SYNC_DAYS=7
 
 Leave these blank if you only want ATT&CK/ATLAS mapping, sector relevance, and
 manual/private IOC imports.
+
+Feed and key behavior:
+
+- MITRE ATT&CK / ATLAS sync uses public STIX bundles and does not require an API key.
+- Built-in MISP Galaxy metadata sync is public and does not require a MISP key.
+- `THREATFOX_AUTH_KEY` enables abuse.ch ThreatFox recent IOC sync and optional startup sync.
+- `OTX_API_KEY` enables AlienVault OTX actor-attributed pulse enrichment.
+- `VIRUSTOTAL_API_KEY` enables on-demand IOC checks from IOC Library and VirusTotal Lookup.
+- MISP event/attribute JSON exports, STIX bundles, TAXII collection URLs, custom JSON/CSV/TXT feeds, Sigma/YARA feeds, and sandbox behavior feeds are connected from the UI or API as source URLs/tokens.
+- Never commit a filled `.env` file.
 
 When `THREATFOX_AUTH_KEY` is set, the API automatically starts a background
 ThreatFox sync after Docker startup. Leave `AUTO_THREATFOX_SYNC_ON_STARTUP=true`

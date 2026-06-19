@@ -76,6 +76,34 @@ LOCAL_LLM_API_KEY=local
 LOCAL_LLM_MODEL=llama3.1:8b
 ```
 
+Optional enrichment keys and feed sync:
+
+```env
+# abuse.ch ThreatFox recent IOC sync
+THREATFOX_AUTH_KEY=your_abuse_ch_auth_key
+AUTO_THREATFOX_SYNC_ON_STARTUP=true
+AUTO_THREATFOX_SYNC_DAYS=7
+
+# AlienVault OTX actor-attributed pulse enrichment
+OTX_API_KEY=your_otx_key
+
+# VirusTotal on-demand IOC reputation and relationship lookup
+VIRUSTOTAL_API_KEY=your_virustotal_key
+
+# Daily dynamic DB refresh schedule in UTC
+DYNAMIC_DB_SYNC_HOUR=3
+DYNAMIC_DB_SYNC_MINUTE=30
+DYNAMIC_DB_IOC_SYNC_DAYS=7
+```
+
+Enrichment behavior:
+
+- MITRE ATT&CK / ATLAS reference sync uses public STIX bundles and does not require an API key.
+- Built-in MISP Galaxy actor metadata sync is public and does not require a MISP key.
+- ThreatFox, OTX, and VirusTotal require their own keys only when those enrichment paths are used.
+- MISP JSON exports, STIX/TAXII collection URLs, custom JSON/CSV/TXT feeds, Sigma/YARA feeds, and sandbox behavior feeds are connected from the UI/API as source URLs or tokens.
+- Do not commit a filled `.env` file. Use a secret manager or orchestrator secrets for team deployments.
+
 Start:
 
 ```bash
