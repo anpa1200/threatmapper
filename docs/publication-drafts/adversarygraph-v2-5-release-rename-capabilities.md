@@ -29,6 +29,31 @@ https://1200km.com/adversarygraph/
 Use cases:
 https://1200km.com/adversarygraph/use-cases.html
 
+## Table Of Contents
+
+- From ThreatMapper To AdversaryGraph
+- What AdversaryGraph Is
+- Short Installation Guide
+- What Is New In v2.5
+- IOC Library
+- VirusTotal Enrichment
+- STIX, TAXII, MISP, And Custom Feeds
+- YARA, Sigma, And Sandbox Behavior
+- AI Report Analysis
+- ATT&CK And ATLAS Navigator
+- Actor And Campaign Comparison
+- Sector Intelligence
+- IOC-To-TTP Mapping
+- DFIR Examples
+- Operations And Pipeline
+- Two-Database Architecture
+- Selftest And Troubleshooting
+- Use Cases
+- Licensing Change
+- What This Release Means
+- Who Should Use It
+- Final Thought
+
 ## What AdversaryGraph Is
 
 AdversaryGraph is a self-hosted AI-assisted CTI-to-detection workbench.
@@ -51,6 +76,56 @@ It is built around one idea:
 > Raw intelligence becomes useful only when it is reviewed, structured, connected to evidence, and handed off in a form other teams can use.
 
 AdversaryGraph does not perform definitive attribution. Actor similarity, TTP overlap, IOC enrichment, and external feed matches are analytical signals. They help generate hypotheses and prioritize work, but the analyst still validates the evidence.
+
+## Short Installation Guide
+
+For a fresh local deployment, use Docker Compose.
+
+```bash
+git clone https://github.com/anpa1200/adversarygraph.git
+cd adversarygraph
+cp .env.example .env
+```
+
+Open `.env` and configure at least one LLM provider.
+
+For a cloud provider:
+
+```env
+ANTHROPIC_API_KEY=your_key_here
+```
+
+For a local OpenAI-compatible endpoint such as Ollama, LM Studio, LocalAI, or vLLM:
+
+```env
+LOCAL_LLM_BASE_URL=http://host.docker.internal:11434/v1
+LOCAL_LLM_API_KEY=local
+LOCAL_LLM_MODEL=llama3.1:8b
+```
+
+Start the platform:
+
+```bash
+docker compose up -d --build
+```
+
+Open the local interfaces:
+
+- Frontend: `http://localhost:3000`
+- API health: `http://localhost:8000/api/health`
+- API docs: `http://localhost:8000/docs`
+
+Run the selftest:
+
+```bash
+./scripts/selftest.sh
+```
+
+On first startup, AdversaryGraph downloads and ingests MITRE ATT&CK and MITRE ATLAS reference data. This can take a few minutes. If the matrix is empty immediately after startup, wait for the sync to finish, refresh the page, or open the troubleshooting page from the app.
+
+The detailed installation and operations documentation is here:
+
+https://1200km.com/adversarygraph-docs/getting-started/
 
 ## What Is New In v2.5
 
