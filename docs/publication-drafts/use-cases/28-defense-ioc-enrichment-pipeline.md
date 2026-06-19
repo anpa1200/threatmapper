@@ -7,6 +7,10 @@
 
 Create a repeatable SOC enrichment pipeline for incoming IOCs. In real CTI and SOC work, the value is not only the result. The value is the repeatable path from input to reviewed output. AdversaryGraph keeps report analysis, ATT&CK mapping, actor context, IOC enrichment, and exportable evidence in one workflow.
 
+## Real-Life Scenario
+
+A SOC receives IOCs from many sources every day and needs a repeatable enrichment pipeline with source labels, recency, actor links, and export options.
+
 ## Workflow
 
 1. **Configure ThreatFox, OTX, VT, Malpedia, MISP, TAXII/STIX, and custom feeds as allowed.**

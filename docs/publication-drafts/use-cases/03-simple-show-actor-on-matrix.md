@@ -7,6 +7,10 @@
 
 Visualize one actor's known ATT&CK behavior. In real CTI and SOC work, the value is not only the result. The value is the repeatable path from input to reviewed output. AdversaryGraph keeps report analysis, ATT&CK mapping, actor context, IOC enrichment, and exportable evidence in one workflow.
 
+## Real-Life Scenario
+
+A detection lead wants to show management what techniques are commonly associated with a specific actor before starting a coverage review.
+
 ## Workflow
 
 1. **Open the actor profile and click the matrix or Navigator action.**

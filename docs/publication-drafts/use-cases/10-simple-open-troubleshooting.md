@@ -7,6 +7,10 @@
 
 Move from a popup error to practical remediation. In real CTI and SOC work, the value is not only the result. The value is the repeatable path from input to reviewed output. AdversaryGraph keeps report analysis, ATT&CK mapping, actor context, IOC enrichment, and exportable evidence in one workflow.
 
+## Real-Life Scenario
+
+An enrichment action fails because an API key is missing, and the analyst needs a direct path from popup error to the relevant fix instructions.
+
 ## Workflow
 
 1. **Click Open troubleshooting in the error popup.**

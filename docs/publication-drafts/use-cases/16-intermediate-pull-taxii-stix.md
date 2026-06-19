@@ -7,6 +7,10 @@
 
 Exchange structured intelligence with CTI platforms. In real CTI and SOC work, the value is not only the result. The value is the repeatable path from input to reviewed output. AdversaryGraph keeps report analysis, ATT&CK mapping, actor context, IOC enrichment, and exportable evidence in one workflow.
 
+## Real-Life Scenario
+
+A partner shares a TAXII collection, and the platform owner wants to import the indicators into the local IOC Library for review and enrichment.
+
 ## Workflow
 
 1. **Prepare TAXII collection URL or STIX bundle.**

@@ -7,6 +7,10 @@
 
 Check whether the deployment is healthy before analysis. In real CTI and SOC work, the value is not only the result. The value is the repeatable path from input to reviewed output. AdversaryGraph keeps report analysis, ATT&CK mapping, actor context, IOC enrichment, and exportable evidence in one workflow.
 
+## Real-Life Scenario
+
+After a Docker update, the platform owner wants to confirm the API, database, ATT&CK data, and enrichment keys are working before analysts start using the system.
+
 ## Workflow
 
 1. **Open the app and run Self-test or call the selftest endpoint.**

@@ -7,6 +7,10 @@
 
 Analyze sensitive content without public LLM routing. In real CTI and SOC work, the value is not only the result. The value is the repeatable path from input to reviewed output. AdversaryGraph keeps report analysis, ATT&CK mapping, actor context, IOC enrichment, and exportable evidence in one workflow.
 
+## Real-Life Scenario
+
+A customer report contains sensitive incident details, so the analyst must run extraction through a private local LLM gateway instead of a public API.
+
 ## Workflow
 
 1. **Configure local/private LLM gateway in deployment env.**

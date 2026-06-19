@@ -7,6 +7,10 @@
 
 Review the core context for one ATT&CK group or actor. In real CTI and SOC work, the value is not only the result. The value is the repeatable path from input to reviewed output. AdversaryGraph keeps report analysis, ATT&CK mapping, actor context, IOC enrichment, and exportable evidence in one workflow.
 
+## Real-Life Scenario
+
+A CTI analyst is asked during a standup what APT29 is known for and needs a fast actor summary with aliases, techniques, reports, and observable context.
+
 ## Workflow
 
 1. **Open ATT&CK Group Library and search the actor name, ID, or alias.**

@@ -7,6 +7,10 @@
 
 Find whether an observable already exists in local or synced intelligence. In real CTI and SOC work, the value is not only the result. The value is the repeatable path from input to reviewed output. AdversaryGraph keeps report analysis, ATT&CK mapping, actor context, IOC enrichment, and exportable evidence in one workflow.
 
+## Real-Life Scenario
+
+An incident responder finds an IP address in proxy logs and needs to know whether it already exists in synced ThreatFox, MISP, OTX, or private customer feeds.
+
 ## Workflow
 
 1. **Open IOC Library and search the indicator, malware name, campaign, actor, or source.**

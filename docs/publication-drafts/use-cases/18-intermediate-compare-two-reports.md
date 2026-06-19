@@ -7,6 +7,10 @@
 
 Assess whether two reports describe related activity. In real CTI and SOC work, the value is not only the result. The value is the repeatable path from input to reviewed output. AdversaryGraph keeps report analysis, ATT&CK mapping, actor context, IOC enrichment, and exportable evidence in one workflow.
 
+## Real-Life Scenario
+
+Two public reports mention similar tooling and infrastructure, and the analyst needs to decide whether they describe the same campaign or only common tradecraft.
+
 ## Workflow
 
 1. **Analyze and store both reports.**

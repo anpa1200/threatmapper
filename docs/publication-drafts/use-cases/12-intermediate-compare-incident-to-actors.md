@@ -7,6 +7,10 @@
 
 Use TTP overlap to generate actor hypotheses. In real CTI and SOC work, the value is not only the result. The value is the repeatable path from input to reviewed output. AdversaryGraph keeps report analysis, ATT&CK mapping, actor context, IOC enrichment, and exportable evidence in one workflow.
 
+## Real-Life Scenario
+
+An IR team observes credential theft, remote execution, and exfiltration behaviors and wants to know which known actors have similar TTP patterns.
+
 ## Workflow
 
 1. **Load accepted incident TTPs into My TTPs.**

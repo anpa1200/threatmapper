@@ -7,6 +7,10 @@
 
 Validate a vendor or public CTI report before using it operationally. In real CTI and SOC work, the value is not only the result. The value is the repeatable path from input to reviewed output. AdversaryGraph keeps report analysis, ATT&CK mapping, actor context, IOC enrichment, and exportable evidence in one workflow.
 
+## Real-Life Scenario
+
+A vendor report makes strong actor and technique claims, and the internal CTI team must validate which findings are evidence-backed before sending them to SOC operations.
+
 ## Workflow
 
 1. **Import the report and extract TTPs.**

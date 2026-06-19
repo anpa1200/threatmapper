@@ -7,6 +7,10 @@
 
 Connect a private or custom IOC feed. In real CTI and SOC work, the value is not only the result. The value is the repeatable path from input to reviewed output. AdversaryGraph keeps report analysis, ATT&CK mapping, actor context, IOC enrichment, and exportable evidence in one workflow.
 
+## Real-Life Scenario
+
+A customer sends a short CSV of indicators from their incident response team, and the analyst needs to import it without mixing it with public feed data.
+
 ## Workflow
 
 1. **Open IOC Library source panel and add a JSON, CSV, or TXT feed with a clear label.**

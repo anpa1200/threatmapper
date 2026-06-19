@@ -7,6 +7,10 @@
 
 Connect detection-rule context to IOCs and malware. In real CTI and SOC work, the value is not only the result. The value is the repeatable path from input to reviewed output. AdversaryGraph keeps report analysis, ATT&CK mapping, actor context, IOC enrichment, and exportable evidence in one workflow.
 
+## Real-Life Scenario
+
+A malware analyst finds a suspicious hash and wants to know whether public or internal YARA/Sigma rules already describe related behavior.
+
 ## Workflow
 
 1. **Add YARA/Sigma feed sources.**

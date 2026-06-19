@@ -7,6 +7,10 @@
 
 Assess whether several reports belong to one campaign cluster. In real CTI and SOC work, the value is not only the result. The value is the repeatable path from input to reviewed output. AdversaryGraph keeps report analysis, ATT&CK mapping, actor context, IOC enrichment, and exportable evidence in one workflow.
 
+## Real-Life Scenario
+
+Three reports from different sources describe similar targeting and malware, and the CTI team needs to determine whether they form a campaign cluster.
+
 ## Workflow
 
 1. **Create a campaign workspace.**

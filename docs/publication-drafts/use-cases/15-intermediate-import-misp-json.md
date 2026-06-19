@@ -7,6 +7,10 @@
 
 Bring MISP event or attribute exports into IOC Library. In real CTI and SOC work, the value is not only the result. The value is the repeatable path from input to reviewed output. AdversaryGraph keeps report analysis, ATT&CK mapping, actor context, IOC enrichment, and exportable evidence in one workflow.
 
+## Real-Life Scenario
+
+The CTI team already stores curated events in MISP and wants those observables searchable in AdversaryGraph without manual copy-paste.
+
 ## Workflow
 
 1. **Create or expose a MISP JSON export URL.**

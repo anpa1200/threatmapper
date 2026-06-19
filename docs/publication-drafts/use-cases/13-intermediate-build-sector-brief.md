@@ -7,6 +7,10 @@
 
 Create a practical threat brief for one sector/customer. In real CTI and SOC work, the value is not only the result. The value is the repeatable path from input to reviewed output. AdversaryGraph keeps report analysis, ATT&CK mapping, actor context, IOC enrichment, and exportable evidence in one workflow.
 
+## Real-Life Scenario
+
+A telecom customer asks which actors and techniques are most relevant to their environment this quarter.
+
 ## Workflow
 
 1. **Open Sector Intel.**

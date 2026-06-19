@@ -7,6 +7,10 @@
 
 Create a baseline of current coverage across MITRE ATT&CK. In real CTI and SOC work, the value is not only the result. The value is the repeatable path from input to reviewed output. AdversaryGraph keeps report analysis, ATT&CK mapping, actor context, IOC enrichment, and exportable evidence in one workflow.
 
+## Real-Life Scenario
+
+A security program review requires a current MITRE ATT&CK coverage baseline showing which tactics are covered, weak, or missing.
+
 ## Workflow
 
 1. **Import current detection coverage as Navigator layer or manual TTP set.**

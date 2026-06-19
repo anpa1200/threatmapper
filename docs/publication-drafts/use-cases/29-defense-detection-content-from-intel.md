@@ -7,6 +7,10 @@
 
 Turn CTI findings into detection content candidates. In real CTI and SOC work, the value is not only the result. The value is the repeatable path from input to reviewed output. AdversaryGraph keeps report analysis, ATT&CK mapping, actor context, IOC enrichment, and exportable evidence in one workflow.
 
+## Real-Life Scenario
+
+A CTI report describes new intrusion behavior, and detection engineers need to convert it into practical Sigma, SIEM, EDR, or hunting tasks.
+
 ## Workflow
 
 1. **Analyze source report and accept validated TTPs.**

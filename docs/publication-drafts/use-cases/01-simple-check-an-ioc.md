@@ -7,6 +7,10 @@
 
 Check whether one IP, domain, URL, or hash has useful enrichment context. In real CTI and SOC work, the value is not only the result. The value is the repeatable path from input to reviewed output. AdversaryGraph keeps report analysis, ATT&CK mapping, actor context, IOC enrichment, and exportable evidence in one workflow.
 
+## Real-Life Scenario
+
+A SOC analyst receives a suspicious domain from an EDR alert during morning triage and needs to know in under two minutes whether it is known malicious, related to malware, or only a weak signal.
+
 ## Workflow
 
 1. **Open VirusTotal Lookup or IOC Library Enrichment.**

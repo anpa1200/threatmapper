@@ -7,6 +7,10 @@
 
 Investigate a cloud/Kubernetes incident using sector, TTP, IOC, and detection context. In real CTI and SOC work, the value is not only the result. The value is the repeatable path from input to reviewed output. AdversaryGraph keeps report analysis, ATT&CK mapping, actor context, IOC enrichment, and exportable evidence in one workflow.
 
+## Real-Life Scenario
+
+A Kubernetes workload starts beaconing externally after suspicious service account activity, and the team needs to combine cloud context, TTPs, IOCs, and telemetry requirements.
+
 ## Workflow
 
 1. **Create workspace and select cloud/Kubernetes technology context.**

@@ -7,6 +7,10 @@
 
 Produce an executive report showing threat relevance and coverage posture. In real CTI and SOC work, the value is not only the result. The value is the repeatable path from input to reviewed output. AdversaryGraph keeps report analysis, ATT&CK mapping, actor context, IOC enrichment, and exportable evidence in one workflow.
 
+## Real-Life Scenario
+
+A CISO asks for a non-technical view of which relevant threats are covered, which MITRE areas are weak, and what investments should come next.
+
 ## Workflow
 
 1. **Select sector and environment context.**

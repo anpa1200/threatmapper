@@ -7,6 +7,10 @@
 
 Add current observable context to one actor profile. In real CTI and SOC work, the value is not only the result. The value is the repeatable path from input to reviewed output. AdversaryGraph keeps report analysis, ATT&CK mapping, actor context, IOC enrichment, and exportable evidence in one workflow.
 
+## Real-Life Scenario
+
+A threat hunter is preparing an APT28 hunt and needs current source-labeled IOCs connected to actor context, not a generic stale blocklist.
+
 ## Workflow
 
 1. **Open actor profile and IOCs tab.**

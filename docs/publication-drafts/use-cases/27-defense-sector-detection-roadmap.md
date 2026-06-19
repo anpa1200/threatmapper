@@ -7,6 +7,10 @@
 
 Create a detection roadmap for a sector/customer environment. In real CTI and SOC work, the value is not only the result. The value is the repeatable path from input to reviewed output. AdversaryGraph keeps report analysis, ATT&CK mapping, actor context, IOC enrichment, and exportable evidence in one workflow.
 
+## Real-Life Scenario
+
+A financial services customer wants a 90-day detection roadmap based on actors, techniques, and technologies relevant to their sector.
+
 ## Workflow
 
 1. **Select customer sector, region, and technologies in Sector Intel.**

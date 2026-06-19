@@ -7,6 +7,10 @@
 
 Investigate a ransomware report from intake to actor hypothesis and detection handoff. In real CTI and SOC work, the value is not only the result. The value is the repeatable path from input to reviewed output. AdversaryGraph keeps report analysis, ATT&CK mapping, actor context, IOC enrichment, and exportable evidence in one workflow.
 
+## Real-Life Scenario
+
+A company reports encrypted servers, suspicious PowerShell, and possible data theft, and the IR/CTI team needs a full path from report intake to actor hypotheses and detection backlog.
+
 ## Workflow
 
 1. **Run selftest and confirm enrichment keys are available.**

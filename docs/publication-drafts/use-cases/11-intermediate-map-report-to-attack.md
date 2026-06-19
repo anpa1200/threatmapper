@@ -7,6 +7,10 @@
 
 Turn one report into reviewed ATT&CK techniques. In real CTI and SOC work, the value is not only the result. The value is the repeatable path from input to reviewed output. AdversaryGraph keeps report analysis, ATT&CK mapping, actor context, IOC enrichment, and exportable evidence in one workflow.
 
+## Real-Life Scenario
+
+A vendor publishes a report about a new intrusion chain, and the CTI team needs reviewed ATT&CK mappings before creating detections or briefing the SOC.
+
 ## Workflow
 
 1. **Load PDF/DOCX/TXT or paste text into AI Analysis.**

@@ -7,6 +7,10 @@
 
 Create a shareable analyst report from reviewed findings. In real CTI and SOC work, the value is not only the result. The value is the repeatable path from input to reviewed output. AdversaryGraph keeps report analysis, ATT&CK mapping, actor context, IOC enrichment, and exportable evidence in one workflow.
 
+## Real-Life Scenario
+
+A CTI analyst has finished reviewing report mappings and needs a quick PDF for an internal handoff meeting.
+
 ## Workflow
 
 1. **Open a reviewed analysis or report view.**
