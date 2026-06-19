@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Header } from '@/components/Layout/Header';
 import { iocApi, pipelineApi, sectorApi, syncApi } from '@/api/client';
@@ -8,9 +8,17 @@ type FeedKind = 'custom-json' | 'custom-csv' | 'custom-txt';
 type RuleFeedKind = 'sigma' | 'yara';
 
 const field = 'w-full rounded border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-gray-200 outline-none focus:border-mitre-accent';
+const domainLabels: Record<string, string> = {
+  'enterprise-attack': 'Enterprise',
+  'mobile-attack': 'Mobile',
+  'ics-attack': 'ICS',
+  atlas: 'ATLAS',
+};
 
 export function FeedsManagement() {
   const qc = useQueryClient();
+  const [selectedDomains, setSelectedDomains] = useState<string[]>([]);
+  const [taskId, setTaskId] = useState<string | null>(null);
   const [customLabel, setCustomLabel] = useState('');
   const [customUrl, setCustomUrl] = useState('');
   const [customKind, setCustomKind] = useState<FeedKind>('custom-json');
@@ -27,8 +35,19 @@ export function FeedsManagement() {
   const [rssName, setRssName] = useState('');
   const [rssUrl, setRssUrl] = useState('');
   const [forceReferences, setForceReferences] = useState(false);
+  const [aiEnrichIocs, setAiEnrichIocs] = useState(false);
+  const [aiProvider, setAiProvider] = useState<'local' | 'claude' | 'openai' | 'gemini'>('local');
 
   const syncStatus = useQuery({ queryKey: ['sync-status'], queryFn: syncApi.status });
+  const syncTask = useQuery({
+    queryKey: ['sync-task', taskId],
+    queryFn: () => syncApi.taskStatus(taskId as string),
+    enabled: !!taskId,
+    refetchInterval: query => {
+      const state = query.state.data?.status;
+      return state && !['PENDING', 'STARTED', 'RETRY'].includes(state) ? false : 2500;
+    },
+  });
   const iocSources = useQuery({ queryKey: ['ioc-sources'], queryFn: iocApi.sources });
   const pipelineSources = useQuery({ queryKey: ['pipeline-sources'], queryFn: pipelineApi.sources });
   const pipelineRuns = useQuery({ queryKey: ['pipeline-runs'], queryFn: pipelineApi.runs });
@@ -45,24 +64,43 @@ export function FeedsManagement() {
     qc.invalidateQueries({ queryKey: ['actor-ioc-summary'] });
   };
 
+  useEffect(() => {
+    const state = syncTask.data?.status;
+    if (state && !['PENDING', 'STARTED', 'RETRY'].includes(state)) {
+      qc.invalidateQueries({ queryKey: ['sync-status'] });
+      qc.invalidateQueries({ queryKey: ['attack-versions'] });
+    }
+  }, [syncTask.data?.status, qc]);
+
   const referenceDomains = useMemo(
     () => (syncStatus.data?.domains ?? []).map(item => item.domain),
     [syncStatus.data?.domains],
   );
+  const referenceSources = useMemo(() => syncStatus.data?.sources ?? [], [syncStatus.data?.sources]);
+  const activeDomains = selectedDomains.length ? selectedDomains : referenceDomains;
+  const taskRunning = !!taskId && ['PENDING', 'STARTED', 'RETRY'].includes(syncTask.data?.status ?? 'PENDING');
+  const synchronizedContent = useMemo(() => {
+    const mitre = referenceSources.find(source => source.id === 'mitre-attack');
+    return mitre?.content ?? syncStatus.data?.domains?.[0]?.content ?? [];
+  }, [referenceSources, syncStatus.data?.domains]);
 
   const syncReferences = useMutation({
-    mutationFn: () => syncApi.trigger({ source: 'mitre-attack', domains: referenceDomains, force: forceReferences }),
-    onSuccess: refreshFeeds,
+    mutationFn: () => syncApi.trigger({ source: 'mitre-attack', domains: activeDomains, force: forceReferences }),
+    onSuccess: data => {
+      setTaskId(data.task_id);
+      refreshFeeds();
+    },
   });
   const syncDynamicDb = useMutation({
     mutationFn: () => syncApi.dynamicDb({ days: 7, force_attack: forceReferences }),
     onSuccess: refreshFeeds,
   });
   const syncMispGalaxy = useMutation({ mutationFn: sectorApi.syncMispGalaxy, onSuccess: refreshFeeds });
-  const syncAllIocs = useMutation({ mutationFn: () => syncApi.ioc(7), onSuccess: refreshFeeds });
-  const syncThreatFox = useMutation({ mutationFn: () => iocApi.syncThreatFox(7), onSuccess: refreshFeeds });
+  const iocSyncOptions = () => ({ ai_enrich: aiEnrichIocs, ai_provider: aiProvider });
+  const syncAllIocs = useMutation({ mutationFn: () => syncApi.ioc(7, iocSyncOptions()), onSuccess: refreshFeeds });
+  const syncThreatFox = useMutation({ mutationFn: () => iocApi.syncThreatFox(7, iocSyncOptions()), onSuccess: refreshFeeds });
   const syncMalpedia = useMutation({ mutationFn: iocApi.syncMalpedia, onSuccess: refreshFeeds });
-  const syncOtx = useMutation({ mutationFn: () => iocApi.syncOtx('subscribed'), onSuccess: refreshFeeds });
+  const syncOtx = useMutation({ mutationFn: () => iocApi.syncOtx('subscribed', iocSyncOptions()), onSuccess: refreshFeeds });
   const createIocSource = useMutation({
     mutationFn: iocApi.createSource,
     onSuccess: () => {
@@ -72,7 +110,8 @@ export function FeedsManagement() {
       refreshFeeds();
     },
   });
-  const syncIocSource = useMutation({ mutationFn: iocApi.syncSource, onSuccess: refreshFeeds });
+  const syncIocSource = useMutation({ mutationFn: (sourceId: string) => iocApi.syncSource(sourceId, iocSyncOptions()), onSuccess: refreshFeeds });
+  const enrichIocTtps = useMutation({ mutationFn: () => iocApi.enrichIocTtps({ ...iocSyncOptions(), limit: 20000 }), onSuccess: refreshFeeds });
   const importStix = useMutation({
     mutationFn: async (file: File) => {
       const text = await file.text();
@@ -144,6 +183,14 @@ export function FeedsManagement() {
   const sandboxFeeds = collectionSources.filter(source => source.kind === 'sandbox');
   const rssFeeds = collectionSources.filter(source => source.kind === 'rss');
 
+  const toggleDomain = (domain: string) => {
+    setSelectedDomains(current =>
+      current.includes(domain)
+        ? current.filter(item => item !== domain)
+        : [...current, domain],
+    );
+  };
+
   return (
     <div className="flex h-full flex-col">
       <Header title="Feeds Management" />
@@ -157,13 +204,21 @@ export function FeedsManagement() {
                 </p>
                 <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
                   {(syncStatus.data?.domains ?? []).map(domain => (
-                    <div key={domain.domain} className="rounded border border-gray-800 bg-gray-950 p-3">
-                      <b className="block text-sm text-white">{domain.domain}</b>
+                    <button
+                      key={domain.domain}
+                      onClick={() => toggleDomain(domain.domain)}
+                      className={`rounded border p-3 text-left transition-colors ${
+                        activeDomains.includes(domain.domain)
+                          ? 'border-mitre-accent bg-mitre-accent/10 text-white'
+                          : 'border-gray-800 bg-gray-950 text-gray-500 hover:text-gray-300'
+                      }`}
+                    >
+                      <b className="block text-sm">{domainLabels[domain.domain] ?? domain.domain}</b>
                       <span className="text-[10px] text-gray-500">{domain.current_version ?? 'not loaded'} to {domain.latest_version ?? 'unknown'}</span>
                       <div className={domain.needs_update ? 'mt-2 text-[10px] text-amber-300' : 'mt-2 text-[10px] text-green-400'}>
                         {domain.needs_update ? 'Update available' : 'Current'}
                       </div>
-                    </div>
+                    </button>
                   ))}
                 </div>
                 <label className="flex items-center gap-2 text-xs text-gray-400">
@@ -171,19 +226,25 @@ export function FeedsManagement() {
                   Force refresh cached reference bundles
                 </label>
                 <div className="flex flex-wrap gap-2">
-                  <button className="primary" disabled={syncReferences.isPending || referenceDomains.length === 0} onClick={() => syncReferences.mutate()}>
-                    {syncReferences.isPending ? 'Starting...' : 'Sync ATT&CK / ATLAS'}
+                  <button className="primary" disabled={syncReferences.isPending || taskRunning || activeDomains.length === 0} onClick={() => syncReferences.mutate()}>
+                    {forceReferences ? 'Force sync selected references' : 'Sync selected references'}
                   </button>
                   <button className="primary" disabled={syncDynamicDb.isPending} onClick={() => syncDynamicDb.mutate()}>
-                    {syncDynamicDb.isPending ? 'Syncing...' : 'Sync Dynamic DB'}
+                    {syncDynamicDb.isPending ? 'Syncing...' : 'Sync Local / Dynamic DB'}
                   </button>
                   <button className="secondary-action" disabled={syncMispGalaxy.isPending} onClick={() => syncMispGalaxy.mutate()}>
                     {syncMispGalaxy.isPending ? 'Syncing...' : 'Sync MISP Galaxy'}
                   </button>
                 </div>
-                <MutationStatus label="Reference sync" mutation={syncReferences} />
+                {taskId && <div className="rounded border border-gray-800 bg-gray-950 p-2 font-mono text-[10px] text-gray-500">Reference task {taskId.slice(0, 8)} · {syncTask.data?.status ?? 'PENDING'}</div>}
+                <MutationStatus label="Reference feeds" mutation={syncReferences} />
                 <MutationStatus label="Dynamic DB" mutation={syncDynamicDb} />
                 <MutationStatus label="MISP Galaxy" mutation={syncMispGalaxy} />
+                {syncDynamicDb.data && (
+                  <div className="rounded border border-green-900 bg-green-950/30 p-3 text-xs text-green-300">
+                    Local / dynamic DB sync complete. Public references were refreshed while private/custom records were preserved.
+                  </div>
+                )}
               </div>
             </Panel>
 
@@ -220,6 +281,72 @@ export function FeedsManagement() {
             </Panel>
           </section>
 
+          <section className="grid gap-4 xl:grid-cols-[1fr_1.2fr]">
+            <Panel title="Reference Sources">
+              <div className="divide-y divide-gray-800">
+                {referenceSources.map(source => (
+                  <div key={source.id} className="p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <b className="text-sm text-white">{source.label}</b>
+                      <StatusPill status={source.status} />
+                    </div>
+                    <p className="mt-2 text-xs text-gray-500">{source.schedule ?? 'No automated schedule configured'}</p>
+                    <div className="mt-3 flex flex-wrap gap-1.5">
+                      {source.content.map(item => <span key={item} className="rounded border border-gray-800 px-2 py-1 text-[10px] text-gray-400">{item}</span>)}
+                    </div>
+                  </div>
+                ))}
+                {!referenceSources.length && <div className="p-4 text-sm text-gray-600">No reference source metadata returned yet.</div>}
+              </div>
+            </Panel>
+
+            <Panel title="Domain Status">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="text-xs uppercase text-gray-500">
+                    <tr>
+                      <th className="p-3 text-left">Domain</th>
+                      <th className="p-3 text-left">Current</th>
+                      <th className="p-3 text-left">Latest</th>
+                      <th className="p-3 text-left">State</th>
+                      <th className="p-3 text-left">Last ingested</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(syncStatus.data?.domains ?? []).map(domain => (
+                      <tr key={domain.domain} className="border-t border-gray-800">
+                        <td className="p-3 text-white">{domainLabels[domain.domain] ?? domain.domain}</td>
+                        <td className="p-3 font-mono text-gray-300">{domain.current_version ?? '-'}</td>
+                        <td className="p-3 font-mono text-gray-300">{domain.latest_version ?? '-'}</td>
+                        <td className="p-3">
+                          <span className={`rounded-full px-2 py-1 text-[10px] ${domain.needs_update ? 'bg-amber-950 text-amber-300' : 'bg-green-950 text-green-400'}`}>
+                            {domain.needs_update ? 'update available' : 'current'}
+                          </span>
+                        </td>
+                        <td className="p-3 text-gray-500">{domain.last_ingested ?? '-'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {syncStatus.isLoading && <div className="p-4 text-sm text-gray-500">Checking references...</div>}
+                {syncStatus.error && <div className="p-4 text-sm text-red-400">{String(syncStatus.error)}</div>}
+              </div>
+            </Panel>
+          </section>
+
+          {syncTask.data?.result ? (
+            <Panel title="Last Reference Task Result">
+              <pre className="m-4 max-h-72 overflow-auto rounded bg-gray-950 p-3 text-xs text-gray-400">{JSON.stringify(syncTask.data.result, null, 2)}</pre>
+            </Panel>
+          ) : null}
+
+          <Panel title="Synchronized Reference Content">
+            <div className="grid gap-2 p-4 sm:grid-cols-2 lg:grid-cols-3">
+              {synchronizedContent.map(item => <span key={item} className="rounded border border-gray-800 bg-gray-900 px-3 py-2 text-xs text-gray-300">{item}</span>)}
+              {!synchronizedContent.length && <span className="text-sm text-gray-600">No synchronized content metadata yet.</span>}
+            </div>
+          </Panel>
+
           <section className="grid gap-4 xl:grid-cols-2">
             <Panel title="IOC Feeds">
               <div className="space-y-4 p-4">
@@ -231,6 +358,9 @@ export function FeedsManagement() {
                   <button className="secondary-action" disabled={syncThreatFox.isPending} onClick={() => syncThreatFox.mutate()}>ThreatFox</button>
                   <button className="secondary-action" disabled={syncMalpedia.isPending} onClick={() => syncMalpedia.mutate()}>Malpedia</button>
                   <button className="secondary-action" disabled={syncOtx.isPending} onClick={() => syncOtx.mutate()}>OTX</button>
+                  <button className="secondary-action" disabled={enrichIocTtps.isPending} onClick={() => enrichIocTtps.mutate()}>
+                    {enrichIocTtps.isPending ? 'Enriching...' : 'Enrich local IOC DB to TTPs'}
+                  </button>
                   <a className="secondary-action" href={iocApi.stixExportUrl({ limit: 5000 })}>Export STIX</a>
                   <label className="secondary-action cursor-pointer">
                     Import STIX
@@ -245,6 +375,25 @@ export function FeedsManagement() {
                       }}
                     />
                   </label>
+                </div>
+                <div className="grid gap-2 rounded border border-gray-800 bg-gray-950 p-3 md:grid-cols-[minmax(0,1fr)_180px]">
+                  <label className="flex items-start gap-2 text-xs text-gray-300">
+                    <input
+                      type="checkbox"
+                      checked={aiEnrichIocs}
+                      onChange={event => setAiEnrichIocs(event.target.checked)}
+                      className="mt-0.5"
+                    />
+                    <span>
+                      Use AI as last fallback for new IOCs without source-backed or enrichment-platform TTP evidence.
+                    </span>
+                  </label>
+                  <select className={field} value={aiProvider} onChange={event => setAiProvider(event.target.value as typeof aiProvider)}>
+                    <option value="local">Local LLM</option>
+                    <option value="claude">Claude</option>
+                    <option value="openai">OpenAI</option>
+                    <option value="gemini">Gemini</option>
+                  </select>
                 </div>
                 <div className="grid gap-2 md:grid-cols-[1fr_1.4fr_140px_auto]">
                   <input className={field} value={customLabel} onChange={event => setCustomLabel(event.target.value)} placeholder="Feed label" />
@@ -268,6 +417,7 @@ export function FeedsManagement() {
                 <MutationStatus label="Custom source" mutation={createIocSource} />
                 <MutationStatus label="Custom source sync" mutation={syncIocSource} />
                 <MutationStatus label="STIX import" mutation={importStix} />
+                <MutationStatus label="IOC-to-TTP enrichment" mutation={enrichIocTtps} />
               </div>
             </Panel>
 

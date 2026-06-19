@@ -4,6 +4,17 @@
 
 No unreleased changes.
 
+## v2.5.4 - 2026-06-19
+
+- Normalized legacy/provider hash IOC labels into `sha256`, `sha1`, and `md5`.
+- Added duplicate IOC consolidation with actor-link and metadata preservation.
+- Added evidence-priority IOC-to-TTP mapping: strict source/report evidence,
+  enrichment-platform metadata, then optional AI fallback.
+- Added `/api/ioc/enrich/ttps` for local IOC DB reprocessing.
+- Added opt-in AI fallback controls to IOC Library and Feeds Management.
+- Updated IOC sync APIs with `ai_enrich` and `ai_provider` options.
+- Added focused tests and updated operator documentation.
+
 ## v2.5.0 - 2026-06-18
 
 - Added a full IOC Library page with search, type/source filtering, group/actor

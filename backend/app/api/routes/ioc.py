@@ -21,6 +21,7 @@ from app.services.ioc_intel import (
     actor_iocs,
     create_ioc_source,
     enrich_actor_from_otx,
+    enrich_ioc_ttp_mappings,
     import_iocs,
     list_ioc_library,
     list_ioc_sources,
@@ -55,6 +56,16 @@ class SyncOut(BaseModel):
     inserted: int
     updated: int
     actor_links: int
+    ttp_enriched: int = 0
+
+
+class IOCMappingEnrichmentOut(BaseModel):
+    checked: int
+    updated: int
+    normalized_types: int = 0
+    ai_attempted: int = 0
+    ai_mapped: int = 0
+    priority: str
 
 
 class IOCImportIn(BaseModel):
@@ -380,10 +391,12 @@ async def import_ioc_taxii_route(
 async def sync_threatfox_route(
     days: int = Query(7, ge=1, le=7),
     domain: str = Query("enterprise-attack"),
+    ai_enrich: bool = Query(False),
+    ai_provider: str = Query("local", pattern="^(local|claude|openai|gemini)$"),
     session: AsyncSession = Depends(get_session),
 ):
     try:
-        return await sync_threatfox(session, days=days, domain=domain)
+        return await sync_threatfox(session, days=days, domain=domain, ai_enrich=ai_enrich, ai_provider=ai_provider)
     except Exception as exc:
         status_code = 400 if "THREATFOX_AUTH_KEY" in str(exc) else 502
         raise HTTPException(status_code, f"ThreatFox sync failed: {exc}") from exc
@@ -393,6 +406,8 @@ async def sync_threatfox_route(
 async def sync_otx_route(
     domain: str = Query("enterprise-attack"),
     mode: str = Query("subscribed", pattern="^(subscribed|actor-search)$"),
+    ai_enrich: bool = Query(False),
+    ai_provider: str = Query("local", pattern="^(local|claude|openai|gemini)$"),
     limit: int = Query(100, ge=1, le=500),
     max_groups: int = Query(220, ge=1, le=500),
     aliases_per_group: int = Query(4, ge=1, le=8),
@@ -401,7 +416,7 @@ async def sync_otx_route(
 ):
     try:
         if mode == "subscribed":
-            return await sync_otx_subscribed_pulses(session, domain=domain, limit=limit)
+            return await sync_otx_subscribed_pulses(session, domain=domain, limit=limit, ai_enrich=ai_enrich, ai_provider=ai_provider)
         return await sync_otx_actor_pulses(
             session,
             domain=domain,
@@ -429,12 +444,38 @@ async def sync_malpedia_route(
 async def sync_source_route(
     source_id: str,
     domain: str = Query("enterprise-attack"),
+    ai_enrich: bool = Query(False),
+    ai_provider: str = Query("local", pattern="^(local|claude|openai|gemini)$"),
     session: AsyncSession = Depends(get_session),
 ):
     try:
-        return await sync_custom_source(session, source_id=source_id, domain=domain)
+        return await sync_custom_source(session, source_id=source_id, domain=domain, ai_enrich=ai_enrich, ai_provider=ai_provider)
     except Exception as exc:
         raise HTTPException(400, f"Custom IOC source sync failed: {exc}") from exc
+
+
+@router.post("/enrich/ttps", response_model=IOCMappingEnrichmentOut)
+async def enrich_ioc_ttps_route(
+    source_id: list[str] = Query(default_factory=list),
+    ai_enrich: bool = Query(False),
+    ai_provider: str = Query("local", pattern="^(local|claude|openai|gemini)$"),
+    domain: str = Query("enterprise-attack"),
+    limit: int = Query(500, ge=1, le=20000),
+    session: AsyncSession = Depends(get_session),
+):
+    try:
+        result = await enrich_ioc_ttp_mappings(
+            session,
+            source_ids=source_id or None,
+            use_ai=ai_enrich,
+            ai_provider=ai_provider,
+            domain=domain,
+            limit=limit,
+        )
+        await session.commit()
+        return result
+    except Exception as exc:
+        raise HTTPException(500, f"IOC-to-TTP enrichment failed: {exc}") from exc
 
 
 @router.post("/import", response_model=SyncOut)

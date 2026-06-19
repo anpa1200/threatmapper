@@ -98,7 +98,7 @@ DYNAMIC_DB_IOC_SYNC_DAYS=7
 
 Enrichment behavior:
 
-- MITRE ATT&CK / ATLAS reference sync uses public STIX bundles and does not require an API key.
+- MITRE ATT&CK / ATLAS feeds management uses public STIX bundles and does not require an API key.
 - Built-in MISP Galaxy actor metadata sync is public and does not require a MISP key.
 - ThreatFox, OTX, and VirusTotal require their own keys only when those enrichment paths are used.
 - MISP JSON exports, STIX/TAXII collection URLs, custom JSON/CSV/TXT feeds, Sigma/YARA feeds, and sandbox behavior feeds are connected from the UI/API as source URLs or tokens.
@@ -122,7 +122,7 @@ Open:
 Health should return:
 
 ```json
-{"status":"ok","version":"2.5.0"}
+{"status":"ok","version":"2.5.4"}
 ```
 
 Run the built-in deployment self-test after Docker startup:
@@ -427,11 +427,11 @@ Workflow:
 5. Review evidence.
 6. Compare against groups, campaigns, and previous reports.
 
-## 13. Reference Sync
+## 13. Feeds Management
 
-Reference Sync shows the state of ATT&CK data.
+Feeds Management shows the state of ATT&CK data.
 
-![Reference Sync page](assets/adversarygraph-v2/25-lKoiwInK4AuBHDFSINWekA.webp)
+![Feeds Management page](assets/adversarygraph-v2/25-lKoiwInK4AuBHDFSINWekA.webp)
 
 Capabilities:
 
@@ -526,8 +526,17 @@ Actor mapping is conservative:
 - IOC records store `technique_ids` when a source explicitly provides ATT&CK IDs
   or when IDs are found in feed metadata, OTX pulses, custom records, or uploaded
   report text
+- hash IOC types are normalized so `sha256_hash`, `filehash-sha256`,
+  `sha1_hash`, and `md5_hash` become `sha256`, `sha1`, and `md5`; duplicate
+  rows are merged with their actor links and metadata
 - each IOC keeps source URL, first/last seen, confidence, TLP, malware family, tags,
   and the relationship evidence
+
+IOC-to-TTP mapping follows a fixed evidence priority: strict source/report
+evidence first, enrichment-platform metadata second, and AI only as an explicit
+last fallback. Enable the AI fallback from IOC Library or Feeds Management when
+you want newly synced or existing unmapped IOCs to be enriched by the configured
+LLM provider after deterministic evidence has failed.
 
 Workflow:
 
@@ -852,7 +861,7 @@ assets.
 
 ![ATT&CK Navigator export controls](assets/adversarygraph-v2/24-m1Zh30Hm7e6wmzZq1Mjdog.webp)
 
-![Reference Sync status](assets/adversarygraph-v2/25-lKoiwInK4AuBHDFSINWekA.webp)
+![Feeds Management status](assets/adversarygraph-v2/25-lKoiwInK4AuBHDFSINWekA.webp)
 
 ![Compare mode landing](assets/adversarygraph-v2/26-aJW4II93D-bLqFMexDlW1g.webp)
 

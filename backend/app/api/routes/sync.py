@@ -210,12 +210,14 @@ async def trigger_sync(body: TriggerRequest | None = None):
 async def trigger_ioc_sync(
     days: int = Query(7, ge=1, le=7),
     domain: str = Query("enterprise-attack"),
+    ai_enrich: bool = Query(False),
+    ai_provider: str = Query("local", pattern="^(local|claude|openai|gemini)$"),
     session: AsyncSession = Depends(get_session),
 ):
     """Synchronize all configured IOC sources centrally."""
     try:
         from app.services.ioc_intel import sync_all_ioc_sources
-        return await sync_all_ioc_sources(session, days=days, domain=domain)
+        return await sync_all_ioc_sources(session, days=days, domain=domain, ai_enrich=ai_enrich, ai_provider=ai_provider)
     except Exception as exc:
         raise HTTPException(500, f"IOC sync failed: {exc}") from exc
 

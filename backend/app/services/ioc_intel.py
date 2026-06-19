@@ -9,7 +9,7 @@ from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
 import requests
-from sqlalchemy import func, or_, select
+from sqlalchemy import delete, func, or_, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -17,6 +17,7 @@ from sqlalchemy.orm import selectinload
 from app.core.config import settings
 from app.models.attack import AptGroup, AttackVersion
 from app.models.ioc import IOCActorLink, IOCIndicator, IOCSource
+from app.services.ai.factory import get_adapter
 from app.services.sector_intel import normalize_label
 
 THREATFOX_API_URL = "https://threatfox-api.abuse.ch/api/v1/"
@@ -28,6 +29,33 @@ MALPEDIA_SOURCE_ID = "malpedia"
 MANUAL_SOURCE_ID = "manual-report-import"
 CUSTOM_FEED_KINDS = {"custom-json", "custom-csv", "custom-txt"}
 ATTACK_ID_RE = re.compile(r"\bT\d{4}(?:\.\d{3})?\b", re.IGNORECASE)
+HASH_TYPE_ALIASES = {
+    "sha256_hash": "sha256",
+    "filehash-sha256": "sha256",
+    "file_hash_sha256": "sha256",
+    "sha256": "sha256",
+    "sha-256": "sha256",
+    "sha1_hash": "sha1",
+    "filehash-sha1": "sha1",
+    "file_hash_sha1": "sha1",
+    "sha1": "sha1",
+    "sha-1": "sha1",
+    "md5_hash": "md5",
+    "filehash-md5": "md5",
+    "file_hash_md5": "md5",
+    "md5": "md5",
+    "ip:port": "ip:port",
+    "ipv4:port": "ip:port",
+    "ip_port": "ip:port",
+    "ip": "ipv4",
+    "ipv4": "ipv4",
+    "ipv6": "ipv6",
+    "url": "url",
+    "domain": "domain",
+    "hostname": "domain",
+    "email": "email",
+    "malware-family": "malware-family",
+}
 
 
 @dataclass
@@ -232,6 +260,8 @@ async def sync_custom_source(
     session: AsyncSession,
     source_id: str,
     domain: str = "enterprise-attack",
+    ai_enrich: bool = False,
+    ai_provider: str = "local",
 ) -> dict[str, int | str | None]:
     await ensure_ioc_sources(session)
     source = await session.get(IOCSource, source_id)
@@ -255,8 +285,10 @@ async def sync_custom_source(
     inserted = 0
     updated = 0
     linked = 0
+    touched_ids: list[int] = []
     for item in items:
         indicator_id, was_inserted = await _upsert_indicator(session, item)
+        touched_ids.append(indicator_id)
         inserted += int(was_inserted)
         updated += int(not was_inserted)
         for group, evidence in _actor_link_targets(item, groups):
@@ -272,23 +304,31 @@ async def sync_custom_source(
                 linked += 1
 
     await _mark_existing_source(session, source, "ok", "")
+    enriched = await enrich_ioc_ttp_mappings(session, indicator_ids=touched_ids, use_ai=ai_enrich, ai_provider=ai_provider, domain=domain)
     await session.commit()
-    return {"source": source_id, "days": None, "inserted": inserted, "updated": updated, "actor_links": linked}
+    return {"source": source_id, "days": None, "inserted": inserted, "updated": updated, "actor_links": linked, "ttp_enriched": enriched["updated"]}
 
 
-async def sync_all_ioc_sources(session: AsyncSession, days: int = 7, domain: str = "enterprise-attack") -> dict[str, Any]:
+async def sync_all_ioc_sources(
+    session: AsyncSession,
+    days: int = 7,
+    domain: str = "enterprise-attack",
+    ai_enrich: bool = False,
+    ai_provider: str = "local",
+) -> dict[str, Any]:
     """Synchronize ThreatFox, OTX, and all enabled custom IOC feeds."""
     await ensure_ioc_sources(session)
     sources = await list_ioc_sources(session)
     results: list[dict[str, Any]] = []
-    totals = {"inserted": 0, "updated": 0, "actor_links": 0}
+    totals = {"inserted": 0, "updated": 0, "actor_links": 0, "ttp_enriched": 0}
 
     try:
-        result = await sync_threatfox(session, days=days, domain=domain)
+        result = await sync_threatfox(session, days=days, domain=domain, ai_enrich=ai_enrich, ai_provider=ai_provider)
         results.append({**result, "status": "ok"})
         totals["inserted"] += int(result.get("inserted", 0))
         totals["updated"] += int(result.get("updated", 0))
         totals["actor_links"] += int(result.get("actor_links", 0))
+        totals["ttp_enriched"] += int(result.get("ttp_enriched", 0))
     except Exception as exc:
         results.append({"source": THREATFOX_SOURCE_ID, "status": "error", "error": str(exc)})
 
@@ -298,15 +338,17 @@ async def sync_all_ioc_sources(session: AsyncSession, days: int = 7, domain: str
         totals["inserted"] += int(result.get("inserted", 0))
         totals["updated"] += int(result.get("updated", 0))
         totals["actor_links"] += int(result.get("actor_links", 0))
+        totals["ttp_enriched"] += int(result.get("ttp_enriched", 0))
     except Exception as exc:
         results.append({"source": MALPEDIA_SOURCE_ID, "status": "error", "error": str(exc)})
 
     try:
-        result = await sync_otx_subscribed_pulses(session, domain=domain)
+        result = await sync_otx_subscribed_pulses(session, domain=domain, ai_enrich=ai_enrich, ai_provider=ai_provider)
         results.append({**result, "status": "ok"})
         totals["inserted"] += int(result.get("inserted", 0))
         totals["updated"] += int(result.get("updated", 0))
         totals["actor_links"] += int(result.get("actor_links", 0))
+        totals["ttp_enriched"] += int(result.get("ttp_enriched", 0))
     except Exception as exc:
         results.append({"source": OTX_SOURCE_ID, "status": "error", "error": str(exc)})
 
@@ -314,11 +356,12 @@ async def sync_all_ioc_sources(session: AsyncSession, days: int = 7, domain: str
         if not source.enabled or source.kind not in CUSTOM_FEED_KINDS:
             continue
         try:
-            result = await sync_custom_source(session, source_id=source.source_id, domain=domain)
+            result = await sync_custom_source(session, source_id=source.source_id, domain=domain, ai_enrich=ai_enrich, ai_provider=ai_provider)
             results.append({**result, "status": "ok"})
             totals["inserted"] += int(result.get("inserted", 0))
             totals["updated"] += int(result.get("updated", 0))
             totals["actor_links"] += int(result.get("actor_links", 0))
+            totals["ttp_enriched"] += int(result.get("ttp_enriched", 0))
         except Exception as exc:
             results.append({"source": source.source_id, "status": "error", "error": str(exc)})
 
@@ -526,6 +569,8 @@ async def sync_otx_subscribed_pulses(
     session: AsyncSession,
     domain: str = "enterprise-attack",
     limit: int = 100,
+    ai_enrich: bool = False,
+    ai_provider: str = "local",
 ) -> dict[str, int | str | None]:
     await ensure_ioc_sources(session)
     if not settings.otx_api_key:
@@ -546,6 +591,7 @@ async def sync_otx_subscribed_pulses(
     updated = 0
     linked = 0
     matched_pulses = 0
+    touched_ids: list[int] = []
     for pulse in pulses:
         matched_groups = [group for group in groups if _pulse_matches_group(pulse, group)]
         if not matched_groups:
@@ -553,6 +599,7 @@ async def sync_otx_subscribed_pulses(
         matched_pulses += 1
         for item in _otx_pulse_to_import_items(pulse):
             indicator_id, was_inserted = await _upsert_indicator(session, item)
+            touched_ids.append(indicator_id)
             inserted += int(was_inserted)
             updated += int(not was_inserted)
             for group in matched_groups:
@@ -567,6 +614,7 @@ async def sync_otx_subscribed_pulses(
                 ):
                     linked += 1
 
+    enriched = await enrich_ioc_ttp_mappings(session, indicator_ids=touched_ids, use_ai=ai_enrich, ai_provider=ai_provider, domain=domain)
     await _mark_ioc_source(session, OTX_SOURCE_ID, "ok", "")
     await session.commit()
     return {
@@ -577,10 +625,17 @@ async def sync_otx_subscribed_pulses(
         "actor_links": linked,
         "pulses": len(pulses),
         "matched_pulses": matched_pulses,
+        "ttp_enriched": enriched["updated"],
     }
 
 
-async def sync_threatfox(session: AsyncSession, days: int = 7, domain: str = "enterprise-attack") -> dict[str, int | str]:
+async def sync_threatfox(
+    session: AsyncSession,
+    days: int = 7,
+    domain: str = "enterprise-attack",
+    ai_enrich: bool = False,
+    ai_provider: str = "local",
+) -> dict[str, int | str]:
     await ensure_ioc_sources(session)
     days = max(1, min(days, 7))
     if not settings.threatfox_auth_key:
@@ -610,10 +665,12 @@ async def sync_threatfox(session: AsyncSession, days: int = 7, domain: str = "en
     inserted = 0
     updated = 0
     linked = 0
+    touched_ids: list[int] = []
 
     for item in payload.get("data") or []:
         import_item = _threatfox_item_to_import(item)
         indicator_id, was_inserted = await _upsert_indicator(session, import_item)
+        touched_ids.append(indicator_id)
         inserted += int(was_inserted)
         updated += int(not was_inserted)
         matches = _match_actors(import_item, groups)
@@ -629,6 +686,7 @@ async def sync_threatfox(session: AsyncSession, days: int = 7, domain: str = "en
             ):
                 linked += 1
 
+    enriched = await enrich_ioc_ttp_mappings(session, indicator_ids=touched_ids, use_ai=ai_enrich, ai_provider=ai_provider, domain=domain)
     await _mark_ioc_source(session, THREATFOX_SOURCE_ID, "ok", "")
     await session.commit()
     return {
@@ -637,6 +695,7 @@ async def sync_threatfox(session: AsyncSession, days: int = 7, domain: str = "en
         "inserted": inserted,
         "updated": updated,
         "actor_links": linked,
+        "ttp_enriched": enriched["updated"],
     }
 
 
@@ -646,8 +705,10 @@ async def import_iocs(session: AsyncSession, items: list[IOCImportItem]) -> dict
     inserted = 0
     updated = 0
     linked = 0
+    touched_ids: list[int] = []
     for item in items:
         indicator_id, was_inserted = await _upsert_indicator(session, item)
+        touched_ids.append(indicator_id)
         inserted += int(was_inserted)
         updated += int(not was_inserted)
         targets = _actor_link_targets(item, groups)
@@ -674,8 +735,136 @@ async def import_iocs(session: AsyncSession, items: list[IOCImportItem]) -> dict
                 evidence=item.description or "Manual source mapped this IOC to the actor.",
             ):
                 linked += 1
+    enriched = await enrich_ioc_ttp_mappings(session, indicator_ids=touched_ids, use_ai=False)
     await session.commit()
-    return {"source": MANUAL_SOURCE_ID, "inserted": inserted, "updated": updated, "actor_links": linked}
+    return {"source": MANUAL_SOURCE_ID, "inserted": inserted, "updated": updated, "actor_links": linked, "ttp_enriched": enriched["updated"]}
+
+
+async def enrich_ioc_ttp_mappings(
+    session: AsyncSession,
+    *,
+    indicator_ids: list[int] | None = None,
+    source_ids: list[str] | None = None,
+    use_ai: bool = False,
+    ai_provider: str = "local",
+    domain: str = "enterprise-attack",
+    limit: int = 500,
+) -> dict[str, Any]:
+    """
+    Enrich IOC-to-TTP mappings in priority order:
+    strict report/source evidence, enrichment platform evidence, optional AI.
+    """
+    if indicator_ids:
+        stmt = select(IOCIndicator).where(IOCIndicator.id.in_(list(dict.fromkeys(indicator_ids))))
+    else:
+        stmt = select(IOCIndicator).order_by(IOCIndicator.updated_at.desc()).limit(max(1, min(limit, 20000)))
+        if source_ids:
+            stmt = stmt.where(IOCIndicator.source_id.in_(source_ids))
+    rows = await session.execute(stmt)
+    indicators = list(rows.scalars().all())
+    updated = 0
+    normalized_types = 0
+    ai_attempted = 0
+    ai_mapped = 0
+    for indicator in indicators:
+        type_changed = False
+        normalized_type = _normalize_ioc_type(indicator.indicator_type, indicator.value)
+        if normalized_type != indicator.indicator_type:
+            duplicate = await session.execute(
+                select(IOCIndicator).where(
+                    IOCIndicator.value == indicator.value,
+                    IOCIndicator.indicator_type == normalized_type,
+                    IOCIndicator.source_id == indicator.source_id,
+                    IOCIndicator.id != indicator.id,
+                )
+            )
+            duplicate_indicator = duplicate.scalar_one_or_none()
+            if duplicate_indicator is None:
+                indicator.indicator_type = normalized_type
+                type_changed = True
+                normalized_types += 1
+            else:
+                await _merge_duplicate_ioc_indicator(session, source=indicator, target=duplicate_indicator)
+                normalized_types += 1
+                updated += 1
+                continue
+        current = _dedupe_attack_ids([str(item) for item in (indicator.technique_ids or [])])
+        evidence = _mapping_evidence_from_indicator(indicator)
+        strict_ids = _dedupe_attack_ids([item["attack_id"] for item in evidence if item["priority"] == "strict-report"])
+        platform_ids = _dedupe_attack_ids([item["attack_id"] for item in evidence if item["priority"] == "enrichment-platform"])
+        ai_ids: list[str] = []
+        if use_ai and not strict_ids and not platform_ids:
+            ai_attempted += 1
+            ai_ids = await _ai_ioc_ttp_ids(indicator, provider=ai_provider, domain=domain)
+            if ai_ids:
+                ai_mapped += 1
+                evidence.extend(
+                    {
+                        "attack_id": attack_id,
+                        "priority": "ai-enrichment",
+                        "source": f"ai:{ai_provider}",
+                        "evidence": "AI inferred mapping from IOC context after no strict source or enrichment-platform TTP was found.",
+                    }
+                    for attack_id in ai_ids
+                )
+        merged = _dedupe_attack_ids([*current, *strict_ids, *platform_ids, *ai_ids])
+        raw = dict(indicator.raw or {})
+        old_evidence = raw.get("ioc_ttp_evidence")
+        if merged != current or evidence != old_evidence or type_changed:
+            raw["ioc_ttp_evidence"] = evidence[:100]
+            raw["ioc_ttp_mapping_priority"] = "strict-report > enrichment-platform > ai-enrichment"
+            indicator.technique_ids = merged
+            indicator.raw = raw
+            indicator.updated_at = datetime.now(timezone.utc)
+            updated += 1
+    await session.flush()
+    return {
+        "checked": len(indicators),
+        "updated": updated,
+        "normalized_types": normalized_types,
+        "ai_attempted": ai_attempted,
+        "ai_mapped": ai_mapped,
+        "priority": "strict-report > enrichment-platform > ai-enrichment",
+    }
+
+
+async def _merge_duplicate_ioc_indicator(session: AsyncSession, *, source: IOCIndicator, target: IOCIndicator) -> None:
+    target.technique_ids = _dedupe_attack_ids([*(target.technique_ids or []), *(source.technique_ids or [])])
+    target.tags = _dedupe_tags([*(target.tags or []), *(source.tags or [])])
+    target.confidence = max(target.confidence or 0, source.confidence or 0)
+    target.source_url = target.source_url or source.source_url
+    target.first_seen = min([value for value in [target.first_seen, source.first_seen] if value], default=None)
+    target.last_seen = max([value for value in [target.last_seen, source.last_seen] if value], default=None)
+    target.malware_family = target.malware_family or source.malware_family
+    target.campaign = target.campaign or source.campaign
+    target.description = target.description or source.description
+    target.raw = {
+        **(source.raw or {}),
+        **(target.raw or {}),
+        "merged_ioc_types": _dedupe_tags(
+            [
+                *(((target.raw or {}).get("merged_ioc_types") or []) if isinstance((target.raw or {}).get("merged_ioc_types"), list) else []),
+                source.indicator_type,
+                target.indicator_type,
+            ]
+        ),
+    }
+    target.updated_at = datetime.now(timezone.utc)
+
+    links = await session.execute(select(IOCActorLink).where(IOCActorLink.indicator_id == source.id))
+    for link in links.scalars().all():
+        stmt = insert(IOCActorLink).values(
+            indicator_id=target.id,
+            actor_attack_id=link.actor_attack_id,
+            actor_name=link.actor_name,
+            source_id=link.source_id,
+            relationship_type=link.relationship_type,
+            confidence=link.confidence,
+            evidence=link.evidence,
+        ).on_conflict_do_nothing(constraint="uq_ioc_actor_source")
+        await session.execute(stmt)
+    await session.execute(delete(IOCActorLink).where(IOCActorLink.indicator_id == source.id))
+    await session.delete(source)
 
 
 async def actor_iocs(
@@ -888,7 +1077,7 @@ async def _mark_existing_source(session: AsyncSession, source: IOCSource, status
 def _threatfox_item_to_import(item: dict[str, Any]) -> IOCImportItem:
     return IOCImportItem(
         value=str(item.get("ioc") or "").strip(),
-        indicator_type=str(item.get("ioc_type") or "unknown").strip().lower(),
+        indicator_type=_normalize_ioc_type(str(item.get("ioc_type") or "unknown").strip(), str(item.get("ioc") or "")),
         malware_family=str(item.get("malware_printable") or item.get("malware") or "").strip(),
         source=THREATFOX_SOURCE_ID,
         source_url=str(item.get("reference") or item.get("link") or "").strip(),
@@ -1118,7 +1307,7 @@ def _record_to_import(record: dict[str, Any], source_id: str, default_source_url
     tags = _as_tags(_first(record, "tags", "tag", "labels"))
     return IOCImportItem(
         value=value,
-        indicator_type=str(_first(record, "type", "indicator_type", "ioc_type") or _infer_ioc_type(value)).lower(),
+        indicator_type=_normalize_ioc_type(str(_first(record, "type", "indicator_type", "ioc_type") or ""), value),
         actor_attack_id=_optional_str(_first(record, "actor_attack_id", "group_attack_id", "attack_id")),
         actor_name=_optional_str(_first(record, "actor_name", "threat_actor", "intrusion_set", "group")),
         malware_family=_optional_str(_first(record, "malware_family", "malware", "family")),
@@ -1195,6 +1384,42 @@ def _item_technique_ids(item: IOCImportItem) -> list[str]:
     return _dedupe_attack_ids(attack_ids)
 
 
+def _mapping_evidence_from_item(item: IOCImportItem) -> list[dict[str, str]]:
+    evidence: list[dict[str, str]] = []
+    strict_values = [item.technique_ids or []]
+    platform_values = [
+        item.value,
+        item.indicator_type,
+        item.malware_family,
+        item.campaign,
+        item.source_url,
+        item.description,
+        item.tags or [],
+        item.raw or {},
+    ]
+    for attack_id in _dedupe_attack_ids([attack_id for value in strict_values for attack_id in _extract_attack_ids(value)]):
+        evidence.append(
+            {
+                "attack_id": attack_id,
+                "priority": "strict-report",
+                "source": item.source,
+                "evidence": "Source record or uploaded report explicitly contained this ATT&CK ID.",
+            }
+        )
+    for attack_id in _dedupe_attack_ids([attack_id for value in platform_values for attack_id in _extract_attack_ids(value)]):
+        if attack_id in {row["attack_id"] for row in evidence}:
+            continue
+        evidence.append(
+            {
+                "attack_id": attack_id,
+                "priority": "enrichment-platform",
+                "source": item.source,
+                "evidence": "Enrichment/feed metadata contained this ATT&CK ID.",
+            }
+        )
+    return evidence
+
+
 def _indicator_technique_ids(indicator: IOCIndicator) -> list[str]:
     values = [
         indicator.value,
@@ -1210,6 +1435,80 @@ def _indicator_technique_ids(indicator: IOCIndicator) -> list[str]:
     for value in values:
         attack_ids.extend(_extract_attack_ids(value))
     return _dedupe_attack_ids(attack_ids)
+
+
+def _mapping_evidence_from_indicator(indicator: IOCIndicator) -> list[dict[str, str]]:
+    existing = []
+    raw = indicator.raw or {}
+    if isinstance(raw.get("ioc_ttp_evidence"), list):
+        existing = [item for item in raw["ioc_ttp_evidence"] if isinstance(item, dict)]
+    item = IOCImportItem(
+        value=indicator.value,
+        indicator_type=indicator.indicator_type,
+        malware_family=indicator.malware_family,
+        campaign=indicator.campaign,
+        technique_ids=[],
+        source=indicator.source_id,
+        source_url=indicator.source_url,
+        first_seen=indicator.first_seen,
+        last_seen=indicator.last_seen,
+        confidence=indicator.confidence,
+        tlp=indicator.tlp,
+        tags=indicator.tags or [],
+        description=indicator.description,
+        raw=raw,
+    )
+    merged: dict[tuple[str, str, str], dict[str, str]] = {}
+    for row in [*existing, *_mapping_evidence_from_item(item)]:
+        attack_id = str(row.get("attack_id") or "").upper()
+        priority = str(row.get("priority") or "enrichment-platform")
+        source = str(row.get("source") or indicator.source_id)
+        if attack_id:
+            merged[(attack_id, priority, source)] = {
+                "attack_id": attack_id,
+                "priority": priority,
+                "source": source,
+                "evidence": str(row.get("evidence") or "")[:500],
+            }
+    return list(merged.values())
+
+
+async def _ai_ioc_ttp_ids(indicator: IOCIndicator, provider: str, domain: str) -> list[str]:
+    text = _ioc_ai_context(indicator)
+    if len(text.strip()) < 40:
+        return []
+    try:
+        result = await get_adapter(provider).extract(text, domain=domain)
+    except Exception:
+        return []
+    ids = [
+        technique.attack_id
+        for technique in result.techniques
+        if technique.attack_id and technique.confidence >= 0.65
+    ]
+    return _dedupe_attack_ids(ids)
+
+
+def _ioc_ai_context(indicator: IOCIndicator) -> str:
+    raw = indicator.raw or {}
+    safe_raw = {
+        key: raw.get(key)
+        for key in ("threat_type", "threat_type_desc", "malware", "malware_printable", "pulse", "indicator", "tags", "description", "sandbox", "signatures", "network", "behavior")
+        if key in raw
+    }
+    return "\n".join(
+        [
+            f"IOC value: {indicator.value}",
+            f"IOC type: {indicator.indicator_type}",
+            f"Source: {indicator.source_id}",
+            f"Source URL: {indicator.source_url}",
+            f"Malware family: {indicator.malware_family}",
+            f"Campaign: {indicator.campaign}",
+            f"Tags: {', '.join(indicator.tags or [])}",
+            f"Description: {indicator.description}",
+            f"Raw enrichment metadata: {json.dumps(safe_raw, ensure_ascii=True)[:6000]}",
+        ]
+    )
 
 
 def _extract_attack_ids(value: Any) -> list[str]:
@@ -1252,7 +1551,21 @@ def _dedupe_tags(values: list[str]) -> list[str]:
 
 
 async def _upsert_indicator(session: AsyncSession, item: IOCImportItem) -> tuple[int, bool]:
+    item.indicator_type = _normalize_ioc_type(item.indicator_type, item.value)
     technique_ids = _item_technique_ids(item)
+    existing = await session.execute(
+        select(IOCIndicator).where(
+            IOCIndicator.value == item.value,
+            IOCIndicator.indicator_type == item.indicator_type,
+            IOCIndicator.source_id == item.source,
+        )
+    )
+    existing_indicator = existing.scalar_one_or_none()
+    if existing_indicator:
+        technique_ids = _dedupe_attack_ids([*(existing_indicator.technique_ids or []), *technique_ids])
+    raw = dict(item.raw or {})
+    raw["ioc_ttp_evidence"] = _mapping_evidence_from_item(item)
+    raw["ioc_ttp_mapping_priority"] = "strict-report > enrichment-platform > ai-enrichment"
     stmt = (
         insert(IOCIndicator)
         .values(
@@ -1269,7 +1582,7 @@ async def _upsert_indicator(session: AsyncSession, item: IOCImportItem) -> tuple
             technique_ids=technique_ids,
             description=item.description,
             tags=item.tags or [],
-            raw=item.raw or {},
+            raw=raw,
         )
         .on_conflict_do_update(
             constraint="uq_ioc_value_type_source",
@@ -1283,7 +1596,7 @@ async def _upsert_indicator(session: AsyncSession, item: IOCImportItem) -> tuple
                 "technique_ids": technique_ids,
                 "description": item.description,
                 "tags": item.tags or [],
-                "raw": item.raw or {},
+                "raw": raw,
                 "updated_at": datetime.now(timezone.utc),
             },
         )
@@ -1383,6 +1696,16 @@ def _infer_ioc_type(value: str) -> str:
     if "." in value:
         return "domain"
     return "unknown"
+
+
+def _normalize_ioc_type(kind: str, value: str = "") -> str:
+    clean = str(kind or "").strip().lower().replace(" ", "_")
+    if clean in HASH_TYPE_ALIASES:
+        return HASH_TYPE_ALIASES[clean]
+    inferred = _infer_ioc_type(value)
+    if inferred != "unknown":
+        return inferred
+    return clean or "unknown"
 
 
 def _slugify(value: str) -> str:

@@ -22,7 +22,6 @@ const nav = [
   { to: '/report',        label: 'Investigation Report', icon: '▤' },
   { to: '/operations',    label: 'Operations', icon: '◆' },
   { to: '/pipeline',      label: 'Pipeline', icon: '⇄' },
-  { to: '/sync',          label: 'Reference Sync', icon: '↻' },
   { to: '/examples',      label: 'DFIR Examples', icon: '▦' },
   { to: '/troubleshooting', label: 'Troubleshooting', icon: '!' },
 ];
@@ -113,12 +112,12 @@ export function Sidebar() {
         {hasUpdate ? (
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse shrink-0" />
-            <NavLink to="/sync" className="text-[10px] text-amber-400 hover:text-amber-300">ATT&CK update available</NavLink>
+            <NavLink to="/feeds" className="text-[10px] text-amber-400 hover:text-amber-300">ATT&CK update available</NavLink>
           </div>
         ) : (
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-green-600 shrink-0" />
-            <NavLink to="/sync" className="text-[10px] text-gray-500 hover:text-gray-300">ATT&CK up to date</NavLink>
+            <NavLink to="/feeds" className="text-[10px] text-gray-500 hover:text-gray-300">ATT&CK up to date</NavLink>
           </div>
         )}
         <div className="text-[10px] text-gray-600 mt-0.5">AdversaryGraph v2.4.0</div>

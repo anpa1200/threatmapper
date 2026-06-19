@@ -111,7 +111,7 @@ export function APTLibrary() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['ioc-sources'] }),
   });
   const syncIocSource = useMutation({
-    mutationFn: iocApi.syncSource,
+    mutationFn: (sourceId: string) => iocApi.syncSource(sourceId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['actor-iocs'] });
       qc.invalidateQueries({ queryKey: ['actor-ioc-summary'] });

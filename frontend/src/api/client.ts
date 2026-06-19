@@ -181,6 +181,11 @@ export interface IOCSummary {
   techniques: Record<string, number>;
 }
 
+type IOCSyncOptions = {
+  ai_enrich?: boolean;
+  ai_provider?: 'local' | 'claude' | 'openai' | 'gemini';
+};
+
 export interface VirusTotalLookupResult {
   indicator: string;
   type: string;
@@ -247,8 +252,8 @@ export const iocApi = {
     http.get(`/ioc/library?${iocLibraryQuery(params).toString()}`).then(r => r.data),
   createSource: (payload: {label: string; url: string; kind: 'custom-json' | 'custom-csv' | 'custom-txt'; source_id?: string}): Promise<IOCSourceStatus> =>
     http.post('/ioc/sources', payload).then(r => r.data),
-  syncThreatFox: (days = 7): Promise<{source: string; days: number; inserted: number; updated: number; actor_links: number}> =>
-    http.post('/ioc/sync/threatfox', null, { params: { days } }).then(r => r.data),
+  syncThreatFox: (days = 7, options?: IOCSyncOptions): Promise<{source: string; days: number; inserted: number; updated: number; actor_links: number; ttp_enriched: number}> =>
+    http.post('/ioc/sync/threatfox', null, { params: { days, ...options } }).then(r => r.data),
   syncMalpedia: (): Promise<{
     source: string;
     days: null;
@@ -259,15 +264,31 @@ export const iocApi = {
     attributed_families: number;
   }> =>
     http.post('/ioc/sync/malpedia').then(r => r.data),
-  syncSource: (sourceId: string): Promise<{source: string; days: null; inserted: number; updated: number; actor_links: number}> =>
-    http.post(`/ioc/sync/${sourceId}`).then(r => r.data),
-  syncOtx: (mode: 'subscribed' | 'actor-search' = 'subscribed'): Promise<{
+  syncSource: (sourceId: string, options?: IOCSyncOptions): Promise<{source: string; days: null; inserted: number; updated: number; actor_links: number; ttp_enriched: number}> =>
+    http.post(`/ioc/sync/${sourceId}`, null, { params: options }).then(r => r.data),
+  syncOtx: (mode: 'subscribed' | 'actor-search' = 'subscribed', options?: IOCSyncOptions): Promise<{
     source: string;
     inserted: number;
     updated: number;
     actor_links: number;
+    ttp_enriched?: number;
   }> =>
-    http.post('/ioc/sync/otx', null, { params: { mode } }).then(r => r.data),
+    http.post('/ioc/sync/otx', null, { params: { mode, ...options } }).then(r => r.data),
+  enrichIocTtps: (options?: IOCSyncOptions & { source_id?: string[]; limit?: number }): Promise<{
+    checked: number;
+    updated: number;
+    normalized_types: number;
+    ai_attempted: number;
+    ai_mapped: number;
+    priority: string;
+  }> => {
+    const params = new URLSearchParams();
+    if (options?.ai_enrich !== undefined) params.set('ai_enrich', String(options.ai_enrich));
+    if (options?.ai_provider) params.set('ai_provider', options.ai_provider);
+    if (options?.limit) params.set('limit', String(options.limit));
+    (options?.source_id ?? []).forEach(sourceId => params.append('source_id', sourceId));
+    return http.post(`/ioc/enrich/ttps?${params.toString()}`).then(r => r.data);
+  },
   importStix: (bundle: Record<string, unknown>, params?: { source_label?: string; source_url?: string }): Promise<{
     source: string;
     inserted: number;
@@ -472,12 +493,12 @@ export const syncApi = {
   taskStatus: (taskId: string): Promise<{ status: string; result: unknown }> =>
     http.get(`/sync/task/${taskId}`).then(r => r.data),
 
-  ioc: (days = 7): Promise<{
+  ioc: (days = 7, options?: IOCSyncOptions): Promise<{
     days: number;
-    totals: { inserted: number; updated: number; actor_links: number };
+    totals: { inserted: number; updated: number; actor_links: number; ttp_enriched?: number };
     sources: Array<Record<string, unknown>>;
   }> =>
-    http.post('/sync/ioc', null, { params: { days } }).then(r => r.data),
+    http.post('/sync/ioc', null, { params: { days, ...options } }).then(r => r.data),
 
   dynamicDb: (params?: { days?: number; force_attack?: boolean }): Promise<{
     attack: unknown;

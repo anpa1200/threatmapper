@@ -102,7 +102,7 @@ For each accepted technique, record:
 Use Sector Intelligence when the question starts with client context rather than
 a single report.
 
-1. Sync MISP Galaxy metadata from Reference Sync or the Sector Intel page.
+1. Sync MISP Galaxy metadata from Feeds Management or the Sector Intel page.
 2. Select one or more sectors.
 3. Add optional regions and technologies/environments.
 4. Choose quarter, year, or two-year activity window.

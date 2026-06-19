@@ -38,6 +38,8 @@ export function IOCLibrary() {
   const [taxiiToken, setTaxiiToken] = useState('');
   const [taxiiUsername, setTaxiiUsername] = useState('');
   const [taxiiPassword, setTaxiiPassword] = useState('');
+  const [aiEnrichIocs, setAiEnrichIocs] = useState(false);
+  const [aiProvider, setAiProvider] = useState<'local' | 'claude' | 'openai' | 'gemini'>('local');
   const limit = 100;
 
   const sources = useQuery({ queryKey: ['ioc-sources'], queryFn: iocApi.sources });
@@ -65,8 +67,9 @@ export function IOCLibrary() {
       qc.invalidateQueries({ queryKey: ['ioc-sources'] });
     },
   });
+  const iocSyncOptions = () => ({ ai_enrich: aiEnrichIocs, ai_provider: aiProvider });
   const syncAll = useMutation({
-    mutationFn: () => syncApi.ioc(7),
+    mutationFn: () => syncApi.ioc(7, iocSyncOptions()),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['ioc-library'] });
       qc.invalidateQueries({ queryKey: ['ioc-sources'] });
@@ -74,7 +77,7 @@ export function IOCLibrary() {
     },
   });
   const syncThreatFox = useMutation({
-    mutationFn: () => iocApi.syncThreatFox(7),
+    mutationFn: () => iocApi.syncThreatFox(7, iocSyncOptions()),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['ioc-library'] });
       qc.invalidateQueries({ queryKey: ['ioc-sources'] });
@@ -90,7 +93,15 @@ export function IOCLibrary() {
     },
   });
   const syncOtx = useMutation({
-    mutationFn: () => iocApi.syncOtx('subscribed'),
+    mutationFn: () => iocApi.syncOtx('subscribed', iocSyncOptions()),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['ioc-library'] });
+      qc.invalidateQueries({ queryKey: ['ioc-sources'] });
+      qc.invalidateQueries({ queryKey: ['actor-ioc-counts'] });
+    },
+  });
+  const enrichIocTtps = useMutation({
+    mutationFn: () => iocApi.enrichIocTtps({ ...iocSyncOptions(), limit: 20000 }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['ioc-library'] });
       qc.invalidateQueries({ queryKey: ['ioc-sources'] });
@@ -222,11 +233,32 @@ export function IOCLibrary() {
                   <button onClick={() => syncOtx.mutate()} disabled={syncOtx.isPending} className="secondary-action">
                     OTX
                   </button>
+                  <button onClick={() => enrichIocTtps.mutate()} disabled={enrichIocTtps.isPending} className="secondary-action">
+                    {enrichIocTtps.isPending ? 'Enriching...' : 'Enrich IOC TTPs'}
+                  </button>
+                </div>
+                <div className="grid gap-2 rounded border border-gray-800 bg-gray-950 p-3">
+                  <label className="flex items-start gap-2 text-xs text-gray-300">
+                    <input
+                      type="checkbox"
+                      checked={aiEnrichIocs}
+                      onChange={event => setAiEnrichIocs(event.target.checked)}
+                      className="mt-0.5"
+                    />
+                    <span>Use AI as last fallback when synced IOCs have no strict report or enrichment-platform TTP mapping.</span>
+                  </label>
+                  <select value={aiProvider} onChange={event => setAiProvider(event.target.value as typeof aiProvider)} className="field">
+                    <option value="local">Local LLM</option>
+                    <option value="claude">Claude</option>
+                    <option value="openai">OpenAI</option>
+                    <option value="gemini">Gemini</option>
+                  </select>
                 </div>
                 <SourceStatus mutation={syncAll} label="All IOC sources" />
                 <SourceStatus mutation={syncThreatFox} label="ThreatFox" />
                 <SourceStatus mutation={syncMalpedia} label="Malpedia" />
                 <SourceStatus mutation={syncOtx} label="OTX" />
+                <SourceStatus mutation={enrichIocTtps} label="IOC-to-TTP enrichment" />
                 <SourceStatus mutation={importStix} label="STIX import" />
                 <div className="grid gap-2">
                   <input value={feedLabel} onChange={event => setFeedLabel(event.target.value)} placeholder="Feed label" className="field" />

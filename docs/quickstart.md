@@ -103,7 +103,7 @@ curl "http://localhost:8000/api/attack/versions"
 Expected health response:
 
 ```json
-{"status":"ok","version":"2.5.0"}
+{"status":"ok","version":"2.5.4"}
 ```
 
 Run the deployment self-test:
@@ -182,12 +182,12 @@ Do not use confidential reports in public or third-party environments.
 
 ## 7. v2.1 Sector And IOC Workflow
 
-1. Open Reference Sync and sync MISP Galaxy sector metadata.
+1. Open Feeds Management and sync MISP Galaxy sector metadata.
 2. Open Sector Intel.
 3. Select one or more sectors, optional regions, and optional technologies.
 4. Review ranked actors and use Actor info, TTP info, IOCs, or Show on matrix.
 5. Open ATT&CK Group Library and select an actor.
-6. Use Reference Sync or the IOCs tab to sync ThreatFox, Malpedia, and OTX.
+6. Use Feeds Management or the IOCs tab to sync ThreatFox, Malpedia, and OTX.
 7. Add a custom feed, import IOCs, or upload a private report for IOC extraction.
 
 Malpedia adds malware-family enrichment records with aliases, references, and

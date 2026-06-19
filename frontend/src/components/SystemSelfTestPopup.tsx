@@ -126,8 +126,8 @@ export function SystemSelfTestPopup() {
           >
             Run Again
           </button>
-          <a className="rounded border border-white/20 px-3 py-1.5 text-xs font-semibold hover:bg-white/10" href="/sync">
-            Open Sync
+          <a className="rounded border border-white/20 px-3 py-1.5 text-xs font-semibold hover:bg-white/10" href="/feeds">
+            Open Feeds
           </a>
           <a className="rounded border border-white/20 px-3 py-1.5 text-xs font-semibold hover:bg-white/10" href={troubleshootingUrl}>
             Troubleshooting

@@ -133,9 +133,9 @@ docker compose up -d --build
 Review `CHANGELOG.md` before upgrading tagged releases.
 
 For the current feature scope, review
-[`docs/release-summary-v2.5.0.md`](release-summary-v2.5.0.md).
+[`docs/release-summary-v2.5.4.md`](release-summary-v2.5.4.md).
 
-## Reference Synchronization
+## Feeds Management
 
 AdversaryGraph synchronizes MITRE ATT&CK STIX data for the configured
 `ATTCK_DOMAINS`. The sync includes matrices, tactics, techniques,
@@ -143,7 +143,7 @@ sub-techniques, APT group profiles, campaigns, usage relationships, attribution
 links, and STIX references.
 
 Automatic sync runs daily at 03:00 UTC. Manual sync is available from the
-Reference Sync page or through the API:
+Feeds Management page or through the API:
 
 ```bash
 curl -X POST http://localhost:8000/api/sync/trigger \
@@ -174,6 +174,7 @@ Supported operator-managed IOC sources:
 - OTX actor enrichment: `POST /api/ioc/sync/otx`
 - registered custom feeds: `POST /api/ioc/sync/{source_id}`
 - centralized action: `POST /api/sync/ioc?days=7`
+- local IOC-to-TTP reprocessing: `POST /api/ioc/enrich/ttps?limit=20000`
 
 Malpedia public family sync does not require an API key and creates
 `malware-family` records with aliases, references, attribution evidence, and
@@ -185,6 +186,25 @@ inside `.env`, a secret manager, or another local operator-controlled channel.
 If `THREATFOX_AUTH_KEY` is configured and `AUTO_THREATFOX_SYNC_ON_STARTUP=true`,
 the API starts a non-blocking ThreatFox sync after ATT&CK ingestion completes.
 If the key is missing, startup continues and the sync is skipped.
+
+IOC type normalization runs during import and IOC-to-TTP enrichment. Provider
+labels such as `sha256_hash`, `filehash-sha256`, `sha1_hash`, and `md5_hash`
+are merged into `sha256`, `sha1`, and `md5` where possible, including duplicate
+record/link consolidation.
+
+IOC-to-TTP mapping is evidence-prioritized:
+
+1. strict source/report evidence from explicit ATT&CK IDs in uploaded reports,
+   STIX/TAXII, MISP/custom records, or feed fields
+2. enrichment-platform evidence from metadata returned by ThreatFox, OTX,
+   Malpedia, VirusTotal, sandbox, Sigma/YARA, or similar feeds
+3. optional AI fallback only when enabled with `ai_enrich=true`
+
+The UI exposes this as an explicit checkbox in IOC Library and Feeds
+Management. The API accepts
+`ai_enrich=true&ai_provider=local|claude|openai|gemini` on `/api/sync/ioc`,
+`/api/ioc/sync/threatfox`, `/api/ioc/sync/otx`, `/api/ioc/sync/{source_id}`,
+and `/api/ioc/enrich/ttps`.
 
 ## Sigma / YARA Rule Feed Synchronization
 

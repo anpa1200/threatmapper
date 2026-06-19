@@ -5,7 +5,7 @@
 **AI-assisted CTI-to-detection workbench for MITRE ATT&CK mapping and detection-gap analysis.**
 
 [![CI](https://github.com/anpa1200/adversarygraph/actions/workflows/ci.yml/badge.svg)](https://github.com/anpa1200/adversarygraph/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/badge/release-v2.5.0-blue)](VERSION)
+[![Release](https://img.shields.io/badge/release-v2.5.4-blue)](VERSION)
 [![License](https://img.shields.io/badge/license-personal%20use%20only-orange)](LICENSE)
 [![Security policy](https://img.shields.io/badge/security-policy-blue)](SECURITY.md)
 [![Roadmap](https://img.shields.io/badge/roadmap-public-blue)](ROADMAP.md)
@@ -14,7 +14,7 @@
 [![Awesome Threat Intelligence](https://img.shields.io/badge/awesome--threat--intelligence-submitted-yellow)](https://github.com/hslatman/awesome-threat-intelligence/pull/385)
 [![Threat Hunting](https://img.shields.io/badge/awesome--threat--hunting-submitted-yellow)](https://github.com/threat-hunting/awesome_Threat-Hunting/pull/5)
 
-**Current release: v2.5.0 · [Release Summary](docs/release-summary-v2.5.0.md) · [Live Intelligence Workspace](https://1200km.com/threat-matrix/) · [Documentation & Usage Guide](https://1200km.com/adversarygraph-docs/) · [Full v2 Guide](docs/full-guide-v2.md) · [1200km Article](https://1200km.com/articles/adversarygraph-v2-self-hosted-ai-cti-platform.html) · [Medium Archive](https://medium.com/@1200km)**
+**Current release: v2.5.4 · [Release Summary](docs/release-summary-v2.5.4.md) · [Live Intelligence Workspace](https://1200km.com/threat-matrix/) · [Documentation & Usage Guide](https://1200km.com/adversarygraph-docs/) · [Full v2 Guide](docs/full-guide-v2.md) · [1200km Article](https://1200km.com/articles/adversarygraph-v2-self-hosted-ai-cti-platform.html) · [Medium Archive](https://medium.com/@1200km)**
 
 AdversaryGraph AI is a self-hosted CTI-to-detection workbench for mapping threat reports to MITRE ATT&CK, comparing TTP overlap with known groups and campaigns, identifying detection gaps, and exporting analyst-ready outputs.
 
@@ -119,7 +119,7 @@ On first startup, AdversaryGraph downloads and ingests MITRE ATT&CK / ATLAS refe
 
 ## Project Maturity Evidence
 
-AdversaryGraph v2.5.0 publishes the operational evidence expected from a serious self-hosted CTI tool:
+AdversaryGraph v2.5.4 publishes the operational evidence expected from a serious self-hosted CTI tool:
 
 | Area | Evidence |
 |---|---|
@@ -134,7 +134,7 @@ AdversaryGraph v2.5.0 publishes the operational evidence expected from a serious
 
 The current documentation is intended to make external review practical rather than promotional.
 
-For the current release scope, see the [v2.5.0 release summary](docs/release-summary-v2.5.0.md) and [release notes](docs/release-notes/v2.5.0.md).
+For the current release scope, see the [v2.5.4 release summary](docs/release-summary-v2.5.4.md) and [release notes](docs/release-notes/v2.5.4.md).
 
 ## Public Demo Privacy Note
 
@@ -177,7 +177,7 @@ also available at [`docs/demo-videos/dfir-report-ai-analysis-compare.gif`](docs/
 | **VirusTotal Lookup** | On-demand IOC reputation lookup for IPs, domains, URLs, and hashes with clean verdicts, extracted ATT&CK TTPs, local actor matches, and matrix/My TTP actions |
 | **DFIR Examples** | Indexed public DFIR Report examples with TTP/actor metadata and a local PDF workflow for private AI analysis |
 | **Export** | ATT&CK Navigator JSON layers, PDF reports, plain JSON, and STIX 2.1 bundles for OpenCTI import |
-| **Reference Sync** | Manual and scheduled MITRE ATT&CK and MITRE ATLAS sync for Enterprise, Mobile, ICS, and ATLAS with status reporting and stale-data indicators |
+| **Feeds Management** | Manual and scheduled MITRE ATT&CK and MITRE ATLAS sync for Enterprise, Mobile, ICS, and ATLAS with status reporting and stale-data indicators |
 | **Anomaly Detection Reference Book** | Docker-served, autonomously synchronized reference catalogs with exact paragraph-level links from every mapped matrix TTP |
 | **Intelligence Pipeline** | Scheduled reviewed RSS intake, STIX/TAXII, MISP and ATLAS imports, normalized observables, public enrichment, team audit trail |
 | **Detection Studio** | Versioned Sigma, KQL, SPL and EQL skeleton generation with structural validation and explicit analyst-review placeholders |
@@ -395,7 +395,7 @@ Finished ingesting atlas v<sha>
 | **Reference book** | http://localhost:3001/anomaly-detection-atlas/ |
 | **API docs** | http://localhost:8000/docs |
 | **Health** | http://localhost:8000/api/health |
-| **Reference sync** | http://localhost:3000/sync |
+| **Feeds management** | http://localhost:3000/feeds |
 
 ---
 
@@ -768,6 +768,25 @@ The global **IOC Library** page at `/ioc-library` provides:
 - per-IOC VirusTotal check button with found ATT&CK TTPs, actor matches, and
   matrix / `My TTPs` actions
 
+IOC types are normalized during import and enrichment. Provider labels such as
+`sha256_hash`, `filehash-sha256`, `sha1_hash`, and `md5_hash` are folded into
+`sha256`, `sha1`, and `md5` so hash counts and filters stay consistent.
+
+IOC-to-TTP mapping uses this priority order:
+
+1. strict source/report evidence, where an uploaded report, STIX/TAXII object,
+   MISP/custom record, or explicit feed field contains an ATT&CK technique ID
+2. enrichment-platform evidence, where ThreatFox, OTX, Malpedia, VirusTotal,
+   sandbox, Sigma/YARA, or other metadata contains ATT&CK technique IDs
+3. optional AI fallback, used only when enabled for sync/enrichment and no
+   strict or platform TTP evidence was found
+
+Use **Enrich IOC TTPs** in IOC Library or Feeds Management to reprocess the
+local IOC database. To allow AI fallback during a sync, enable the AI checkbox in
+the UI or pass `ai_enrich=true&ai_provider=local|claude|openai|gemini` to
+`/api/sync/ioc`, `/api/ioc/sync/threatfox`, `/api/ioc/sync/otx`, or
+`/api/ioc/sync/{source_id}`.
+
 ### Sigma / YARA Rule Feeds
 
 Detection Studio can connect external Sigma and YARA rule feeds from the
@@ -969,7 +988,7 @@ POST /api/export/layer
 
 ```
 GET  /api/sync/status          ← source metadata, configured domains, current/latest versions
-POST /api/sync/trigger         ← queue reference sync
+POST /api/sync/trigger         ← queue reference feed sync
      body: {
        "source": "mitre-attack",
        "domains": ["enterprise-attack", "mobile-attack", "ics-attack"],
@@ -1219,6 +1238,15 @@ copy, newsletter pitch text, and current external submission tracking.
 
 ## Changelog
 
+### v2.5.4 (2026-06-19)
+
+**IOC normalization and mapping quality release:**
+- Normalized provider hash labels into `sha256`, `sha1`, and `md5`
+- Added duplicate IOC consolidation with metadata and actor-link preservation
+- Added evidence-priority IOC-to-TTP mapping: strict source/report evidence, enrichment metadata, then optional AI fallback
+- Added `/api/ioc/enrich/ttps` and UI controls for local IOC DB reprocessing
+- Added opt-in AI fallback controls for IOC sync and enrichment
+
 ### v2.5.0 (2026-06-18)
 
 **IOC Library, enrichment, and connector hardening release:**
@@ -1235,7 +1263,7 @@ copy, newsletter pitch text, and current external submission tracking.
 **Dynamic reference DB and IOC consistency release:**
 - Added daily dynamic reference DB sync for ATT&CK, MISP Galaxy, and configured IOC sources
 - Added external persistent Postgres data directory via `ADVERSARYGRAPH_DB_DIR`
-- Added manual `POST /api/sync/dynamic-db` and Reference Sync UI action
+- Added manual `POST /api/sync/dynamic-db` and Feeds Management UI action
 - Added migration helper for moving old Docker named-volume data into `./data/postgres`
 - Extended self-test details with database host/name and external data directory layout
 - Fixed actor IOC count mismatch by aligning the group list and actor IOC tab on current active 180-day IOCs
@@ -1268,7 +1296,7 @@ copy, newsletter pitch text, and current external submission tracking.
 - Added local intelligence source tables and MISP Galaxy threat-actor sync for sector, region, origin, motivation, alias, and evidence observations
 - Added IOC Intelligence with ThreatFox, AlienVault OTX, custom JSON/CSV/TXT feeds, manual import, and report-upload IOC extraction
 - Added actor IOC tabs, IOC counts, CSV export, freshness filtering, and actor-aware IOC enrichment
-- Added centralized IOC sync controls to Reference Sync
+- Added centralized IOC sync controls to Feeds Management
 - Added searchable A-Z multi-select filters for Sector Intelligence sectors, regions, and technologies
 - Added actor shortcuts from Sector Intelligence to actor profile, TTPs, IOCs, and Navigator overlay
 
@@ -1278,7 +1306,7 @@ copy, newsletter pitch text, and current external submission tracking.
 - Added local LLM provider support for OpenAI-compatible endpoints such as Ollama, LM Studio, LocalAI, and vLLM
 - Added STIX 2.1 export for OpenCTI import from completed AI analysis sessions
 - Added DFIR Examples with indexed public report metadata, TTPs, actor mappings, and a local PDF workflow
-- Added Reference Sync page and API for MITRE ATT&CK Enterprise, Mobile, ICS, and MITRE ATLAS status and manual sync
+- Added Feeds Management page and API for MITRE ATT&CK Enterprise, Mobile, ICS, and MITRE ATLAS status and manual sync
 - Enriched ATT&CK Group Library with aliases, external references, technique evidence, tactic coverage, platform coverage, source names, and metadata
 - Added cached ATT&CK bundle fallback behavior for more reliable startup and sync
 - Added reviewer-facing demo video, GIF, poster, release notes, and [full v2 guide](docs/full-guide-v2.md)

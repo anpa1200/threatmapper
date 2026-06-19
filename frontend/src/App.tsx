@@ -10,7 +10,6 @@ import { Discover } from '@/pages/Discover';
 import { InvestigationReport } from '@/pages/InvestigationReport';
 import { Operations } from '@/pages/Operations';
 import { Pipeline } from '@/pages/Pipeline';
-import { Sync } from '@/pages/Sync';
 import { Examples } from '@/pages/Examples';
 import { SectorIntel } from '@/pages/SectorIntel';
 import { Troubleshooting } from '@/pages/Troubleshooting';
@@ -47,7 +46,6 @@ export default function App() {
               <Route path="/report" element={<InvestigationReport />} />
               <Route path="/operations" element={<Operations />} />
               <Route path="/pipeline" element={<Pipeline />} />
-              <Route path="/sync" element={<Sync />} />
               <Route path="/examples" element={<Examples />} />
               <Route path="/sector-intel" element={<SectorIntel />} />
               <Route path="/ioc-library" element={<IOCLibrary />} />
