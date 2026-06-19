@@ -142,7 +142,7 @@ docker compose up -d --build
 Review `CHANGELOG.md` before upgrading tagged releases.
 
 For the current feature scope, review
-[`docs/release-summary-v2.5.8.md`](release-summary-v2.5.8.md).
+[`docs/release-summary-v2.5.9.md`](release-summary-v2.5.9.md).
 
 ## Feeds Management
 
@@ -218,8 +218,8 @@ and `/api/ioc/enrich/ttps`.
 ## Sigma / YARA Rule Feed Synchronization
 
 Detection Studio supports operator-managed Sigma and YARA rule feeds. Use the
-Pipeline page to add the SigmaHQ default feed, a private raw rule file, a URL
-list, or a GitHub tree URL.
+Pipeline page to add the SigmaHQ default feed, the public Yara-Rules malware
+feed, a private raw rule file, a URL list, or a GitHub tree URL.
 
 Useful endpoints:
 
@@ -232,6 +232,20 @@ The sync imports rules into `detection_versions`, preserves the source URL in
 validation metadata, and maps a rule to the first ATT&CK technique ID found in
 the rule text or Sigma tags. Large feeds should use `config.limit` to keep first
 syncs bounded.
+
+The Pipeline detection generator also supports YARA-L skeleton output for
+Chronicle / Google SecOps-style rule handoff. Generated YARA-L rules are
+structural starting points and retain the analyst-review placeholder warning.
+
+Detection generation supports two modes:
+
+- deterministic skeleton generation, which never calls an LLM
+- AI-assisted generation through local, Claude, OpenAI, Gemini, or MiniMax
+  providers
+
+AI-generated detection content is stored as a `DetectionVersion` with generation
+metadata in validation details. Treat it as analyst-review material only; test
+and tune it against target telemetry before operational use.
 
 ## Sandbox Behavior Synchronization
 

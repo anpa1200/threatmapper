@@ -79,8 +79,8 @@ function SandboxBehaviors(){
 }
 
 function DetectionStudio(){
-  const qc=useQueryClient();const{data=[]}=useQuery({queryKey:['pipeline-detection-versions'],queryFn:pipelineApi.versions});const{data:sources=[]}=useQuery({queryKey:['pipeline-sources'],queryFn:pipelineApi.sources});const[title,setTitle]=useState('');const[ttp,setTtp]=useState('T1059.001');const[format,setFormat]=useState('sigma');const[active,setActive]=useState<DetectionVersion|null>(null);const[feedName,setFeedName]=useState('');const[feedUrl,setFeedUrl]=useState('');const[feedKind,setFeedKind]=useState<'sigma'|'yara'>('sigma');
-  const generate=useMutation({mutationFn:()=>pipelineApi.generate({title,technique_id:ttp,format,telemetry:['process_creation']}),onSuccess:row=>{setActive(row);qc.invalidateQueries({queryKey:['pipeline-detection-versions']})}});
+  const qc=useQueryClient();const{data=[]}=useQuery({queryKey:['pipeline-detection-versions'],queryFn:pipelineApi.versions});const{data:sources=[]}=useQuery({queryKey:['pipeline-sources'],queryFn:pipelineApi.sources});const[title,setTitle]=useState('');const[ttp,setTtp]=useState('T1059.001');const[format,setFormat]=useState('sigma');const[active,setActive]=useState<DetectionVersion|null>(null);const[feedName,setFeedName]=useState('');const[feedUrl,setFeedUrl]=useState('');const[feedKind,setFeedKind]=useState<'sigma'|'yara'>('sigma');const[useAi,setUseAi]=useState(false);const[provider,setProvider]=useState<'local'|'claude'|'openai'|'gemini'|'minimax'>('local');const[model,setModel]=useState('');const[telemetry,setTelemetry]=useState('process_creation');const[context,setContext]=useState('');
+  const generate=useMutation({mutationFn:()=>pipelineApi.generate({title,technique_id:ttp,format,telemetry:telemetry.split(',').map(item=>item.trim()).filter(Boolean),use_ai:useAi,provider,model:model.trim()||undefined,context}),onSuccess:row=>{setActive(row);qc.invalidateQueries({queryKey:['pipeline-detection-versions']})}});
   const validate=useMutation({mutationFn:()=>pipelineApi.validate(active!.format,active!.content),onSuccess:validation=>active&&setActive({...active,validation})});
   const createDefaults=useMutation({mutationFn:pipelineApi.createDefaultRuleFeeds,onSuccess:()=>qc.invalidateQueries({queryKey:['pipeline-sources']})});
   const createFeed=useMutation({mutationFn:()=>pipelineApi.createSource({name:feedName,kind:feedKind,url:feedUrl,enabled:true,interval_minutes:1440,config:{limit:250}}),onSuccess:()=>{setFeedName('');setFeedUrl('');qc.invalidateQueries({queryKey:['pipeline-sources']})}});
@@ -91,7 +91,7 @@ function DetectionStudio(){
       <Panel title="Connect Sigma / YARA Rule Feeds">
         <div className="p-3 space-y-3">
           <p className="text-xs leading-relaxed text-gray-500">Connect raw rule files, URL lists, or GitHub tree URLs. Imported rules are mapped to ATT&CK when tags or text contain technique IDs.</p>
-          <button className="primary" onClick={()=>createDefaults.mutate()} disabled={createDefaults.isPending}>{createDefaults.isPending?'Adding...':'Add SigmaHQ default'}</button>
+          <button className="primary" onClick={()=>createDefaults.mutate()} disabled={createDefaults.isPending}>{createDefaults.isPending?'Adding...':'Add SigmaHQ + YARA defaults'}</button>
           <div className="grid gap-2">
             <input className={input} value={feedName} onChange={e=>setFeedName(e.target.value)} placeholder="Feed name"/>
             <input className={input} value={feedUrl} onChange={e=>setFeedUrl(e.target.value)} placeholder="Raw file, URL list, or GitHub tree URL"/>
@@ -109,7 +109,32 @@ function DetectionStudio(){
         </div>)}
         {!ruleFeeds.length&&<div className="border-t border-gray-800 p-3 text-xs text-gray-600">No Sigma/YARA feeds connected yet.</div>}
       </Panel>
-      <Panel title="Generate Controlled Skeleton"><div className="p-3 space-y-2"><input className={input} value={title} onChange={e=>setTitle(e.target.value)} placeholder="Detection title"/><input className={input} value={ttp} onChange={e=>setTtp(e.target.value.toUpperCase())}/><select className={input} value={format} onChange={e=>setFormat(e.target.value)}>{['sigma','yara','kql','spl','eql'].map(v=><option key={v}>{v}</option>)}</select><button className="primary" disabled={!title||!ttp} onClick={()=>generate.mutate()}>Generate</button></div>{data.map(row=><button key={row.id} className="result" onClick={()=>setActive(row)}><b>{row.title}</b><small>{row.technique_id} · {row.format} · {row.created_by}</small></button>)}</Panel>
+      <Panel title="Generate Detection Rule">
+        <div className="p-3 space-y-2">
+          <input className={input} value={title} onChange={e=>setTitle(e.target.value)} placeholder="Detection title"/>
+          <div className="grid gap-2 md:grid-cols-2">
+            <input className={input} value={ttp} onChange={e=>setTtp(e.target.value.toUpperCase())}/>
+            <select className={input} value={format} onChange={e=>setFormat(e.target.value)}>{['sigma','yara','yaral','kql','spl','eql'].map(v=><option key={v} value={v}>{v === 'yaral' ? 'YARA-L' : v.toUpperCase()}</option>)}</select>
+          </div>
+          <input className={input} value={telemetry} onChange={e=>setTelemetry(e.target.value)} placeholder="Telemetry/event types, comma separated"/>
+          <label className="flex items-center gap-2 rounded border border-gray-800 bg-gray-950 px-3 py-2 text-xs text-gray-300">
+            <input type="checkbox" checked={useAi} onChange={e=>setUseAi(e.target.checked)}/>
+            Generate with AI
+          </label>
+          {useAi&&<div className="grid gap-2 rounded border border-gray-800 bg-gray-950 p-3">
+            <div className="grid gap-2 md:grid-cols-2">
+              <select className={input} value={provider} onChange={e=>setProvider(e.target.value as typeof provider)}>
+                {['local','claude','openai','gemini','minimax'].map(item=><option key={item} value={item}>{item.toUpperCase()}</option>)}
+              </select>
+              <input className={input} value={model} onChange={e=>setModel(e.target.value)} placeholder="Model override (optional)"/>
+            </div>
+            <textarea className={`${input} h-28`} value={context} onChange={e=>setContext(e.target.value)} placeholder="Paste behavior, report excerpt, IOC context, log source notes, field constraints, false-positive notes..."/>
+          </div>}
+          <button className="primary" disabled={!title||!ttp||generate.isPending} onClick={()=>generate.mutate()}>{generate.isPending?'Generating...':useAi?'Generate with AI':'Generate skeleton'}</button>
+          {generate.error&&<p className="text-xs text-red-300">{String(generate.error)}</p>}
+        </div>
+        {data.map(row=><button key={row.id} className="result" onClick={()=>setActive(row)}><b>{row.title}</b><small>{row.technique_id} · {row.format} · {row.created_by}{typeof row.validation.generation==='string'?` · ${row.validation.generation}`:''}{typeof row.validation.provider==='string'&&row.validation.provider!=='deterministic'?` · ${row.validation.provider}`:''}</small></button>)}
+      </Panel>
     </div>
     {active?<Panel title={`${active.title} · ${active.format.toUpperCase()}`}><textarea className={`${input} h-[520px] font-mono rounded-none border-0`} value={active.content} onChange={e=>setActive({...active,content:e.target.value})}/><div className="p-3 flex flex-wrap items-center gap-3"><button className="primary" onClick={()=>validate.mutate()}>Validate</button><span className={active.validation.valid?'text-green-400 text-xs':'text-amber-400 text-xs'}>{active.validation.valid?'Structurally valid':'Needs review'} · {active.validation.warnings.length} warnings · {active.validation.errors.length} errors</span>{typeof active.validation.source_url==='string'&&<a href={active.validation.source_url} target="_blank" rel="noreferrer" className="secondary">Source rule ↗</a>}</div></Panel>:<Empty text="Generate, sync, or select a detection rule. Imported Sigma/YARA rules retain source links and ATT&CK tags when available."/>}
   </div>;

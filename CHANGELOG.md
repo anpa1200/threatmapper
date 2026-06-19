@@ -4,6 +4,16 @@
 
 No unreleased changes.
 
+## v2.5.9 - 2026-06-19
+
+- Added the public Yara-Rules malware repository as a default YARA feed source.
+- Added YARA-L detection skeleton generation and validation support.
+- Added optional AI-assisted detection rule generation for Sigma, YARA, YARA-L,
+  KQL, SPL, and EQL outputs.
+- Added provider selection, model override, telemetry input, and analyst context
+  fields for AI rule generation in Intelligence Pipeline.
+- Updated operator documentation for detection generation workflows.
+
 ## v2.5.8 - 2026-06-19
 
 - Added per-IOC enrichment detail pages with source metadata, raw enrichment

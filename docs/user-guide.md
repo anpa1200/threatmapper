@@ -142,7 +142,9 @@ Use exports for:
 - Report appendix material.
 - Actor IOC CSV handoff when a source-backed IOC set is available.
 
-Generated detections or summaries must be reviewed before use.
+Generated Sigma, YARA, YARA-L, KQL, SPL, EQL detections or summaries must be
+reviewed before use. AI-assisted detection generation can use local, Claude,
+OpenAI, Gemini, or MiniMax providers, but the output remains review material.
 
 ## Review Rules
 

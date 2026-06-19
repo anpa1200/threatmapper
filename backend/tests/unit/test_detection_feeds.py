@@ -1,4 +1,4 @@
-from app.services.detection_feeds import _parse_rule_text
+from app.services.detection_feeds import YARA_RULE_URLS, YARA_RULES_URL, _candidate_rule_urls, _parse_rule_text
 from app.services.detections import generate_detection, validate_detection
 
 
@@ -45,3 +45,23 @@ def test_yara_generation_and_validation():
     validation = validate_detection("yara", content)
     assert validation["valid"] is True
     assert "rule Example_YARA" in content
+
+
+def test_yaral_generation_and_validation():
+    content = generate_detection("Chronicle Process Behavior", "T1059.001", "yaral", ["PROCESS_LAUNCH"])
+    validation = validate_detection("yaral", content)
+    assert validation["valid"] is True
+    assert "events:" in content
+    assert "condition:" in content
+    assert 'attack = "T1059.001"' in content
+
+
+def test_default_yara_rules_source_is_public_tree():
+    assert YARA_RULES_URL == "https://github.com/Yara-Rules/rules/tree/master/malware"
+    assert YARA_RULE_URLS
+    assert all(url.endswith(".yar") for url in YARA_RULE_URLS)
+
+
+def test_explicit_rule_urls_do_not_require_github_tree_listing():
+    urls = _candidate_rule_urls(YARA_RULES_URL, "yara", 2, explicit_urls=YARA_RULE_URLS)
+    assert urls == YARA_RULE_URLS[:2]

@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import re
 
+from app.services.ai.factory import get_adapter
 
-FORMATS = {"sigma", "yara", "kql", "spl", "eql"}
+
+FORMATS = {"sigma", "yara", "yaral", "kql", "spl", "eql"}
 
 
 def generate_detection(title: str, technique_id: str, format: str, telemetry: list[str]) -> str:
@@ -37,6 +39,32 @@ def generate_detection(title: str, technique_id: str, format: str, telemetry: li
             "    $placeholder",
             "}",
         ])
+    if fmt == "yaral":
+        rule_name = re.sub(r"[^A-Za-z0-9_]", "_", title).strip("_") or f"adversarygraph_{needle}"
+        if not rule_name[0].isalpha() and rule_name[0] != "_":
+            rule_name = f"rule_{rule_name}"
+        telemetry_event = telemetry[0] if telemetry else "PROCESS_LAUNCH"
+        return "\n".join([
+            f"rule {rule_name} {{",
+            "  meta:",
+            '    author = "AdversaryGraph"',
+            f'    description = "Analyst-review YARA-L skeleton for {technique_id}"',
+            f'    attack = "{technique_id}"',
+            '    severity = "Medium"',
+            "",
+            "  events:",
+            f'    $event.metadata.event_type = "{telemetry_event}"',
+            "    $event.principal.hostname = $host",
+            "    $event.target.process.command_line = $command",
+            "    $command = /REPLACE_WITH_BEHAVIOR/i",
+            "",
+            "  match:",
+            "    $host over 10m",
+            "",
+            "  condition:",
+            "    $event",
+            "}",
+        ])
     field = "CommandLine"
     query = f'{field} contains "REPLACE_WITH_BEHAVIOR"'
     if fmt == "spl":
@@ -44,6 +72,52 @@ def generate_detection(title: str, technique_id: str, format: str, telemetry: li
     if fmt == "eql":
         return 'process where process.command_line : "*REPLACE_WITH_BEHAVIOR*"'
     return query
+
+
+async def generate_detection_with_ai(
+    title: str,
+    technique_id: str,
+    format: str,
+    telemetry: list[str],
+    context: str = "",
+    provider: str = "local",
+    model: str | None = None,
+) -> tuple[str, str, str]:
+    fmt = format.lower()
+    if fmt not in FORMATS:
+        raise ValueError(f"Unsupported format: {format}")
+    adapter = get_adapter(provider, model)
+    telemetry_text = ", ".join(telemetry or ["process_creation"])
+    skeleton = generate_detection(title, technique_id, fmt, telemetry or ["process_creation"])
+    system = """You are a senior detection engineer.
+
+Generate one analyst-review detection rule only. Return raw rule/query content only.
+Do not use markdown fences. Do not add prose before or after the rule.
+Prefer correctness, readable structure, explicit ATT&CK metadata, and placeholders where
+environment-specific fields must be filled by an analyst."""
+    user = f"""Create a {fmt.upper()} detection rule.
+
+Title: {title}
+MITRE ATT&CK technique: {technique_id}
+Telemetry / event types: {telemetry_text}
+
+Context, behavior, source notes, IOCs, or constraints:
+{context[:8000] or "No additional context was provided. Use an analyst-review placeholder for behavior-specific terms."}
+
+Required:
+- Keep the output valid for the requested format when possible.
+- Include ATT&CK technique metadata or comments where the format supports it.
+- Include analyst-review placeholders instead of inventing customer-specific field names.
+- Avoid destructive response actions or production deployment assumptions.
+
+Fallback skeleton style:
+{skeleton}
+"""
+    raw = await adapter._raw_complete(system, user)
+    content = _strip_markdown_rule(raw).strip()
+    if not content:
+        raise ValueError("AI provider returned empty detection content")
+    return content, adapter.provider, adapter.model
 
 
 def validate_detection(format: str, content: str) -> dict:
@@ -65,6 +139,20 @@ def validate_detection(format: str, content: str) -> dict:
             errors.append("Missing YARA rule declaration")
         if "condition:" not in content:
             errors.append("Missing YARA condition block")
+    if fmt == "yaral":
+        if not re.search(r"(?m)^\s*rule\s+[A-Za-z0-9_]+\s*\{", content):
+            errors.append("Missing YARA-L rule declaration")
+        for required in ("events:", "condition:"):
+            if required not in content:
+                errors.append(f"Missing YARA-L block: {required}")
     if fmt in {"kql", "eql"} and not re.search(r"\b(contains|where|has|:)\b", content, re.I):
         warnings.append("Query has no recognizable filter expression")
     return {"valid": not errors, "errors": errors, "warnings": warnings, "format": fmt}
+
+
+def _strip_markdown_rule(raw: str) -> str:
+    text = raw.strip()
+    fenced = re.match(r"^```[A-Za-z0-9_-]*\s*(.*?)\s*```$", text, flags=re.S)
+    if fenced:
+        return fenced.group(1).strip()
+    return text

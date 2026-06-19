@@ -106,6 +106,7 @@ Enrichment behavior:
 - Built-in MISP Galaxy actor metadata sync is public and does not require a MISP key.
 - ThreatFox, OTX, and VirusTotal require their own keys only when those enrichment paths are used.
 - MISP JSON exports, STIX/TAXII collection URLs, custom JSON/CSV/TXT feeds, Sigma/YARA feeds, and sandbox behavior feeds are connected from the UI/API as source URLs or tokens.
+- Detection Studio can generate Sigma, YARA, YARA-L, KQL, SPL, and EQL skeletons or optional AI-assisted rules; all generated detections require analyst review before use.
 - Do not commit a filled `.env` file. Use a secret manager or orchestrator secrets for team deployments.
 
 Start:
@@ -126,7 +127,7 @@ Open:
 Health should return:
 
 ```json
-{"status":"ok","version":"2.5.8"}
+{"status":"ok","version":"2.5.9"}
 ```
 
 Run the built-in deployment self-test after Docker startup:

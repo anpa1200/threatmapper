@@ -36,7 +36,7 @@ export function FeedsManagement() {
   const [rssUrl, setRssUrl] = useState('');
   const [forceReferences, setForceReferences] = useState(false);
   const [aiEnrichIocs, setAiEnrichIocs] = useState(false);
-  const [aiProvider, setAiProvider] = useState<'local' | 'claude' | 'openai' | 'gemini'>('local');
+  const [aiProvider, setAiProvider] = useState<'local' | 'claude' | 'openai' | 'gemini' | 'minimax'>('local');
 
   const syncStatus = useQuery({ queryKey: ['sync-status'], queryFn: syncApi.status });
   const syncTask = useQuery({
@@ -464,14 +464,14 @@ export function FeedsManagement() {
           </section>
 
           <section className="grid gap-4 xl:grid-cols-2">
-            <Panel title="Detection Feeds: Sigma and YARA">
+            <Panel title="Detection Feeds: Sigma, YARA, and YARA-L">
               <div className="space-y-4 p-4">
                 <p className="text-sm text-gray-400">
-                  Connect raw rule files, URL lists, or GitHub tree URLs. Imported rules keep source links and ATT&CK tags when available.
+                  Connect raw rule files, URL lists, or GitHub tree URLs. Imported Sigma/YARA rules keep source links and ATT&CK tags when available. YARA-L generation is available from the Pipeline detection studio.
                 </p>
                 <div className="flex flex-wrap gap-2">
                   <button className="primary" disabled={createDefaultRuleFeeds.isPending} onClick={() => createDefaultRuleFeeds.mutate()}>
-                    {createDefaultRuleFeeds.isPending ? 'Adding...' : 'Add SigmaHQ defaults'}
+                    {createDefaultRuleFeeds.isPending ? 'Adding...' : 'Add SigmaHQ + YARA defaults'}
                   </button>
                 </div>
                 <div className="grid gap-2 md:grid-cols-[1fr_1.4fr_120px_auto]">

@@ -5,7 +5,7 @@
 **AI-assisted CTI-to-detection workbench for MITRE ATT&CK mapping and detection-gap analysis.**
 
 [![CI](https://github.com/anpa1200/adversarygraph/actions/workflows/ci.yml/badge.svg)](https://github.com/anpa1200/adversarygraph/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/badge/release-v2.5.8-blue)](VERSION)
+[![Release](https://img.shields.io/badge/release-v2.5.9-blue)](VERSION)
 [![License](https://img.shields.io/badge/license-personal%20use%20only-orange)](LICENSE)
 [![Security policy](https://img.shields.io/badge/security-policy-blue)](SECURITY.md)
 [![Roadmap](https://img.shields.io/badge/roadmap-public-blue)](ROADMAP.md)
@@ -14,7 +14,7 @@
 [![Awesome Threat Intelligence](https://img.shields.io/badge/awesome--threat--intelligence-submitted-yellow)](https://github.com/hslatman/awesome-threat-intelligence/pull/385)
 [![Threat Hunting](https://img.shields.io/badge/awesome--threat--hunting-submitted-yellow)](https://github.com/threat-hunting/awesome_Threat-Hunting/pull/5)
 
-**Current release: v2.5.8 · [Release Summary](docs/release-summary-v2.5.8.md) · [Live Intelligence Workspace](https://1200km.com/threat-matrix/) · [Documentation & Usage Guide](https://1200km.com/adversarygraph-docs/) · [Full v2 Guide](docs/full-guide-v2.md) · [1200km Article](https://1200km.com/articles/adversarygraph-v2-self-hosted-ai-cti-platform.html) · [Published Medium Article](https://medium.com/@1200km/adversarygraph-v2-5-new-name-new-release-full-ai-cti-platform-capability-map-93cd9224127e)**
+**Current release: v2.5.9 · [Release Summary](docs/release-summary-v2.5.9.md) · [Live Intelligence Workspace](https://1200km.com/threat-matrix/) · [Documentation & Usage Guide](https://1200km.com/adversarygraph-docs/) · [Full v2 Guide](docs/full-guide-v2.md) · [1200km Article](https://1200km.com/articles/adversarygraph-v2-self-hosted-ai-cti-platform.html) · [Published Medium Article](https://medium.com/@1200km/adversarygraph-v2-5-new-name-new-release-full-ai-cti-platform-capability-map-93cd9224127e)**
 
 AdversaryGraph AI is a self-hosted CTI-to-detection workbench for mapping threat reports to MITRE ATT&CK, comparing TTP overlap with known groups and campaigns, identifying detection gaps, and exporting analyst-ready outputs.
 
@@ -122,7 +122,7 @@ On first startup, AdversaryGraph downloads and ingests MITRE ATT&CK / ATLAS refe
 
 ## Project Maturity Evidence
 
-AdversaryGraph v2.5.8 publishes the operational evidence expected from a serious self-hosted CTI tool:
+AdversaryGraph v2.5.9 publishes the operational evidence expected from a serious self-hosted CTI tool:
 
 | Area | Evidence |
 |---|---|
@@ -137,7 +137,7 @@ AdversaryGraph v2.5.8 publishes the operational evidence expected from a serious
 
 The current documentation is intended to make external review practical rather than promotional.
 
-For the current release scope, see the [v2.5.8 release summary](docs/release-summary-v2.5.8.md) and [release notes](docs/release-notes/v2.5.8.md).
+For the current release scope, see the [v2.5.9 release summary](docs/release-summary-v2.5.9.md) and [release notes](docs/release-notes/v2.5.9.md).
 
 ## Public Demo Privacy Note
 
@@ -189,7 +189,7 @@ also available at [`docs/demo-videos/dfir-report-ai-analysis-compare.gif`](docs/
 | **Feeds Management** | Manual and scheduled MITRE ATT&CK and MITRE ATLAS sync for Enterprise, Mobile, ICS, and ATLAS with status reporting and stale-data indicators |
 | **Anomaly Detection Reference Book** | Docker-served, autonomously synchronized reference catalogs with exact paragraph-level links from every mapped matrix TTP |
 | **Intelligence Pipeline** | Scheduled reviewed RSS intake, STIX/TAXII, MISP and ATLAS imports, normalized observables, public enrichment, team audit trail |
-| **Detection Studio** | Versioned Sigma, KQL, SPL and EQL skeleton generation with structural validation and explicit analyst-review placeholders |
+| **Detection Studio** | Versioned Sigma, YARA, YARA-L, KQL, SPL and EQL skeleton or AI-assisted rule generation with structural validation and explicit analyst-review placeholders |
 | **Operations** | Investigations, evidence graphs, report intake, tracked actor changes, and detection engineering lifecycle |
 
 ---
@@ -810,12 +810,25 @@ Pipeline page. Supported feed URLs are:
 - a raw `.yml`, `.yaml`, `.yar`, or `.yara` rule file
 - a text or JSON URL that contains rule URLs
 - a GitHub tree URL such as `https://github.com/SigmaHQ/sigma/tree/master/rules`
+- the default public Yara-Rules malware tree: `https://github.com/Yara-Rules/rules/tree/master/malware`
 
 Use **Pipeline -> Detections -> Connect Sigma / YARA Rule Feeds** to add the
-default SigmaHQ feed or a private rule repository. Sync imports matching rules
+default SigmaHQ feed, the public Yara-Rules malware feed, or a private rule repository. Sync imports matching rules
 into Detection Studio as `DetectionVersion` records. Imported rules keep their
 source URL in validation metadata and are mapped to ATT&CK when the rule text or
 Sigma tags contain technique IDs.
+
+Detection Studio can also generate controlled YARA-L skeletons for Chronicle /
+Google SecOps-style detection engineering handoff. YARA-L output is generated as
+analyst-review content and keeps the same placeholder warning model as Sigma,
+YARA, KQL, SPL, and EQL.
+
+For detection authoring, use **Pipeline -> Detections -> Generate Detection
+Rule**. The generator supports deterministic skeleton mode and optional
+AI-assisted mode through local, Claude, OpenAI, Gemini, or MiniMax providers.
+Paste report excerpts, behavior notes, log-source constraints, or false-positive
+notes into the context field. AI output is stored as a detection version and
+must still be reviewed before production use.
 
 API:
 
@@ -1256,6 +1269,15 @@ copy, newsletter pitch text, and current external submission tracking.
 ---
 
 ## Changelog
+
+### v2.5.9 (2026-06-19)
+
+**Detection generation release:**
+- Added default public Yara-Rules malware feed source
+- Added YARA-L detection skeleton generation and validation
+- Added optional AI-assisted detection rule generation in Intelligence Pipeline for Sigma, YARA, YARA-L, KQL, SPL, and EQL
+- Added provider selection, model override, telemetry input, and analyst context for AI rule generation
+- Updated release docs, admin guide, full guide, and user guide
 
 ### v2.5.8 (2026-06-19)
 

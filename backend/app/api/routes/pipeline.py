@@ -15,7 +15,7 @@ from app.services.atlas import normalize_atlas
 from app.services.auth import TeamUser, analyst, audit, current_user
 from app.services.collection import extract_observables, fetch_rss, misp_reports, stix_reports
 from app.services.detection_feeds import ensure_default_detection_feeds, sync_detection_rule_feed
-from app.services.detections import generate_detection, validate_detection
+from app.services.detections import generate_detection, generate_detection_with_ai, validate_detection
 from app.services.enrichment import enrich_observable
 from app.services.sandbox_feeds import list_sandbox_behaviors, sync_sandbox_feed
 
@@ -46,6 +46,10 @@ class DetectionBody(BaseModel):
     format: str = "sigma"
     telemetry: list[str] = Field(default_factory=list)
     detection_id: str | None = None
+    use_ai: bool = False
+    provider: str = Field(default="local", pattern="^(local|claude|openai|gemini|minimax)$")
+    model: str | None = Field(default=None, max_length=100)
+    context: str = Field(default="", max_length=12000)
 
 
 class ValidationBody(BaseModel):
@@ -245,17 +249,35 @@ async def enrich(observable_id: str, provider: str = "auto", db: AsyncSession = 
 @router.post("/detections/generate", status_code=201)
 async def generate(body: DetectionBody, db: AsyncSession = Depends(get_session), user: TeamUser = Depends(analyst)):
     try:
-        content = generate_detection(body.title, body.technique_id.upper(), body.format, body.telemetry)
+        provider = "deterministic"
+        model = ""
+        if body.use_ai:
+            content, provider, model = await generate_detection_with_ai(
+                body.title,
+                body.technique_id.upper(),
+                body.format,
+                body.telemetry,
+                context=body.context,
+                provider=body.provider,
+                model=body.model,
+            )
+        else:
+            content = generate_detection(body.title, body.technique_id.upper(), body.format, body.telemetry)
     except ValueError as exc:
         raise HTTPException(400, str(exc))
+    except Exception as exc:
+        raise HTTPException(500, f"AI detection generation failed: {exc}") from exc
     validation = validate_detection(body.format, content)
+    validation["generation"] = "ai" if body.use_ai else "skeleton"
+    validation["provider"] = provider
+    validation["model"] = model
     try:
         detection_id = uuid.UUID(body.detection_id) if body.detection_id else None
     except ValueError:
         raise HTTPException(400, "Invalid detection ID")
     row = DetectionVersion(detection_id=detection_id, title=body.title, technique_id=body.technique_id.upper(), format=body.format.lower(), content=content, validation=validation, created_by=user.name)
     db.add(row); await db.flush()
-    await audit(db, user, "detection.generate", "detection_version", str(row.id), {"format": row.format, "technique_id": row.technique_id})
+    await audit(db, user, "detection.generate", "detection_version", str(row.id), {"format": row.format, "technique_id": row.technique_id, "generation": validation["generation"], "provider": provider})
     await db.commit(); await db.refresh(row)
     return out(row)
 

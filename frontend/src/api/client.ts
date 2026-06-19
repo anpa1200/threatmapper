@@ -613,7 +613,17 @@ export interface Observable {
 }
 export interface DetectionVersion {
   id: string; title: string; technique_id: string; format: string; content: string;
-  validation: { valid: boolean; errors: string[]; warnings: string[]; source_url?: string; rule_id?: string }; created_by: string; created_at: string;
+  validation: {
+    valid: boolean;
+    errors: string[];
+    warnings: string[];
+    source_url?: string;
+    rule_id?: string;
+    generation?: string;
+    provider?: string;
+    model?: string;
+  };
+  created_by: string; created_at: string;
 }
 export interface AuditEvent {
   id: string; actor: string; action: string; object_type: string; object_id: string;
@@ -651,7 +661,16 @@ export const pipelineApi = {
   sandboxBehaviors: (): Promise<SandboxBehavior[]> => http.get(`${pipeline}/sandbox/behaviors`).then(r => r.data),
   createObservable: (body: {type:string;value:string;status:string;confidence:number;tags:string[];source_refs:string[]}): Promise<Observable> => http.post(`${pipeline}/observables`, body).then(r => r.data),
   enrich: (id: string): Promise<Record<string, unknown>> => http.post(`${pipeline}/observables/${id}/enrich`).then(r => r.data),
-  generate: (body: {title:string;technique_id:string;format:string;telemetry:string[]}): Promise<DetectionVersion> => http.post(`${pipeline}/detections/generate`, body).then(r => r.data),
+  generate: (body: {
+    title: string;
+    technique_id: string;
+    format: string;
+    telemetry: string[];
+    use_ai?: boolean;
+    provider?: 'local' | 'claude' | 'openai' | 'gemini' | 'minimax';
+    model?: string;
+    context?: string;
+  }): Promise<DetectionVersion> => http.post(`${pipeline}/detections/generate`, body).then(r => r.data),
   validate: (format: string, content: string): Promise<{valid:boolean;errors:string[];warnings:string[]}> => http.post(`${pipeline}/detections/validate`, {format,content}).then(r => r.data),
   versions: (): Promise<DetectionVersion[]> => http.get(`${pipeline}/detections/versions`).then(r => r.data),
   audit: (): Promise<AuditEvent[]> => http.get(`${pipeline}/audit`).then(r => r.data),

@@ -2,8 +2,12 @@ from __future__ import annotations
 
 import json
 import re
+import shutil
+import subprocess
+import tempfile
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
@@ -17,6 +21,21 @@ from app.services.detections import validate_detection
 ATTACK_ID_RE = re.compile(r"\bT\d{4}(?:\.\d{3})?\b", re.IGNORECASE)
 URL_RE = re.compile(r"https?://[^\s\"'<>]+", re.IGNORECASE)
 SIGMAHQ_RULES_URL = "https://github.com/SigmaHQ/sigma/tree/master/rules"
+YARA_RULES_URL = "https://github.com/Yara-Rules/rules/tree/master/malware"
+YARA_RULE_URLS = [
+    "https://raw.githubusercontent.com/Yara-Rules/rules/master/malware/APT_Duqu2.yar",
+    "https://raw.githubusercontent.com/Yara-Rules/rules/master/malware/APT_Hikit.yar",
+    "https://raw.githubusercontent.com/Yara-Rules/rules/master/malware/APT_PutterPanda.yar",
+    "https://raw.githubusercontent.com/Yara-Rules/rules/master/malware/APT_Waterbug.yar",
+    "https://raw.githubusercontent.com/Yara-Rules/rules/master/malware/MALW_Empire.yar",
+    "https://raw.githubusercontent.com/Yara-Rules/rules/master/malware/RAT_PlugX.yar",
+    "https://raw.githubusercontent.com/Yara-Rules/rules/master/malware/RANSOM_SamSam.yar",
+    "https://raw.githubusercontent.com/Yara-Rules/rules/master/malware/TOOLKIT_Redteam_Tools_by_GUID.yar",
+]
+HTTP_HEADERS = {
+    "Accept": "application/vnd.github+json, application/json, text/plain, */*",
+    "User-Agent": "AdversaryGraph/2.5.9 detection-feed-sync",
+}
 
 
 @dataclass
@@ -38,6 +57,19 @@ async def ensure_default_detection_feeds(session: AsyncSession) -> list[Collecti
             "enabled": True,
             "interval_minutes": 1440,
             "config": {"limit": 250},
+        },
+        {
+            "name": "Yara-Rules Malware Rules",
+            "kind": "yara",
+            "url": YARA_RULES_URL,
+            "enabled": True,
+            "interval_minutes": 1440,
+            "config": {
+                "limit": 250,
+                "license": "GPL-2.0-or-later",
+                "source": "https://github.com/Yara-Rules/rules",
+                "rule_urls": YARA_RULE_URLS,
+            },
         },
     ]
     rows: list[CollectionSource] = []
@@ -67,7 +99,7 @@ async def sync_detection_rule_feed(session: AsyncSession, source: CollectionSour
     session.add(run)
     await session.flush()
     try:
-        items = fetch_detection_rules(source.url, source.kind, limit=limit)
+        items = fetch_detection_rules(source.url, source.kind, limit=limit, explicit_urls=(source.config or {}).get("rule_urls"))
         imported = 0
         for item in items:
             if await _upsert_detection_version(session, item, source.name):
@@ -85,13 +117,13 @@ async def sync_detection_rule_feed(session: AsyncSession, source: CollectionSour
     return run
 
 
-def fetch_detection_rules(url: str, kind: str, limit: int = 250) -> list[DetectionRuleItem]:
+def fetch_detection_rules(url: str, kind: str, limit: int = 250, explicit_urls: list[str] | None = None) -> list[DetectionRuleItem]:
     kind = kind.lower()
-    candidates = _candidate_rule_urls(url, kind, limit)
+    candidates = _candidate_rule_urls(url, kind, limit, explicit_urls=explicit_urls)
     items: list[DetectionRuleItem] = []
     for rule_url in candidates[:limit]:
         try:
-            response = requests.get(rule_url, timeout=30)
+            response = requests.get(rule_url, timeout=30, headers=HTTP_HEADERS)
             response.raise_for_status()
         except Exception:
             continue
@@ -99,7 +131,7 @@ def fetch_detection_rules(url: str, kind: str, limit: int = 250) -> list[Detecti
         if parsed:
             items.append(parsed)
     if not items and _looks_like_rule_url(url, kind):
-        response = requests.get(url, timeout=30)
+        response = requests.get(url, timeout=30, headers=HTTP_HEADERS)
         response.raise_for_status()
         parsed = _parse_rule_text(response.text, kind, url)
         if parsed:
@@ -107,10 +139,12 @@ def fetch_detection_rules(url: str, kind: str, limit: int = 250) -> list[Detecti
     return items
 
 
-def _candidate_rule_urls(url: str, kind: str, limit: int) -> list[str]:
+def _candidate_rule_urls(url: str, kind: str, limit: int, explicit_urls: list[str] | None = None) -> list[str]:
+    if explicit_urls:
+        return [item for item in explicit_urls if isinstance(item, str) and _looks_like_rule_url(item, kind)][:limit]
     if "github.com" in url and "/tree/" in url:
         return _github_tree_rule_urls(url, kind, limit)
-    response = requests.get(url, timeout=45)
+    response = requests.get(url, timeout=45, headers=HTTP_HEADERS)
     response.raise_for_status()
     text = response.text
     content_type = response.headers.get("content-type", "")
@@ -130,9 +164,12 @@ def _github_tree_rule_urls(url: str, kind: str, limit: int) -> list[str]:
     owner, repo, branch = parts[0], parts[1], parts[3]
     prefix = "/".join(parts[4:]).strip("/")
     api_url = f"https://api.github.com/repos/{owner}/{repo}/git/trees/{branch}?recursive=1"
-    response = requests.get(api_url, timeout=60)
-    response.raise_for_status()
-    tree = response.json().get("tree") or []
+    try:
+        response = requests.get(api_url, timeout=60, headers=HTTP_HEADERS)
+        response.raise_for_status()
+        tree = response.json().get("tree") or []
+    except requests.RequestException:
+        return _github_tree_rule_urls_via_git(owner, repo, branch, prefix, kind, limit)
     urls: list[str] = []
     for item in tree:
         path = str(item.get("path") or "")
@@ -144,6 +181,43 @@ def _github_tree_rule_urls(url: str, kind: str, limit: int) -> list[str]:
         if len(urls) >= limit:
             break
     return urls
+
+
+def _github_tree_rule_urls_via_git(owner: str, repo: str, branch: str, prefix: str, kind: str, limit: int) -> list[str]:
+    if not shutil.which("git"):
+        raise RuntimeError("GitHub API tree listing failed and git is not installed in the runtime image")
+    repo_url = f"https://github.com/{owner}/{repo}.git"
+    with tempfile.TemporaryDirectory(prefix="adversarygraph-rules-") as tmpdir:
+        target = Path(tmpdir) / repo
+        clone = subprocess.run(
+            ["git", "clone", "--depth", "1", "--filter=blob:none", "--sparse", "--branch", branch, repo_url, str(target)],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
+        if clone.returncode != 0:
+            raise RuntimeError((clone.stderr or clone.stdout or "git clone failed").strip()[:500])
+        sparse = subprocess.run(
+            ["git", "-C", str(target), "sparse-checkout", "set", prefix],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+        if sparse.returncode != 0:
+            raise RuntimeError((sparse.stderr or sparse.stdout or "git sparse-checkout failed").strip()[:500])
+        urls: list[str] = []
+        for path in sorted(target.rglob("*")):
+            if not path.is_file():
+                continue
+            relative = path.relative_to(target).as_posix()
+            if not _path_matches_kind(relative, kind):
+                continue
+            urls.append(f"https://raw.githubusercontent.com/{owner}/{repo}/{branch}/{relative}")
+            if len(urls) >= limit:
+                break
+        return urls
 
 
 def _urls_from_json(text: str, kind: str) -> list[str]:
