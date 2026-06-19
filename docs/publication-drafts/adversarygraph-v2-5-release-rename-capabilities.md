@@ -103,6 +103,50 @@ LOCAL_LLM_API_KEY=local
 LOCAL_LLM_MODEL=llama3.1:8b
 ```
 
+Then configure optional enrichment keys and feeds.
+
+These keys are not required for the basic ATT&CK matrix, actor library, or local report analysis. They are used when you want IOC enrichment, actor-linked observables, source-backed feed sync, or external reputation context.
+
+```env
+# abuse.ch ThreatFox IOC sync.
+# Used for recent malware and botnet observables.
+# If this is set, AdversaryGraph can sync ThreatFox on startup and during dynamic DB refresh.
+THREATFOX_AUTH_KEY=your_abuse_ch_auth_key
+AUTO_THREATFOX_SYNC_ON_STARTUP=true
+AUTO_THREATFOX_SYNC_DAYS=7
+
+# AlienVault OTX pulse enrichment.
+# Used to search actor-attributed pulses and import source-backed IOCs.
+OTX_API_KEY=your_otx_key
+
+# VirusTotal on-demand enrichment.
+# Used when an analyst clicks enrichment/check for an IP, domain, URL, or hash.
+# Displays reputation, detections, tags, relationships, malware context, and possible TTP/actor hints.
+VIRUSTOTAL_API_KEY=your_virustotal_key
+
+# Daily dynamic DB refresh schedule in UTC.
+# Refreshes public reference and configured intelligence sources.
+DYNAMIC_DB_SYNC_HOUR=3
+DYNAMIC_DB_SYNC_MINUTE=30
+DYNAMIC_DB_IOC_SYNC_DAYS=7
+```
+
+Feed behavior:
+
+- **MITRE ATT&CK / ATLAS**: no API key required. AdversaryGraph downloads public STIX bundles and builds the local matrix, actor, campaign, and technique database.
+- **MISP Galaxy**: no API key required for the built-in public Galaxy sync. It enriches actors with aliases, sectors, regions, motivations, and evidence where available.
+- **ThreatFox**: requires `THREATFOX_AUTH_KEY`. Best for recent IOC sync and malware-family context.
+- **OTX**: requires `OTX_API_KEY`. Best for actor-attributed pulse search and IOC enrichment.
+- **VirusTotal**: requires `VIRUSTOTAL_API_KEY`. Best for on-demand IOC investigation, relationship review, malware context, and possible ATT&CK hints.
+- **Malpedia**: used as a public malware-family reference source where available. If a future private/API-backed Malpedia workflow is added, configure it separately.
+- **MISP exports**: full MISP server authentication is not embedded in the default deployment. Use a MISP event or attribute JSON export URL, or a local gateway URL, from the IOC Library feed connector.
+- **STIX/TAXII**: no global `.env` key is required by default. Use IOC Library to import STIX bundles or pull a TAXII 2.1 collection objects URL. If your TAXII endpoint needs a token, provide it in the TAXII pull form.
+- **Custom feeds**: add JSON, CSV, or TXT feed URLs from IOC Library. Use this for private customer feeds, internal exports, or lab data.
+- **Sigma/YARA feeds**: connect rule feed URLs from the pipeline/detection workflow. These are used for detection-rule context and IOC/malware behavior enrichment.
+- **Sandbox behavior feeds**: connect sandbox or malware-behavior export feeds when available. These help convert IOC-only context into behavior and possible ATT&CK mappings.
+
+Keep enrichment keys private. Do not commit a filled `.env` file. For team deployments, store secrets in your deployment secret manager or inject them through your orchestrator.
+
 Start the platform:
 
 ```bash
