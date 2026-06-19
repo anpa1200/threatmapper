@@ -4,6 +4,16 @@
 
 No unreleased changes.
 
+## v2.5.7 - 2026-06-19
+
+- Added MiniMax as a first-class external LLM provider through its
+  OpenAI-compatible Chat Completions API.
+- Added `MINIMAX_API_KEY`, `MINIMAX_MODEL`, and `MINIMAX_BASE_URL` settings.
+- Wired MiniMax into AI Analysis, Navigator AI chat, IOC AI-enrichment provider
+  selection, backend provider validation, self-test API-key reporting, Docker
+  Compose API/worker environment forwarding, and operator documentation.
+- Added focused provider factory test coverage for MiniMax registration.
+
 ## v2.5.4 - 2026-06-19
 
 - Normalized legacy/provider hash IOC labels into `sha256`, `sha1`, and `md5`.
