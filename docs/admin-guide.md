@@ -460,8 +460,14 @@ Optional provider settings:
 | `GREYNOISE_API_KEY` | Reserved for future GreyNoise paid API support; Community lookup is used by default without a key |
 | `ABUSEIPDB_API_KEY` | AbuseIPDB IP abuse confidence and ISP/hostname context |
 | `SHODAN_API_KEY` | Shodan host exposure, ports, hostnames, and vulnerability context |
-| `CENSYS_API_KEY` | Censys Platform host lookup and search query pivots |
-| `CENSYS_ORG_ID` | Optional Censys organization ID, sent as `X-Organization-ID` |
+| `CENSYS_API_KEY` | Censys Platform host and web-property lookup pivots |
+| `CENSYS_ORG_ID` | Optional Censys organization ID, sent as `X-Organization-ID`; required by Censys for broader Platform search access |
+
+Censys Free/API-token accounts can use exact host and web-property lookup
+endpoints, but broader search queries may return `403` unless the account has
+an organization ID, API Access role, and a tier that includes Global Data search.
+AdversaryGraph falls back to web-property lookup for domain and URL
+investigations when broader Censys search is not available.
 
 API:
 

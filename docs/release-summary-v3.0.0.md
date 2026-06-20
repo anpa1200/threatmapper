@@ -39,6 +39,9 @@ relationships, preserve investigation history, and prepare report-ready output.
 - Repository: https://github.com/anpa1200/adversarygraph
 - Documentation: https://1200km.com/adversarygraph-docs/
 - Project hub: https://1200km.com/adversarygraph/
+- Capabilities: https://1200km.com/adversarygraph-docs/capabilities/
+- Use cases: https://1200km.com/adversarygraph/use-cases.html
+- Log-to-report article: https://1200km.com/articles/adversarygraph-from-log-to-report-ioc-investigation.html
 - Article draft: `docs/publication-drafts/adversarygraph-v3-ioc-investigation-ai-log-pcap-analysis.md`
+- Workflow draft: `docs/publication-drafts/medium-adversarygraph-from-log-to-report-ioc-investigation.md`
 - Detailed notes: `docs/release-notes/v3.0.0.md`
-

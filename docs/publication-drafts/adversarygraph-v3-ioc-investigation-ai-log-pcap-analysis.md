@@ -130,6 +130,11 @@ The workflow queries configured local and external sources, including:
 - Shodan
 - Censys
 
+Censys support uses Platform host lookup for IPs and web-property lookup for
+domains/URLs. Broader Censys search is used only when the account has the
+required organization/API role and search entitlement; otherwise the platform
+keeps the Censys source as usable and explains the limitation in the result.
+
 The result includes:
 
 - IOC type
@@ -146,6 +151,28 @@ The result includes:
 The important point is that each source is shown separately. If one provider is
 not configured or fails, the platform does not hide that fact. The analyst sees
 what worked and what did not.
+
+![IOC Investigation input form with Tier 1, Tier 2, and Tier 3 depth selection](../assets/adversarygraph-v3/01-ioc-investigation-empty-form.png)
+
+The investigation starts from a single artifact. The analyst chooses the pivot
+depth, selects whether to include an AI summary, and can reopen previous
+investigations from the history panel.
+
+![IOC Investigation saved history and investigation target checklist](../assets/adversarygraph-v3/02-ioc-investigation-saved-history.png)
+
+Saved investigations preserve the original score, artifact type, pivot depth,
+TTP count, actor count, and timestamp. This makes it possible to return to a
+prior result without rerunning external enrichment.
+
+![IOC Investigation summary for a suspicious domain](../assets/adversarygraph-v3/03-ioc-investigation-summary.png)
+
+The summary view combines the verdict, score, artifact type, enrichment context,
+TTP leads, actor leads, relationship pivots, and analyst-readable reasoning.
+
+![IOC Investigation animated workflow](../assets/adversarygraph-v3/08-ioc-investigation-workflow.gif)
+
+The animated workflow shows how the investigation page moves from artifact
+entry to enrichment results, relationship graph review, and follow-up pivots.
 
 ## Relationship Graph And Clickable Nodes
 
@@ -185,6 +212,17 @@ This means an analyst can start with one URL, discover a related IP, click that
 IP, inspect its local neighborhood, and then launch a fresh investigation from
 that IP.
 
+![IOC Investigation relationship graph with selected node details and reinvestigation action](../assets/adversarygraph-v3/06-relationship-graph-node-panel.png)
+
+The graph side panel explains the selected node, shows which sources created
+the relationship, and provides actions to show connected nodes, open the node
+page, or start another investigation from that node when applicable.
+
+![Focused graph view showing an actor lead connected to the root IOC](../assets/adversarygraph-v3/07-focused-actor-node.png)
+
+Focus mode reduces the graph to the selected node neighborhood. Actor nodes are
+treated as leads, not attribution, and the panel keeps that caveat visible.
+
 ## Evidence Ranking
 
 The graph can still become noisy when multiple providers return many related
@@ -205,6 +243,12 @@ OSINT pulse.
 
 The ranking does not declare attribution or truth. It helps the analyst decide
 which evidence should be reviewed first.
+
+![Evidence ranking, next-best pivots, timeline, and source conflict panels](../assets/adversarygraph-v3/04-evidence-ranking-timeline-conflicts.png)
+
+The evidence ranking, next-best pivots, timeline, and source-conflict panels
+turn raw enrichment into a practical review order. They help the analyst decide
+which lead to inspect first and where provider disagreement exists.
 
 ## Next Best Pivots
 
@@ -249,6 +293,13 @@ For example:
 
 The platform surfaces these conflicts so the analyst does not overstate the
 finding.
+
+![urlscan activity analysis with generated ATT&CK leads](../assets/adversarygraph-v3/05-urlscan-activity-ttp-leads.png)
+
+urlscan activity analysis highlights suspicious URL/domain behavior such as
+lookalike naming, sandbox activity, minimal content, recently issued TLS, and
+cloud-hosted infrastructure. When the behavior suggests ATT&CK context, the
+platform shows technique leads with source-backed caveats.
 
 ## Saved Investigations
 
@@ -464,4 +515,3 @@ analysis. Do not use it as a replacement for validation.
 - Project hub: https://1200km.com/adversarygraph/
 - Medium archive: https://medium.com/@1200km
 - Portfolio / Knowledge Base: https://1200km.com/
-

@@ -42,19 +42,104 @@ def _check(name: str, ok: bool, message: str, details: dict[str, Any] | None = N
 
 def _api_key_check() -> SelfTestCheck:
     providers: dict[str, dict[str, Any]] = {
-        "anthropic": {"configured": bool(settings.anthropic_api_key), "env_var": "ANTHROPIC_API_KEY", "required_for": ["Claude AI analysis"]},
-        "openai": {"configured": bool(settings.openai_api_key), "env_var": "OPENAI_API_KEY", "required_for": ["OpenAI AI analysis"]},
-        "gemini": {"configured": bool(settings.gemini_api_key), "env_var": "GEMINI_API_KEY", "required_for": ["Gemini AI analysis"]},
-        "minimax": {"configured": bool(settings.minimax_api_key), "env_var": "MINIMAX_API_KEY", "required_for": ["MiniMax AI analysis"]},
-        "local_llm_base_url": {"configured": bool(settings.local_llm_base_url), "env_var": "LOCAL_LLM_BASE_URL", "required_for": ["local LLM analysis"]},
-        "threatfox": {"configured": bool(settings.threatfox_auth_key), "env_var": "THREATFOX_AUTH_KEY", "required_for": ["ThreatFox IOC sync"]},
-        "otx": {"configured": bool(settings.otx_api_key), "env_var": "OTX_API_KEY", "required_for": ["OTX IOC sync"]},
-        "virustotal": {"configured": bool(settings.virustotal_api_key), "env_var": "VIRUSTOTAL_API_KEY", "required_for": ["VirusTotal IOC lookup"]},
-        "censys": {"configured": bool(settings.censys_api_key), "env_var": "CENSYS_API_KEY", "required_for": ["Censys IOC Investigation pivots"]},
-        "opencti": {"configured": bool(settings.opencti_url and settings.opencti_token), "env_var": "OPENCTI_URL + OPENCTI_TOKEN", "required_for": ["OpenCTI pull/push/bidirectional sync"]},
+        "anthropic": {
+            "configured": bool(settings.anthropic_api_key),
+            "env_var": "ANTHROPIC_API_KEY",
+            "category": "llm",
+            "required_for": ["Claude AI analysis"],
+        },
+        "openai": {
+            "configured": bool(settings.openai_api_key),
+            "env_var": "OPENAI_API_KEY",
+            "category": "llm",
+            "required_for": ["OpenAI AI analysis"],
+        },
+        "gemini": {
+            "configured": bool(settings.gemini_api_key),
+            "env_var": "GEMINI_API_KEY",
+            "category": "llm",
+            "required_for": ["Gemini AI analysis"],
+        },
+        "minimax": {
+            "configured": bool(settings.minimax_api_key),
+            "env_var": "MINIMAX_API_KEY",
+            "category": "llm",
+            "required_for": ["MiniMax AI analysis"],
+        },
+        "local_llm_base_url": {
+            "configured": bool(settings.local_llm_base_url),
+            "env_var": "LOCAL_LLM_BASE_URL",
+            "category": "llm",
+            "required_for": ["local LLM analysis"],
+        },
+        "threatfox": {
+            "configured": bool(settings.threatfox_auth_key),
+            "env_var": "THREATFOX_AUTH_KEY",
+            "category": "feed",
+            "required_for": ["ThreatFox IOC sync", "ThreatFox IOC Investigation lookup"],
+        },
+        "otx": {
+            "configured": bool(settings.otx_api_key),
+            "env_var": "OTX_API_KEY",
+            "category": "feed",
+            "required_for": ["AlienVault OTX IOC sync", "OTX IOC Investigation pivots"],
+        },
+        "virustotal": {
+            "configured": bool(settings.virustotal_api_key),
+            "env_var": "VIRUSTOTAL_API_KEY",
+            "category": "investigation",
+            "required_for": ["VirusTotal IOC lookup", "VirusTotal IOC Investigation enrichment"],
+        },
+        "urlscan": {
+            "configured": True,
+            "api_key_configured": bool(settings.urlscan_api_key),
+            "env_var": "URLSCAN_API_KEY",
+            "category": "investigation",
+            "auth_mode": "public lookup; API key optional for higher limits",
+            "required_for": ["urlscan IOC Investigation URL/domain/IP activity pivots"],
+        },
+        "greynoise": {
+            "configured": True,
+            "api_key_configured": bool(settings.greynoise_api_key),
+            "env_var": "GREYNOISE_API_KEY",
+            "category": "investigation",
+            "auth_mode": "community lookup; API key reserved for paid support",
+            "required_for": ["GreyNoise Community IP classification"],
+        },
+        "abuseipdb": {
+            "configured": bool(settings.abuseipdb_api_key),
+            "env_var": "ABUSEIPDB_API_KEY",
+            "category": "investigation",
+            "required_for": ["AbuseIPDB abuse confidence and network-owner context"],
+        },
+        "shodan": {
+            "configured": bool(settings.shodan_api_key),
+            "env_var": "SHODAN_API_KEY",
+            "category": "investigation",
+            "required_for": ["Shodan host exposure, ports, hostnames, and vulnerability context"],
+        },
+        "censys": {
+            "configured": bool(settings.censys_api_key),
+            "env_var": "CENSYS_API_KEY",
+            "optional_env_var": "CENSYS_ORG_ID",
+            "category": "investigation",
+            "required_for": ["Censys host, DNS, service, ASN, and certificate-name pivots"],
+        },
+        "opencti": {
+            "configured": bool(settings.opencti_url and settings.opencti_token),
+            "env_var": "OPENCTI_URL + OPENCTI_TOKEN",
+            "category": "feed",
+            "required_for": ["OpenCTI pull/push/bidirectional sync"],
+        },
     }
     configured = [name for name, data in providers.items() if data["configured"]]
     missing_optional = [name for name, data in providers.items() if not data["configured"]]
+    configured_by_category: dict[str, list[str]] = {}
+    missing_by_category: dict[str, list[str]] = {}
+    for name, data in providers.items():
+        category = str(data.get("category") or "other")
+        target = configured_by_category if data["configured"] else missing_by_category
+        target.setdefault(category, []).append(name)
     return _check(
         "api_keys",
         True,
@@ -62,6 +147,8 @@ def _api_key_check() -> SelfTestCheck:
         {
             "configured": configured,
             "missing_optional": missing_optional,
+            "configured_by_category": configured_by_category,
+            "missing_by_category": missing_by_category,
             "providers": providers,
             "secrets_exposed": False,
         },

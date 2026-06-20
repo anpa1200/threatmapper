@@ -6,6 +6,10 @@ type PopupState = 'visible' | 'collapsed' | 'dismissed';
 type ProviderDetail = {
   configured?: boolean;
   env_var?: string;
+  optional_env_var?: string;
+  category?: string;
+  auth_mode?: string;
+  api_key_configured?: boolean;
   required_for?: string[];
 };
 type IocSourceDetail = {
@@ -19,7 +23,6 @@ type IocSourceDetail = {
   indicator_count?: number;
 };
 
-const llmProviderNames = new Set(['anthropic', 'openai', 'gemini', 'minimax', 'local_llm_base_url']);
 const providerLabels: Record<string, string> = {
   anthropic: 'Claude',
   openai: 'OpenAI',
@@ -29,6 +32,12 @@ const providerLabels: Record<string, string> = {
   threatfox: 'ThreatFox',
   otx: 'AlienVault OTX',
   virustotal: 'VirusTotal',
+  urlscan: 'urlscan.io',
+  greynoise: 'GreyNoise',
+  abuseipdb: 'AbuseIPDB',
+  shodan: 'Shodan',
+  censys: 'Censys',
+  opencti: 'OpenCTI',
 };
 
 function summarize(result?: SelfTestResult, error?: Error | null) {
@@ -89,8 +98,9 @@ function SelfTestDetails({ result }: { result: SelfTestResult }) {
   const apiCheck = checkByName(result, 'api_keys');
   const syncCheck = checkByName(result, 'ioc_sync');
   const providers = configuredProviders(apiCheck);
-  const llmProviders = providers.filter(provider => llmProviderNames.has(provider.name));
-  const feedProviders = providers.filter(provider => !llmProviderNames.has(provider.name));
+  const llmProviders = providers.filter(provider => provider.category === 'llm');
+  const feedProviders = providers.filter(provider => provider.category === 'feed');
+  const investigationProviders = providers.filter(provider => provider.category === 'investigation');
   const sources = enabledSources(syncCheck);
   const syncDetails = asRecord(syncCheck?.details);
   const storedIndicators = sources.reduce((sum, source) => sum + Number(source.indicator_count ?? 0), 0);
@@ -115,12 +125,26 @@ function SelfTestDetails({ result }: { result: SelfTestResult }) {
           <div className="mt-2 flex flex-wrap gap-1">
             {feedProviders.length > 0
               ? feedProviders.map(provider => (
-                <span key={provider.name} className="rounded bg-emerald-500/15 px-2 py-0.5 text-emerald-100">
+                <span key={provider.name} title={provider.required_for?.join(', ')} className="rounded bg-emerald-500/15 px-2 py-0.5 text-emerald-100">
                   {providerLabels[provider.name] ?? provider.name}
                 </span>
               ))
               : <span className="opacity-70">None configured</span>}
           </div>
+        </div>
+      </div>
+
+      <div className="rounded border border-white/10 bg-black/15 p-2">
+        <p className="font-semibold">Enabled investigation APIs</p>
+        <div className="mt-2 flex flex-wrap gap-1">
+          {investigationProviders.length > 0
+            ? investigationProviders.map(provider => (
+              <span key={provider.name} title={provider.required_for?.join(', ')} className="rounded bg-sky-500/15 px-2 py-0.5 text-sky-100">
+                {providerLabels[provider.name] ?? provider.name}
+                {provider.auth_mode && !provider.api_key_configured ? ' · public' : ''}
+              </span>
+            ))
+            : <span className="opacity-70">None configured</span>}
         </div>
       </div>
 

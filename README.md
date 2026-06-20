@@ -14,7 +14,7 @@
 [![Awesome Threat Intelligence](https://img.shields.io/badge/awesome--threat--intelligence-submitted-yellow)](https://github.com/hslatman/awesome-threat-intelligence/pull/385)
 [![Threat Hunting](https://img.shields.io/badge/awesome--threat--hunting-submitted-yellow)](https://github.com/threat-hunting/awesome_Threat-Hunting/pull/5)
 
-**Current release: v3.0.0 · [Release Summary](docs/release-summary-v3.0.0.md) · [Release Article Draft](docs/publication-drafts/adversarygraph-v3-ioc-investigation-ai-log-pcap-analysis.md) · [Live Intelligence Workspace](https://1200km.com/threat-matrix/) · [Documentation & Usage Guide](https://1200km.com/adversarygraph-docs/) · [Full v2 Guide](docs/full-guide-v2.md) · [1200km Article](https://1200km.com/articles/adversarygraph-v2-self-hosted-ai-cti-platform.html) · [Published Medium Article](https://medium.com/@1200km/adversarygraph-v2-5-new-name-new-release-full-ai-cti-platform-capability-map-93cd9224127e)**
+**Current release: v3.0.0 · [Release Summary](docs/release-summary-v3.0.0.md) · [Release Article Draft](docs/publication-drafts/adversarygraph-v3-ioc-investigation-ai-log-pcap-analysis.md) · [Log-To-Report Workflow](docs/publication-drafts/medium-adversarygraph-from-log-to-report-ioc-investigation.md) · [Live Intelligence Workspace](https://1200km.com/threat-matrix/) · [Documentation & Usage Guide](https://1200km.com/adversarygraph-docs/) · [Capabilities](https://1200km.com/adversarygraph-docs/capabilities/) · [Use Cases](https://1200km.com/adversarygraph/use-cases.html) · [1200km Article](https://1200km.com/articles/adversarygraph-v2-self-hosted-ai-cti-platform.html) · [Published Medium Article](https://medium.com/@1200km/adversarygraph-v2-5-new-name-new-release-full-ai-cti-platform-capability-map-93cd9224127e)**
 
 AdversaryGraph AI is a self-hosted CTI-to-detection workbench for mapping threat reports to MITRE ATT&CK, comparing TTP overlap with known groups and campaigns, identifying detection gaps, and exporting analyst-ready outputs.
 
@@ -25,6 +25,12 @@ AdversaryGraph AI is a self-hosted CTI-to-detection workbench for mapping threat
 **Project Hub:** https://1200km.com/adversarygraph/
 
 **Documentation:** https://1200km.com/adversarygraph-docs/
+
+**Capabilities:** https://1200km.com/adversarygraph-docs/capabilities/
+
+**Use Cases:** https://1200km.com/adversarygraph/use-cases.html
+
+**From Log To Report workflow:** https://1200km.com/articles/adversarygraph-from-log-to-report-ioc-investigation.html
 
 **1200km Article:** https://1200km.com/articles/adversarygraph-v2-self-hosted-ai-cti-platform.html
 
@@ -37,6 +43,7 @@ AdversaryGraph AI is a self-hosted CTI-to-detection workbench for mapping threat
 ## Table of Contents
 
 - [Short Installation Guide](#short-installation-guide)
+- [From Log To Report Workflow](#from-log-to-report-workflow)
 - [Project Maturity Evidence](#project-maturity-evidence)
 - [Public Demo Privacy Note](#public-demo-privacy-note)
 - [Validation and Limitations](#validation-and-limitations)
@@ -134,6 +141,23 @@ Run the built-in health checks:
 ```
 
 On first startup, AdversaryGraph downloads and ingests MITRE ATT&CK / ATLAS reference data. The first sync can take a few minutes.
+
+## From Log To Report Workflow
+
+AdversaryGraph v3.0 adds a practical workflow for turning firewall logs, EDR
+events, proxy records, PCAP-derived text, suspicious commands, and raw IOC lists
+into a structured CTI investigation:
+
+1. Paste operational telemetry into AI Analysis.
+2. Extract IOCs, suspicious commands, PowerShell, hashes, domains, URLs, and
+   ATT&CK technique leads.
+3. Investigate extracted IOCs through Tier 1 / Tier 2 / Tier 3 pivots.
+4. Review source evidence, relationship graph nodes, actor leads, source
+   conflicts, kill-chain coverage, and TTP leads.
+5. Generate a local or AI-assisted report for analyst handoff.
+
+The complete public walkthrough is mirrored in the 1200km ecosystem:
+<https://1200km.com/articles/adversarygraph-from-log-to-report-ioc-investigation.html>.
 
 ## Project Maturity Evidence
 

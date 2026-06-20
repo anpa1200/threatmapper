@@ -656,8 +656,9 @@ The workflow checks:
 - GreyNoise Community IP classification without a required API key
 - AbuseIPDB IP abuse context when `ABUSEIPDB_API_KEY` is configured
 - Shodan host exposure context when `SHODAN_API_KEY` is configured
-- Censys Platform host, DNS, service, ASN, and certificate-name pivots when
-  `CENSYS_API_KEY` is configured
+- Censys Platform host and web-property pivots when `CENSYS_API_KEY` is
+  configured; broader Censys search requires an organization-enabled account,
+  API Access role, and search-capable tier
 
 The result includes:
 
@@ -676,6 +677,24 @@ The result includes:
 - kill-chain/tactic coverage based on discovered TTPs
 - deterministic suspicion score and verdict
 - optional AI summary generated from the collected investigation context
+
+Visual workflow:
+
+![IOC Investigation input form](assets/adversarygraph-v3/01-ioc-investigation-empty-form.png)
+
+![Saved IOC investigations](assets/adversarygraph-v3/02-ioc-investigation-saved-history.png)
+
+![IOC Investigation verdict and AI summary](assets/adversarygraph-v3/03-ioc-investigation-summary.png)
+
+![IOC Investigation animated workflow](assets/adversarygraph-v3/08-ioc-investigation-workflow.gif)
+
+![Evidence ranking, next-best pivots, timeline, and source conflicts](assets/adversarygraph-v3/04-evidence-ranking-timeline-conflicts.png)
+
+![urlscan activity analysis and TTP leads](assets/adversarygraph-v3/05-urlscan-activity-ttp-leads.png)
+
+![Relationship graph and selected node panel](assets/adversarygraph-v3/06-relationship-graph-node-panel.png)
+
+![Focused actor-lead graph node](assets/adversarygraph-v3/07-focused-actor-node.png)
 
 Available actions:
 

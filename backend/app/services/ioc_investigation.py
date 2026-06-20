@@ -570,14 +570,14 @@ async def _censys_enrichment(value: str, artifact_type: str) -> dict[str, Any]:
     if not settings.censys_api_key:
         return _not_configured("censys", "CENSYS_API_KEY")
 
-    headers = {
+    base_headers = {
         "Authorization": f"Bearer {settings.censys_api_key}",
-        "Accept": "application/vnd.censys.api.v3.host.v1+json" if artifact_type == "ip" else "application/json",
     }
     if settings.censys_org_id:
-        headers["X-Organization-ID"] = settings.censys_org_id
+        base_headers["X-Organization-ID"] = settings.censys_org_id
 
     if artifact_type == "ip":
+        headers = {**base_headers, "Accept": "application/vnd.censys.api.v3.host.v1+json"}
         payload = await _get_json(f"https://api.platform.censys.io/v3/global/asset/host/{quote(value)}", headers=headers)
         resource = ((payload.get("result") or {}).get("resource") or payload.get("resource") or {})
         relationships = _censys_host_relationships(value, resource)
@@ -594,35 +594,69 @@ async def _censys_enrichment(value: str, artifact_type: str) -> dict[str, Any]:
     host = urlparse(value).hostname if artifact_type == "url" else value
     if not host:
         return {"source": "censys", "status": "skipped", "summary": "Censys could not extract a domain host from this URL.", "relationships": [], "technique_ids": [], "actors": [], "raw": {}}
-    query = f'host.dns.names: "{host}" or host.services.tls.certificates.leaf_data.names: "{host}"'
-    payload = await _post_json(
-        "https://api.platform.censys.io/v3/global/search/query",
-        json_body={
-            "query": query,
-            "page_size": 10,
-            "fields": [
-                "host.ip",
-                "host.location.country",
-                "host.autonomous_system.name",
-                "host.services.port",
-                "host.services.service_name",
-                "host.dns.names",
-            ],
-        },
-        headers=headers,
+
+    web_payload = await _post_json(
+        "https://api.platform.censys.io/v3/global/asset/webproperty",
+        json_body={"webproperty_ids": [f"{host}:80", f"{host}:443"]},
+        headers={**base_headers, "Accept": "application/vnd.censys.api.v3.webproperty.v1+json"},
     )
+    web_resources = _censys_webproperty_resources(web_payload)
+    relationships = _censys_webproperty_relationships(host, web_resources)
+    technique_ids = _dedupe([match.upper() for match in ATTACK_ID_RE.findall(json.dumps(web_payload, default=str))])
+
+    if not settings.censys_org_id:
+        return {
+            "source": "censys",
+            "status": "ok",
+            "summary": (
+                f"Censys web property lookup returned {len(web_resources)} record(s) for {host}. "
+                "Broader Censys search requires an organization-enabled account and API role."
+            ),
+            "relationships": relationships,
+            "technique_ids": technique_ids,
+            "actors": [],
+            "raw": _compact_raw(web_payload),
+        }
+
+    query = f'host.dns.names: "{host}" or host.services.tls.certificates.leaf_data.names: "{host}"'
+    try:
+        payload = await _post_json(
+            "https://api.platform.censys.io/v3/global/search/query",
+            json_body={
+                "query": query,
+                "page_size": 10,
+                "fields": [
+                    "host.ip",
+                    "host.location.country",
+                    "host.autonomous_system.name",
+                    "host.services.port",
+                    "host.services.service_name",
+                    "host.dns.names",
+                ],
+            },
+            headers={**base_headers, "Accept": "application/json"},
+        )
+    except RuntimeError as exc:
+        return {
+            "source": "censys",
+            "status": "ok",
+            "summary": f"Censys web property lookup returned {len(web_resources)} record(s) for {host}; broader search was unavailable: {exc}",
+            "relationships": relationships,
+            "technique_ids": technique_ids,
+            "actors": [],
+            "raw": _compact_raw({"webproperty": web_payload, "search_error": str(exc)}),
+        }
     hits = _censys_hits(payload)
-    relationships: list[dict[str, Any]] = []
     for hit in hits[:10]:
         relationships.extend(_censys_search_relationships(host, hit))
     return {
         "source": "censys",
         "status": "ok",
-        "summary": f"Censys search returned {len(hits)} host result(s) for {host}.",
+        "summary": f"Censys web property lookup returned {len(web_resources)} record(s), and search returned {len(hits)} host result(s) for {host}.",
         "relationships": relationships,
-        "technique_ids": _dedupe([match.upper() for match in ATTACK_ID_RE.findall(json.dumps(payload, default=str))]),
+        "technique_ids": _dedupe([*technique_ids, *[match.upper() for match in ATTACK_ID_RE.findall(json.dumps(payload, default=str))]]),
         "actors": [],
-        "raw": _compact_raw(payload),
+        "raw": _compact_raw({"webproperty": web_payload, "search": payload}),
     }
 
 
@@ -793,6 +827,57 @@ def _censys_hits(payload: dict[str, Any]) -> list[dict[str, Any]]:
         if isinstance(value, list):
             return [item for item in value if isinstance(item, dict)]
     return []
+
+
+def _censys_webproperty_resources(payload: dict[str, Any]) -> list[dict[str, Any]]:
+    result = payload.get("result") or []
+    if isinstance(result, dict):
+        result = result.get("resources") or result.get("webproperties") or []
+    resources: list[dict[str, Any]] = []
+    for item in result if isinstance(result, list) else []:
+        if not isinstance(item, dict):
+            continue
+        resource = item.get("resource") if isinstance(item.get("resource"), dict) else item
+        resources.append(resource)
+    return resources
+
+
+def _censys_webproperty_relationships(root: str, resources: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    relationships: list[dict[str, Any]] = []
+    for resource in resources:
+        hostname = resource.get("hostname") or resource.get("name")
+        port = resource.get("port")
+        if hostname:
+            relationships.append(_relationship(root, str(hostname), "domain", "censys", 1, "Censys web property hostname"))
+        if port:
+            relationships.append(_relationship(root, f"http:{port}", "service-port", "censys", 1, "Censys web property port"))
+        for ip in _extract_values(resource, {"ip", "ipv4", "ipv6", "ip_address"}):
+            relationships.append(_relationship(root, str(ip), "ip", "censys", 1, "Censys web property IP"))
+        for cert_hash in _extract_values(resource, {"fingerprint_sha256", "fingerprint_sha1", "sha256", "sha1"}):
+            relationships.append(_relationship(root, str(cert_hash), "hash", "censys", 1, "Censys web property certificate hash"))
+        for software in _extract_values(resource, {"software", "product", "vendor", "service_name"}):
+            if isinstance(software, str):
+                relationships.append(_relationship(root, software, "software", "censys", 1, "Censys web property software"))
+        for vuln in _extract_values(resource, {"cve", "cves", "vulns", "vulnerability"}):
+            if isinstance(vuln, str) and vuln.upper().startswith("CVE-"):
+                relationships.append(_relationship(root, vuln.upper(), "vulnerability", "censys", 1, "Censys web property vulnerability"))
+    return relationships
+
+
+def _extract_values(value: Any, keys: set[str]) -> list[Any]:
+    found: list[Any] = []
+    if isinstance(value, dict):
+        for key, item in value.items():
+            if key in keys:
+                if isinstance(item, list):
+                    found.extend(item)
+                else:
+                    found.append(item)
+            found.extend(_extract_values(item, keys))
+    elif isinstance(value, list):
+        for item in value:
+            found.extend(_extract_values(item, keys))
+    return found[:100]
 
 
 def _censys_search_relationships(root: str, hit: dict[str, Any]) -> list[dict[str, Any]]:
