@@ -115,7 +115,13 @@ async def investigate_ioc(
         actors=actors,
         score=score,
     )
-    ai_summary = await _ai_summary(report_input, options) if options.ai_summarize else ""
+    ai_summary = ""
+    ai_error = ""
+    if options.ai_summarize:
+        try:
+            ai_summary = await _ai_summary(report_input, options)
+        except Exception as exc:
+            ai_error = f"{type(exc).__name__}: {exc}"
 
     return {
         "artifact": normalized,
@@ -135,6 +141,7 @@ async def investigate_ioc(
             "edges": graph_edges[:500],
         },
         "ai_input": report_input,
+        "ai_error": ai_error,
     }
 
 

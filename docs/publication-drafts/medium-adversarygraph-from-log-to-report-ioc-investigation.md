@@ -57,14 +57,21 @@ AdversaryGraph does not replace analyst judgment. It is a workbench for building
 2. The Investigation Goal
 3. Synthetic Firewall Logs
 4. Synthetic EDR Logs
-5. Step 1: Paste Logs Into AI Log Analysis
-6. Step 2: Extract IOCs and Suspicious Activity
-7. Step 3: Investigate Extracted IOCs
-8. Step 4: Review the Relationship Graph
-9. Step 5: Map TTP Leads to ATT&CK
-10. Step 6: Generate the Final Report With the AI Assistant
-11. Final Analyst Report Example
-12. Why This Workflow Matters
+5. Step 1: Create a New Investigation
+6. Step 2: Analyze Firewall Logs
+7. Step 3: Add Firewall Analysis to the Investigation
+8. Step 4: Analyze EDR Logs
+9. Step 5: Add EDR Analysis to the Investigation
+10. Step 6: Extract IOCs and Suspicious Activity
+11. Step 7: Investigate Extracted IOCs
+12. Step 8: Review the Relationship Graph
+13. Step 9: Add IOC Investigation Results to the Investigation
+14. Step 10: Map TTP Leads to ATT&CK
+15. Step 11: Compare With Threat Actors and Save the Result
+16. Step 12: Summarize the Investigation With AI
+17. Step 13: Generate the Final Report With the AI Assistant
+18. Final Analyst Report Example
+19. Why This Workflow Matters
 
 ---
 
@@ -85,7 +92,8 @@ The goal is to use AdversaryGraph to:
 3. Send extracted IOCs into IOC Investigation.
 4. Enrich the IOCs through local DB, OpenCTI, OTX, VirusTotal, urlscan, ThreatFox, and other configured sources.
 5. Review relationships, source evidence, actor leads, and TTP leads.
-6. Produce a structured report with the AI assistant.
+6. Add the reviewed evidence to an Investigation workspace.
+7. Produce a structured report with the AI assistant.
 
 ---
 
@@ -168,7 +176,31 @@ This is exactly where AdversaryGraph becomes useful.
 
 ---
 
-## 4. Step 1: Paste Logs Into AI Log Analysis
+## 4. Step 1: Create a New Investigation
+
+Start from the case workspace, not from raw analysis.
+
+Open:
+
+```text
+Investigation
+```
+
+Create a new investigation before running analysis. This gives every later result a destination:
+
+- firewall log analysis
+- EDR log analysis
+- IOC Investigation results
+- TTP layer
+- actor-comparison output
+- AI summary
+- final report
+
+This avoids disconnected analysis results and keeps the whole case auditable.
+
+---
+
+## 5. Step 2: Analyze Firewall Logs
 
 Open AdversaryGraph and go to:
 
@@ -176,26 +208,81 @@ Open AdversaryGraph and go to:
 AI Analysis
 ```
 
-Paste both the firewall and EDR logs into the analysis box.
-
-Use the AI Log/PCAP analysis mode.
-
-The prompt should be simple:
+Select:
 
 ```text
-Analyze these firewall and EDR logs.
-Extract IOCs, suspicious commands, suspicious processes, possible ATT&CK techniques,
-kill-chain context, and any actor or malware leads.
-Do not claim attribution. Show evidence for every finding.
+Log / PCAP
 ```
 
-Then run the analysis.
+Paste or upload only the firewall logs first.
+
+Do not write a manual prompt. The Log / PCAP mode already uses an internal AdversaryGraph system prompt that instructs the model to:
+
+- extract IOCs
+- identify suspicious activity
+- map behavior to ATT&CK
+- separate source evidence from enrichment leads
+- avoid attribution claims
+- return a structured analyst result
+
+Run the analysis.
 
 ---
 
-## 5. Step 2: Extract IOCs and Suspicious Activity
+## 6. Step 3: Add Firewall Analysis to the Investigation
 
-The AI analyst should extract structured evidence from the logs.
+After the firewall analysis completes, click:
+
+```text
+Add to investigation
+```
+
+Choose the investigation created in Step 1.
+
+This saves the firewall result as structured case evidence.
+
+---
+
+## 7. Step 4: Analyze EDR Logs
+
+Return to:
+
+```text
+AI Analysis -> Log / PCAP
+```
+
+Paste or upload the EDR logs as a separate analysis.
+
+Do not combine firewall and EDR logs in one run unless you intentionally want one mixed result. The cleaner workflow is one source per run:
+
+- firewall logs -> one analysis result
+- EDR logs -> second analysis result
+- each result -> added to the same investigation
+
+This makes the final report easier to audit because every conclusion can be traced back to the source that produced it.
+
+---
+
+## 8. Step 5: Add EDR Analysis to the Investigation
+
+After the EDR analysis completes, click:
+
+```text
+Add to investigation
+```
+
+Choose the same investigation.
+
+At this point the investigation should contain at least two evidence nodes:
+
+- firewall log analysis result
+- EDR log analysis result
+
+---
+
+## 9. Step 6: Extract IOCs and Suspicious Activity
+
+The AI analyst results should extract structured evidence from each log source.
 
 Expected IOC extraction:
 
@@ -260,7 +347,7 @@ For example, T1059 and T1071.001 are high-frequency techniques. They are useful 
 
 ---
 
-## 6. Step 3: Investigate Extracted IOCs
+## 10. Step 7: Investigate Extracted IOCs
 
 After the AI analysis extracts IOCs, send the strongest indicators to:
 
@@ -319,7 +406,7 @@ Again: this is not attribution. It is source-backed clustering and lead generati
 
 ---
 
-## 7. Step 4: Review the Relationship Graph
+## 11. Step 8: Review the Relationship Graph
 
 In the IOC Investigation result, open the relationship graph.
 
@@ -367,15 +454,42 @@ This is useful because the analyst can distinguish:
 
 ---
 
-## 8. Step 5: Map TTP Leads to ATT&CK
+## 12. Step 9: Add IOC Investigation Results to the Investigation
 
-After IOC Investigation identifies TTP leads, use the action:
+After reviewing IOC Investigation output, add the useful result to the same investigation:
+
+- AI log analysis result
+- extracted IOC list
+- IOC Investigation result
+- relationship graph evidence
+- ATT&CK TTP leads
+- actor comparison leads
+- source conflicts and timeline notes
+
+The investigation workspace should now keep the case organized into practical sections:
+
+- Logs - result analysis
+- Report analysis
+- founded TTP layer
+- IOC list
+- evidence nodes and relationships
+- timeline entries
+
+This matters because the final report should not be generated from one isolated screen. It should use the reviewed investigation package: firewall analysis, EDR analysis, IOC enrichment, TTP evidence, graph relationships, and analyst caveats.
+
+---
+
+## 13. Step 10: Map TTP Leads to ATT&CK
+
+After IOC Investigation identifies TTP leads, use the Investigation action:
 
 ```text
-Show TTPs on Matrix
+Put TTPs on matrix
 ```
 
-Then add the relevant techniques to:
+This creates a Navigator-like layer from all TTPs saved in the active investigation, not only the current screen.
+
+Then add or keep the relevant techniques in:
 
 ```text
 My TTPs
@@ -410,16 +524,62 @@ It still does not prove attribution.
 
 ---
 
-## 9. Step 6: Generate the Final Report With the AI Assistant
+## 14. Step 11: Compare With Threat Actors and Save the Result
+
+From the Investigation page, run:
+
+```text
+Compare + save result
+```
+
+AdversaryGraph compares the investigation TTP layer against actor profiles and saves the top overlap leads back into the investigation as structured evidence.
+
+The saved comparison includes:
+
+- compared TTP count
+- top actor profile leads
+- similarity score
+- shared technique count
+- shared technique IDs
+- timestamped timeline entry
+
+This comparison is useful for prioritization. It is not attribution.
+
+---
+
+## 15. Step 12: Summarize the Investigation With AI
+
+After log analysis, IOC investigation, TTP mapping, and actor comparison are saved, run:
+
+```text
+Complete AI analysis
+```
+
+The AI summary uses the active Investigation workspace as context. It should summarize:
+
+- current assessment
+- strongest evidence
+- IOC findings
+- TTP layer
+- actor-comparison leads
+- source caveats
+- recommended next actions
+
+The summary is also saved back into the investigation as an evidence node.
+
+---
+
+## 16. Step 13: Generate the Final Report With the AI Assistant
 
 Open:
 
 ```text
-Investigation Report
+Investigation
 ```
 
 Select the sections to include:
 
+- active Investigation workspace context
 - Navigator / selected TTPs
 - TTP evidence
 - actor comparison
@@ -437,23 +597,17 @@ For this workflow, the AI assistant report should receive:
 
 - the original firewall logs
 - the original EDR logs
+- AI log analysis result
 - extracted IOCs
 - IOC Investigation summaries
 - relationship graph leads
+- saved evidence nodes and source timeline
 - ATT&CK mapping
 - actor comparison output
+- AI investigation summary
 - caveats and confidence statements
 
-The prompt should be strict:
-
-```text
-Create a CTI investigation report from the selected evidence.
-Do not claim attribution.
-Separate direct evidence from enrichment leads.
-Highlight malicious indicators, suspicious commands, ATT&CK techniques,
-actor leads, source conflicts, and recommended next steps.
-Use analyst language suitable for a customer-facing report.
-```
+No manual report prompt is required. The report assistant should use the active investigation context and AdversaryGraph's built-in report instructions to produce a structured report with direct evidence, enrichment leads, caveats, source conflicts, and recommended next steps.
 
 Export as:
 
@@ -463,7 +617,7 @@ Export as:
 
 ---
 
-## 10. Final Analyst Report Example
+## 17. Final Analyst Report Example
 
 ### Executive Summary
 
@@ -534,12 +688,12 @@ These are leads only. They should be validated against original reports, source 
 
 ---
 
-## 11. Why This Workflow Matters
+## 18. Why This Workflow Matters
 
 This use case is important because it shows AdversaryGraph working as an investigation bridge:
 
 ```text
-Raw logs -> IOC extraction -> IOC Investigation -> relationship graph -> ATT&CK mapping -> AI report
+Create investigation -> firewall log analysis -> add result -> EDR log analysis -> add result -> IOC Investigation -> add IOC result -> TTP layer on matrix -> actor comparison -> AI summary -> investigation report
 ```
 
 The value is not only enrichment.
@@ -549,6 +703,7 @@ The value is the structured workflow:
 - raw telemetry becomes IOCs
 - IOCs become relationships
 - relationships become evidence-ranked leads
+- reviewed leads become a structured investigation workspace
 - evidence becomes ATT&CK mapping
 - ATT&CK mapping becomes a report
 - the report keeps caveats clear

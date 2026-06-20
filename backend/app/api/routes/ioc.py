@@ -403,6 +403,7 @@ class IOCInvestigationOut(BaseModel):
     tier3_sources: list[dict[str, Any]] = Field(default_factory=list)
     relationships: dict[str, Any] = Field(default_factory=dict)
     ai_input: dict[str, Any] = Field(default_factory=dict)
+    ai_error: str = ""
 
 
 @router.get("/sources", response_model=list[IOCSourceOut])

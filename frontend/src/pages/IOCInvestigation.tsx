@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Header } from '@/components/Layout/Header';
+import { AddToInvestigationButton } from '@/components/AddToInvestigationButton';
 import { iocApi, type IOCInvestigationHistoryItem, type IOCInvestigationResult } from '@/api/client';
 import { useAppStore } from '@/store';
 import clsx from 'clsx';
@@ -75,15 +76,16 @@ export function IOCInvestigation() {
   const rawResult = loadedResult ?? mutation.data;
   const result = rawResult?.session_id && deletedSessionIds.has(rawResult.session_id) ? null : rawResult;
   const techniqueIds = useMemo(() => result?.techniques.map(item => item.attack_id) ?? [], [result]);
+  const resetIocMutation = mutation.reset;
 
   useEffect(() => {
     const value = params.get('indicator')?.trim();
     if (value && value !== artifact) {
       setArtifact(value);
       setLoadedResult(null);
-      mutation.reset();
+      resetIocMutation();
     }
-  }, [params]);
+  }, [artifact, params, resetIocMutation]);
 
   const showOnMatrix = () => {
     replaceTechniques(techniqueIds);
@@ -208,6 +210,11 @@ function InvestigationSummary({ result }: { result: IOCInvestigationResult }) {
         <span className="break-all font-mono text-sm text-gray-200">{result.artifact}</span>
       </div>
       <p className="mt-3 text-sm leading-6 text-gray-300">{result.summary}</p>
+      {result.ai_error && (
+        <p className="mt-3 rounded border border-amber-700/60 bg-amber-950/20 p-2 text-xs leading-5 text-amber-200">
+          AI summary failed, but enrichment completed. {result.ai_error}
+        </p>
+      )}
     </section>
   );
 }
@@ -316,6 +323,38 @@ function Actions({ result, techniqueIds, onShowMatrix, onAddTtps }: { result: IO
     <section className="rounded-lg border border-gray-800 bg-gray-900/60 p-4">
       <h3 className="text-sm font-semibold text-white">Actions</h3>
       <div className="mt-3 grid gap-2">
+        <AddToInvestigationButton
+          payload={{
+            label: `IOC investigation ${result.artifact}`,
+            domain: 'enterprise-attack',
+            techniqueIds,
+            actorIds: result.actors.map(item => item.attack_id).filter(Boolean),
+            reportIds: result.session_id ? [result.session_id] : [],
+            evidenceNodes: [
+              {
+                id: `ioc-investigation:${result.session_id || result.artifact}`,
+                type: 'ioc-investigation',
+                value: result.artifact,
+                artifact_type: result.artifact_type,
+                verdict: result.verdict,
+                suspicion_score: result.suspicion_score,
+                summary: result.summary,
+                sources: result.sources.map(source => ({ source: source.source, status: source.status, summary: source.summary })),
+              },
+              ...result.relationships.nodes.slice(0, 120).map(node => ({
+                ...node,
+                id: `ioc-node:${node.id}`,
+              })),
+            ],
+            evidenceEdges: result.relationships.edges.slice(0, 200).map(edge => ({
+              ...edge,
+              id: `ioc-edge:${edge.source}->${edge.target}:${edge.type}`,
+            })),
+            timelineEvent: `Added IOC investigation for ${result.artifact}`,
+          }}
+          disabled={!techniqueIds.length && !result.relationships.nodes.length}
+          className="secondary-action disabled:opacity-40"
+        />
         <button disabled={!techniqueIds.length} onClick={onShowMatrix} className="primary disabled:opacity-40">Show TTPs on Matrix</button>
         <button disabled={!techniqueIds.length} onClick={onAddTtps} className="secondary-action disabled:opacity-40">Add TTPs to My TTPs</button>
         <button onClick={() => navigate(`/ioc-library?search=${encodeURIComponent(result.artifact)}`)} className="secondary-action">Search IOC Library</button>
@@ -849,7 +888,7 @@ function RelationshipGraph({ result }: { result: IOCInvestigationResult }) {
     return () => {
       simulation.stop();
     };
-  }, [edges, nodes, selectedNodeId]);
+  }, [edges, navigate, nodes, selectedNodeId]);
 
   return (
     <section className="rounded-lg border border-gray-800 bg-gray-900/60">

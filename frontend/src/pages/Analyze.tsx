@@ -7,10 +7,22 @@ import { analyzeApi, exportApi, reportsApi } from '@/api/client';
 import type { AnalysisResult, LogPcapAnalysisResult } from '@/api/client';
 import { useSseStream } from '@/hooks/useSseStream';
 import { Header } from '@/components/Layout/Header';
+import { AddToInvestigationButton } from '@/components/AddToInvestigationButton';
 import type { ReportSession } from '@/types/attack';
 
 type Provider = 'claude' | 'openai' | 'gemini' | 'minimax' | 'local';
 type AnalysisMode = 'cti' | 'log-pcap';
+type LogPcapHistoryItem = LogPcapAnalysisResult & {
+  history_id: string;
+  created_at: string;
+  name: string;
+  technique_count: number;
+  observable_count: number;
+  suspicious_count: number;
+};
+
+const LOG_PCAP_HISTORY_KEY = 'adversarygraph-log-pcap-history-v1';
+const LOG_PCAP_HISTORY_LIMIT = 20;
 
 const PROVIDERS: { id: Provider; label: string; model: string; color: string }[] = [
   { id: 'claude',  label: 'Claude',  model: 'claude-opus-4-8',  color: 'border-orange-600 bg-orange-900/20 text-orange-300' },
@@ -31,6 +43,8 @@ export function Analyze() {
   const [file,     setFile]     = useState<File | null>(null);
   const [loadedResult, setLoadedResult] = useState<AnalysisResult | null>(null);
   const [logPcapResult, setLogPcapResult] = useState<LogPcapAnalysisResult | null>(null);
+  const [logPcapHistory, setLogPcapHistory] = useState<LogPcapHistoryItem[]>(() => loadLogPcapHistory());
+  const [activeLogPcapHistoryId, setActiveLogPcapHistoryId] = useState<string | null>(null);
 
   // result: populated by the server-side "result" SSE event (includes group-similarity leads)
   // tokens: raw LLM token stream shown live while waiting
@@ -48,6 +62,8 @@ export function Analyze() {
     onSuccess: data => {
       reset();
       setLoadedResult(data);
+      setLogPcapResult(null);
+      setActiveLogPcapHistoryId(null);
     },
   });
 
@@ -65,9 +81,16 @@ export function Analyze() {
   const logPcapMutation = useMutation({
     mutationFn: (fd: FormData) => analyzeApi.logPcap(fd),
     onSuccess: data => {
+      const item = createLogPcapHistoryItem(data);
       reset();
       setLoadedResult(null);
-      setLogPcapResult(data);
+      setLogPcapResult(item);
+      setActiveLogPcapHistoryId(item.history_id);
+      setLogPcapHistory(current => {
+        const next = [item, ...current].slice(0, LOG_PCAP_HISTORY_LIMIT);
+        saveLogPcapHistory(next);
+        return next;
+      });
     },
   });
 
@@ -88,6 +111,7 @@ export function Analyze() {
     reset();
     setLoadedResult(null);
     setLogPcapResult(null);
+    setActiveLogPcapHistoryId(null);
     if (mode === 'log-pcap') {
       logPcapMutation.mutate(fd);
       return;
@@ -155,6 +179,11 @@ export function Analyze() {
                 Log / PCAP
               </button>
             </div>
+            {mode === 'log-pcap' && (
+              <div className="mb-3 rounded border border-cyan-700/40 bg-cyan-950/20 p-3 text-[11px] leading-5 text-cyan-100">
+                No manual prompt is needed. AdversaryGraph uses the built-in Log / PCAP analysis system prompt. Analyze one source at a time, for example firewall logs first and EDR logs second, then add each result to your investigation.
+              </div>
+            )}
             <div className="text-xs text-gray-500 mb-2 font-semibold uppercase tracking-wide">Paste text</div>
             <textarea
               value={text}
@@ -214,19 +243,44 @@ export function Analyze() {
             )}
           </div>
 
-          <PreviousAnalysisList
-            reports={previousReports}
-            loading={historyLoading}
-            activeSessionId={activeResult?.session_id ?? null}
-            loadingSessionId={loadReportMutation.variables ?? null}
-            deletingSessionId={deleteReportMutation.variables ?? null}
-            onOpen={sessionId => loadReportMutation.mutate(sessionId)}
-            onDelete={sessionId => {
-              if (window.confirm('Delete this stored analysis?')) {
-                deleteReportMutation.mutate(sessionId);
-              }
-            }}
-          />
+          {mode === 'log-pcap' ? (
+            <PreviousLogPcapAnalysisList
+              items={logPcapHistory}
+              activeHistoryId={activeLogPcapHistoryId}
+              onOpen={item => {
+                reset();
+                setLoadedResult(null);
+                setLogPcapResult(item);
+                setActiveLogPcapHistoryId(item.history_id);
+              }}
+              onDelete={historyId => {
+                if (!window.confirm('Delete this stored log analysis?')) return;
+                setLogPcapHistory(current => {
+                  const next = current.filter(item => item.history_id !== historyId);
+                  saveLogPcapHistory(next);
+                  return next;
+                });
+                if (activeLogPcapHistoryId === historyId) {
+                  setLogPcapResult(null);
+                  setActiveLogPcapHistoryId(null);
+                }
+              }}
+            />
+          ) : (
+            <PreviousAnalysisList
+              reports={previousReports}
+              loading={historyLoading}
+              activeSessionId={activeResult?.session_id ?? null}
+              loadingSessionId={loadReportMutation.variables ?? null}
+              deletingSessionId={deleteReportMutation.variables ?? null}
+              onOpen={sessionId => loadReportMutation.mutate(sessionId)}
+              onDelete={sessionId => {
+                if (window.confirm('Delete this stored analysis?')) {
+                  deleteReportMutation.mutate(sessionId);
+                }
+              }}
+            />
+          )}
         </div>
 
         {/* ── Right: results panel ──────────────────────────────────────────── */}
@@ -260,6 +314,7 @@ export function Analyze() {
           {activeResult && (
             <ResultsView
               result={activeResult}
+              domain={domain}
               addTechniques={addTechniques}
               addComparisonLayer={addComparisonLayer}
               navigate={navigate}
@@ -269,6 +324,7 @@ export function Analyze() {
           {logPcapResult && (
             <LogPcapResultView
               result={logPcapResult}
+              domain={domain}
               addTechniques={addTechniques}
               addComparisonLayer={addComparisonLayer}
               navigate={navigate}
@@ -279,6 +335,7 @@ export function Analyze() {
           {!result && !streaming && tokens && (
             <StreamResultParser
               tokens={tokens}
+              domain={domain}
               addTechniques={addTechniques}
               addComparisonLayer={addComparisonLayer}
               navigate={navigate}
@@ -292,17 +349,22 @@ export function Analyze() {
 
 function LogPcapResultView({
   result,
+  domain,
   addTechniques,
   addComparisonLayer,
   navigate,
 }: {
   result: LogPcapAnalysisResult;
+  domain: string;
   addTechniques: (ids: string[]) => void;
   addComparisonLayer: (layer: { name: string; techniqueIds: string[]; source?: string; color?: string }) => void;
   navigate: ReturnType<typeof useNavigate>;
 }) {
   const ttpIds = result.techniques.filter(item => item.review_status !== 'rejected').map(item => item.attack_id);
   const iocCandidates = result.observables.filter(item => ['ipv4', 'ipv6', 'domain', 'url', 'md5', 'sha1', 'sha256'].includes(item.type));
+  const expectedBehaviors = buildExpectedSuspiciousBehaviors(result);
+  const analysisId = getLogPcapAnalysisId(result);
+  const sourceRef = result.filename || `log-pcap-${analysisId.slice(0, 8)}`;
   const addToMyTtps = () => addTechniques(ttpIds);
   const compareOnMatrix = () => {
     addComparisonLayer({
@@ -332,6 +394,68 @@ function LogPcapResultView({
             <p className="mt-1 max-w-4xl text-sm text-gray-300">{result.summary || 'No AI summary returned.'}</p>
           </div>
           <div className="flex flex-wrap gap-2">
+            <AddToInvestigationButton
+              payload={{
+                label: `Log/PCAP analysis ${sourceRef}`,
+                domain,
+                techniqueIds: ttpIds,
+                actorIds: result.apt_matches.map(item => item.group_attack_id),
+                evidenceNodes: [
+                  {
+                    id: `log-pcap:${analysisId}`,
+                    type: 'log-pcap-analysis',
+                    label: sourceRef,
+                    source_ref: sourceRef,
+                    analysis_id: analysisId,
+                    summary: result.summary,
+                    report: result.report,
+                    observables: result.observables,
+                    suspicious_findings: result.suspicious_findings,
+                    expected_suspicious_behaviors: expectedBehaviors,
+                  },
+                  ...expectedBehaviors.filter(item => item.found).map((item, index) => ({
+                    id: `suspicious-behavior:${analysisId}:${item.id}:${index}`,
+                    type: 'suspicious-behavior',
+                    label: item.evidence,
+                    source_ref: sourceRef,
+                    analysis_id: analysisId,
+                    evidence: item.evidence,
+                    why: item.why,
+                    found: item.found,
+                    refs: item.refs,
+                    ttps: item.ttps,
+                    iocs: item.iocs,
+                    source: 'log-pcap-analysis',
+                  })),
+                  ...result.techniques.slice(0, 100).map(item => ({
+                    id: `ttp-evidence:${analysisId}:${item.attack_id}`,
+                    type: 'ttp-evidence',
+                    attack_id: item.attack_id,
+                    label: `${item.attack_id} ${item.name}`,
+                    source_ref: sourceRef,
+                    analysis_id: analysisId,
+                    tactic: item.tactic,
+                    confidence: item.confidence,
+                    evidence: item.evidence,
+                    status: item.review_status,
+                    source: 'log-pcap-analysis',
+                  })),
+                  ...iocCandidates.slice(0, 100).map(item => ({
+                    id: `ioc:${item.value}`,
+                    type: 'ioc',
+                    value: item.value,
+                    ioc_type: item.type,
+                    source_ref: sourceRef,
+                    analysis_id: analysisId,
+                    description: item.description,
+                    source: 'log-pcap-analysis',
+                  })),
+                ],
+                timelineEvent: `Added Log/PCAP analysis ${sourceRef}`.trim(),
+              }}
+              disabled={!ttpIds.length && !iocCandidates.length}
+              className="text-xs bg-gray-700 hover:bg-gray-600 disabled:opacity-40 text-white px-3 py-1.5 rounded"
+            />
             <button onClick={addToMyTtps} disabled={!ttpIds.length} className="text-xs bg-gray-700 hover:bg-gray-600 disabled:opacity-40 text-white px-3 py-1.5 rounded">+ My TTPs</button>
             <button onClick={compareOnMatrix} disabled={!ttpIds.length} className="text-xs bg-mitre-accent hover:bg-red-600 disabled:opacity-40 text-white px-3 py-1.5 rounded">⇄ Matrix compare</button>
             <button onClick={() => downloadReport('md')} className="text-xs bg-gray-700 hover:bg-gray-600 text-white px-3 py-1.5 rounded">↓ MD report</button>
@@ -342,6 +466,15 @@ function LogPcapResultView({
 
       <div className="grid gap-4 p-6 xl:grid-cols-[minmax(0,1fr)_420px]">
         <section className="space-y-4">
+          <ExpectedSuspiciousBehaviorsPanel
+            rows={expectedBehaviors}
+            onOpenTtp={(id) => {
+              addTechniques([id]);
+              navigate('/navigator');
+            }}
+            onOpenIoc={(value) => navigate(`/ioc-investigation?indicator=${encodeURIComponent(value)}`)}
+          />
+
           <Panel title={`Suspicious / malicious findings (${result.suspicious_findings.length})`}>
             {result.suspicious_findings.length ? result.suspicious_findings.map((finding, index) => (
               <div key={`${finding.category}-${index}`} className="border-t border-gray-800 p-3">
@@ -499,12 +632,79 @@ function PreviousAnalysisList({
   );
 }
 
+function PreviousLogPcapAnalysisList({
+  items,
+  activeHistoryId,
+  onOpen,
+  onDelete,
+}: {
+  items: LogPcapHistoryItem[];
+  activeHistoryId: string | null;
+  onOpen: (item: LogPcapHistoryItem) => void;
+  onDelete: (historyId: string) => void;
+}) {
+  return (
+    <div className="min-h-[180px] max-h-[320px] flex flex-col">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
+        <div className="text-xs text-gray-500 font-semibold uppercase tracking-wide">Previous log analyses</div>
+        <span className="text-[10px] text-gray-600">{items.length}/20</span>
+      </div>
+      <div className="flex-1 overflow-y-auto">
+        {items.length === 0 && (
+          <div className="px-4 py-3 text-xs text-gray-600 leading-relaxed">
+            The last 20 Log / PCAP analyses will be remembered here for reuse or deletion.
+          </div>
+        )}
+        {items.map(item => {
+          const created = new Date(item.created_at).toLocaleString();
+          const isActive = activeHistoryId === item.history_id;
+
+          return (
+            <div
+              key={item.history_id}
+              className={`group border-b border-gray-800 px-4 py-3 ${isActive ? 'bg-mitre-accent/10' : 'hover:bg-gray-900/60'}`}
+            >
+              <button
+                type="button"
+                onClick={() => onOpen(item)}
+                className="w-full min-w-0 text-left"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="truncate text-sm text-gray-200 font-medium">{item.name}</span>
+                  {isActive && <span className="text-[10px] text-mitre-accent">open</span>}
+                </div>
+                <div className="mt-1 flex flex-wrap items-center gap-2 text-[10px] text-gray-600">
+                  <span>{item.technique_count} TTPs</span>
+                  <span>{item.observable_count} IOCs</span>
+                  <span>{item.suspicious_count} findings</span>
+                  <span>{item.provider}</span>
+                </div>
+                <div className="mt-1 truncate text-[10px] text-gray-600">{created}</div>
+              </button>
+              <div className="mt-2 flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => onDelete(item.history_id)}
+                  className="ml-auto text-[10px] text-gray-600 hover:text-red-400"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // ── Result view ───────────────────────────────────────────────────────────────
 
 function ResultsView({
-  result, addTechniques, addComparisonLayer, navigate,
+  result, domain, addTechniques, addComparisonLayer, navigate,
 }: {
   result: AnalysisResult;
+  domain: string;
   addTechniques: (ids: string[]) => void;
   addComparisonLayer: (layer: { name: string; techniqueIds: string[]; source?: string; color?: string }) => void;
   navigate: ReturnType<typeof useNavigate>;
@@ -588,6 +788,28 @@ function ResultsView({
             </p>
           </div>
           <div className="flex flex-wrap justify-end gap-2">
+            <AddToInvestigationButton
+              payload={{
+                label: `AI report analysis ${displayResult.session_id.slice(0, 8)}`,
+                domain,
+                techniqueIds: acceptedTechniqueIds(),
+                actorIds: displayResult.apt_matches.map(item => item.group_attack_id),
+                reportIds: [displayResult.session_id],
+                evidenceNodes: [{
+                  id: `analysis:${displayResult.session_id}`,
+                  type: 'report-analysis',
+                  label: 'AI CTI Analysis Result',
+                  provider: displayResult.provider,
+                  model: displayResult.model,
+                  summary: displayResult.summary,
+                  techniques: displayResult.techniques,
+                  actor_matches: displayResult.apt_matches,
+                }],
+                timelineEvent: `Added AI report analysis ${displayResult.session_id.slice(0, 8)}`,
+              }}
+              disabled={!canInject && !displayResult.summary}
+              className="text-xs bg-gray-700 hover:bg-gray-600 disabled:opacity-40 text-white px-3 py-1.5 rounded"
+            />
             <a
               href={exportApi.analysisUrl(displayResult.session_id)}
               download={`analysis-${displayResult.session_id.slice(0, 8)}.pdf`}
@@ -804,9 +1026,10 @@ function ResultsView({
 
 // Parses stream tokens into a result when no explicit result event arrived
 function StreamResultParser({
-  tokens, addTechniques, addComparisonLayer, navigate,
+  tokens, domain, addTechniques, addComparisonLayer, navigate,
 }: {
   tokens: string;
+  domain: string;
   addTechniques: (ids: string[]) => void;
   addComparisonLayer: (layer: { name: string; techniqueIds: string[]; source?: string; color?: string }) => void;
   navigate: ReturnType<typeof useNavigate>;
@@ -836,6 +1059,7 @@ function StreamResultParser({
     return (
       <ResultsView
         result={result}
+        domain={domain}
         addTechniques={addTechniques}
         addComparisonLayer={addComparisonLayer}
         navigate={navigate}
@@ -905,6 +1129,283 @@ function reviewStatusOptionClass(status: NonNullable<AnalysisResult['techniques'
 }
 
 // ── Sub-components ────────────────────────────────────────────────────────────
+
+type ExpectedBehaviorRow = {
+  id: string;
+  evidence: string;
+  why: string;
+  found: boolean;
+  refs: string[];
+  ttps: string[];
+  iocs: string[];
+};
+
+const EXPECTED_BEHAVIOR_PATTERNS: Array<{
+  id: string;
+  evidence: string;
+  why: string;
+  patterns: RegExp[];
+  ttps: string[];
+}> = [
+  {
+    id: 'office-powershell',
+    evidence: 'WINWORD.EXE spawning powershell.exe',
+    why: 'Office-to-script execution chain',
+    patterns: [/winword\.exe[\s\S]{0,160}powershell\.exe/i, /powershell\.exe[\s\S]{0,160}winword\.exe/i],
+    ttps: ['T1204.002', 'T1059.001'],
+  },
+  {
+    id: 'powershell-download',
+    evidence: 'PowerShell downloading setup.exe',
+    why: 'Ingress tool transfer pattern',
+    patterns: [/powershell[\s\S]{0,240}(downloadstring|downloadfile|invoke-webrequest|iwr|curl|wget)[\s\S]{0,240}setup\.exe/i, /setup\.exe[\s\S]{0,240}powershell/i],
+    ttps: ['T1059.001', 'T1105'],
+  },
+  {
+    id: 'unsigned-programdata',
+    evidence: 'setup.exe unsigned in C:\\ProgramData\\Microsoft\\',
+    why: 'Masquerading and suspicious staging path',
+    patterns: [/c:\\\\?programdata\\\\?microsoft\\\\?[\s\S]{0,120}setup\.exe/i, /setup\.exe[\s\S]{0,120}(unsigned|signature=none|signer=unknown)/i],
+    ttps: ['T1036', 'T1105'],
+  },
+  {
+    id: 'host-account-discovery',
+    evidence: 'whoami /all, hostname, ipconfig /all',
+    why: 'Host and account discovery',
+    patterns: [/whoami\s+\/all/i, /\bhostname\b/i, /ipconfig\s+\/all/i],
+    ttps: ['T1033', 'T1082'],
+  },
+  {
+    id: 'domain-discovery',
+    evidence: 'net view /domain, nltest /dclist',
+    why: 'Domain and network discovery',
+    patterns: [/net\s+view\s+\/domain/i, /nltest\s+\/dclist/i],
+    ttps: ['T1482', 'T1018'],
+  },
+  {
+    id: 'process-discovery',
+    evidence: 'tasklist /v',
+    why: 'Process discovery',
+    patterns: [/tasklist\s+\/v/i],
+    ttps: ['T1057'],
+  },
+  {
+    id: 'rundll32-proxy',
+    evidence: 'rundll32.exe ... msupdate.dat,StartW',
+    why: 'DLL/proxy execution through signed Windows binary',
+    patterns: [/rundll32\.exe[\s\S]{0,240}msupdate\.dat[\s\S]{0,80}startw/i],
+    ttps: ['T1218.011', 'T1574.002'],
+  },
+  {
+    id: 'wmic-remote-exec',
+    evidence: 'wmic /node ... process call create',
+    why: 'Remote execution / lateral movement lead',
+    patterns: [/wmic[\s\S]{0,120}\/node[\s\S]{0,160}process\s+call\s+create/i],
+    ttps: ['T1047', 'T1021.006'],
+  },
+  {
+    id: 'certutil-download',
+    evidence: 'certutil -urlcache -split -f',
+    why: 'File retrieval using a signed Windows utility',
+    patterns: [/certutil[\s\S]{0,120}-urlcache[\s\S]{0,80}-split[\s\S]{0,80}-f/i],
+    ttps: ['T1105', 'T1140'],
+  },
+  {
+    id: 'run-key-persistence',
+    evidence: 'Run key persistence',
+    why: 'User-level persistence',
+    patterns: [/\\currentversion\\run/i, /\breg(\.exe)?\s+add[\s\S]{0,160}\\run/i, /hkc[ul][\s\S]{0,80}\\run/i],
+    ttps: ['T1547.001'],
+  },
+];
+
+function ExpectedSuspiciousBehaviorsPanel({
+  rows,
+  onOpenTtp,
+  onOpenIoc,
+}: {
+  rows: ExpectedBehaviorRow[];
+  onOpenTtp: (id: string) => void;
+  onOpenIoc: (value: string) => void;
+}) {
+  const foundCount = rows.filter(row => row.found).length;
+  return (
+    <Panel title={`Expected suspicious behaviors (${foundCount}/${rows.length})`}>
+      <div className="overflow-x-auto">
+        <table className="w-full border-collapse text-left text-xs">
+          <thead className="bg-gray-950/70 text-[10px] uppercase tracking-wide text-gray-500">
+            <tr>
+              <th className="border-b border-gray-800 px-3 py-2">Evidence</th>
+              <th className="border-b border-gray-800 px-3 py-2">Why it matters</th>
+              <th className="border-b border-gray-800 px-3 py-2">TTP / IOC tags</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map(row => (
+              <tr key={row.id} className={row.found ? 'bg-red-950/10' : 'opacity-55'}>
+                <td className="border-b border-gray-800 px-3 py-2 align-top">
+                  <div className="flex items-start gap-2">
+                    <span className={`mt-0.5 rounded px-1.5 py-0.5 text-[10px] font-semibold ${row.found ? 'bg-red-950 text-red-300' : 'bg-gray-800 text-gray-500'}`}>
+                      {row.found ? 'FOUND' : 'NOT SEEN'}
+                    </span>
+                    <div>
+                      <p className="font-medium text-gray-100">{row.evidence}</p>
+                      {row.refs.length > 0 && (
+                        <p className="mt-1 line-clamp-2 font-mono text-[10px] text-gray-500">{row.refs[0]}</p>
+                      )}
+                    </div>
+                  </div>
+                </td>
+                <td className="border-b border-gray-800 px-3 py-2 align-top text-gray-300">{row.why}</td>
+                <td className="border-b border-gray-800 px-3 py-2 align-top">
+                  <div className="flex max-w-lg flex-wrap gap-1.5">
+                    {row.ttps.map(id => (
+                      <button
+                        key={id}
+                        type="button"
+                        onClick={() => onOpenTtp(id)}
+                        className="rounded border border-mitre-accent/50 bg-mitre-accent/10 px-1.5 py-0.5 font-mono text-[10px] text-mitre-accent hover:bg-mitre-accent hover:text-white"
+                      >
+                        {id}
+                      </button>
+                    ))}
+                    {row.iocs.map(value => (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => onOpenIoc(value)}
+                        className="max-w-[220px] truncate rounded border border-cyan-700/60 bg-cyan-950/20 px-1.5 py-0.5 font-mono text-[10px] text-cyan-200 hover:border-cyan-400"
+                        title={value}
+                      >
+                        {value}
+                      </button>
+                    ))}
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </Panel>
+  );
+}
+
+function buildExpectedSuspiciousBehaviors(result: LogPcapAnalysisResult): ExpectedBehaviorRow[] {
+  const searchable = [
+    result.summary,
+    result.report,
+    ...result.suspicious_findings.flatMap(item => [item.category, item.reason, item.evidence]),
+    ...result.techniques.flatMap(item => [item.attack_id, item.name, item.evidence]),
+    ...result.observables.flatMap(item => [item.value, item.description]),
+  ].join('\n');
+  const observableValues = result.observables.map(item => item.value).filter(Boolean);
+  return EXPECTED_BEHAVIOR_PATTERNS.map(pattern => {
+    const refs = pattern.patterns
+      .map(regex => searchable.match(regex)?.[0] ?? '')
+      .filter(Boolean)
+      .slice(0, 3);
+    const found = refs.length > 0 || pattern.ttps.some(id => result.techniques.some(technique => technique.attack_id === id));
+    return {
+      id: pattern.id,
+      evidence: pattern.evidence,
+      why: pattern.why,
+      found,
+      refs,
+      ttps: pattern.ttps,
+      iocs: found ? extractRelatedIocs(searchable, observableValues, pattern.patterns) : [],
+    };
+  });
+}
+
+function extractRelatedIocs(searchable: string, observables: string[], patterns: RegExp[]) {
+  const matches = new Set<string>();
+  const windows = patterns.map(regex => searchable.match(regex)?.[0] ?? '').filter(Boolean);
+  const candidates = observables.filter(value => value.length > 2);
+  windows.forEach(windowText => {
+    candidates.forEach(value => {
+      if (windowText.includes(value)) matches.add(value);
+    });
+  });
+  if (!matches.size && windows.length) {
+    candidates.slice(0, 4).forEach(value => matches.add(value));
+  }
+  return Array.from(matches).slice(0, 8);
+}
+
+function loadLogPcapHistory(): LogPcapHistoryItem[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = window.localStorage.getItem(LOG_PCAP_HISTORY_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter(isLogPcapHistoryItem)
+      .slice(0, LOG_PCAP_HISTORY_LIMIT);
+  } catch {
+    return [];
+  }
+}
+
+function saveLogPcapHistory(items: LogPcapHistoryItem[]) {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(LOG_PCAP_HISTORY_KEY, JSON.stringify(items.slice(0, LOG_PCAP_HISTORY_LIMIT)));
+  } catch {
+    // Local history is a convenience feature; analysis results should still render if storage is unavailable.
+  }
+}
+
+function createLogPcapHistoryItem(result: LogPcapAnalysisResult): LogPcapHistoryItem {
+  const createdAt = new Date().toISOString();
+  const id = typeof crypto !== 'undefined' && 'randomUUID' in crypto
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  return {
+    ...result,
+    history_id: id,
+    created_at: createdAt,
+    name: result.filename || `Log / PCAP ${new Date(createdAt).toLocaleString()}`,
+    technique_count: result.techniques.length,
+    observable_count: result.observables.length,
+    suspicious_count: result.suspicious_findings.length,
+  };
+}
+
+function getLogPcapAnalysisId(result: LogPcapAnalysisResult) {
+  const historyId = (result as Partial<LogPcapHistoryItem>).history_id;
+  if (historyId) return historyId;
+  return `adhoc-${simpleHash([
+    result.filename ?? '',
+    result.provider,
+    result.model,
+    result.summary,
+    result.report,
+  ].join('|'))}`;
+}
+
+function simpleHash(value: string) {
+  let hash = 5381;
+  for (let index = 0; index < value.length; index += 1) {
+    hash = ((hash << 5) + hash) ^ value.charCodeAt(index);
+  }
+  return (hash >>> 0).toString(16);
+}
+
+function isLogPcapHistoryItem(value: unknown): value is LogPcapHistoryItem {
+  if (!value || typeof value !== 'object') return false;
+  const candidate = value as Partial<LogPcapHistoryItem>;
+  return (
+    typeof candidate.history_id === 'string' &&
+    typeof candidate.created_at === 'string' &&
+    typeof candidate.name === 'string' &&
+    Array.isArray(candidate.techniques) &&
+    Array.isArray(candidate.observables) &&
+    Array.isArray(candidate.suspicious_findings) &&
+    Array.isArray(candidate.apt_matches)
+  );
+}
 
 function Panel({ title, children }: { title: string; children: React.ReactNode }) {
   return (

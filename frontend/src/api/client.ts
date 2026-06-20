@@ -317,6 +317,7 @@ export interface IOCInvestigationResult {
     edges: Array<{ source: string; target: string; type: string; tier: number; evidence_source: string; evidence: string }>;
   };
   ai_input: Record<string, unknown>;
+  ai_error?: string;
 }
 
 export interface IOCInvestigationHistoryItem {

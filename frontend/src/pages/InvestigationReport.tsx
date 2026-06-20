@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
-import { useQueries, useQuery } from '@tanstack/react-query';
-import { aptApi, attackApi, analyzeApi, iocApi, type IOCItem } from '@/api/client';
+import { useNavigate } from 'react-router-dom';
+import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
+import { aptApi, attackApi, analyzeApi, iocApi, operationsApi, type IOCItem, type Investigation } from '@/api/client';
 import { useAppStore } from '@/store';
 import { Header } from '@/components/Layout/Header';
 
@@ -35,8 +36,12 @@ const providerOptions: { id: Provider; label: string }[] = [
 ];
 
 export function InvestigationReport() {
-  const { domain, version, selectedTechniques, coverageTechniques, techniqueAssessments } = useAppStore();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { domain, version, selectedTechniques, coverageTechniques, techniqueAssessments, replaceTechniques } = useAppStore();
   const ids = useMemo(() => [...selectedTechniques].sort(), [selectedTechniques]);
+  const [activeInvestigationId, setActiveInvestigationId] = useState('');
+  const [newInvestigationName, setNewInvestigationName] = useState('');
   const [sections, setSections] = useState<ReportSections>({
     navigator: true,
     ttps: true,
@@ -46,17 +51,51 @@ export function InvestigationReport() {
   const [provider, setProvider] = useState<Provider>('local');
   const [reportTitle, setReportTitle] = useState('AdversaryGraph Investigation Report');
   const [generatedReport, setGeneratedReport] = useState('');
+  const [aiSummary, setAiSummary] = useState('');
   const [isAiGenerating, setIsAiGenerating] = useState(false);
+  const [isSummaryGenerating, setIsSummaryGenerating] = useState(false);
   const [aiError, setAiError] = useState('');
+  const [workflowMessage, setWorkflowMessage] = useState('');
+  const { data: investigations = [] } = useQuery({
+    queryKey: ['operations-investigations'],
+    queryFn: operationsApi.investigations,
+  });
+  const activeInvestigation = useMemo(
+    () => investigations.find(item => item.id === activeInvestigationId) ?? investigations[0] ?? null,
+    [activeInvestigationId, investigations],
+  );
+  const investigationIds = useMemo(
+    () => Array.from(new Set([...(activeInvestigation?.technique_ids ?? []), ...ids])).sort(),
+    [activeInvestigation, ids],
+  );
+  const createInvestigation = useMutation({
+    mutationFn: () => operationsApi.createInvestigation({
+      name: newInvestigationName.trim() || `Investigation ${new Date().toLocaleString()}`,
+      description: 'Structured AdversaryGraph investigation workspace.',
+      status: 'active',
+      domain,
+      actor_ids: [],
+      technique_ids: ids,
+      report_ids: [],
+      evidence_nodes: [],
+      evidence_edges: [],
+      timeline: [{ at: new Date().toISOString(), event: 'Investigation created' }],
+    }),
+    onSuccess: row => {
+      setActiveInvestigationId(row.id);
+      setNewInvestigationName('');
+      queryClient.invalidateQueries({ queryKey: ['operations-investigations'] });
+    },
+  });
 
   const { data: techniques = [] } = useQuery({
     queryKey: ['report-techniques', domain, version],
     queryFn: () => attackApi.techniques({ domain, version: version ?? undefined }),
   });
   const { data: matches = [], isFetching: matchesLoading } = useQuery({
-    queryKey: ['report-matches', domain, version, ids.join(',')],
-    queryFn: () => aptApi.compare({ technique_ids: ids, domain, version: version ?? undefined, top_n: 10 }),
-    enabled: ids.length > 0,
+    queryKey: ['report-matches', domain, version, investigationIds.join(',')],
+    queryFn: () => aptApi.compare({ technique_ids: investigationIds, domain, version: version ?? undefined, top_n: 10 }),
+    enabled: investigationIds.length > 0,
   });
 
   const actorIocQueries = useQueries({
@@ -64,31 +103,124 @@ export function InvestigationReport() {
       ? matches.slice(0, 5).map(match => ({
         queryKey: ['report-actor-iocs', match.group_attack_id],
         queryFn: () => iocApi.actor(match.group_attack_id, { days: 180, active_only: true, limit: 20 }),
-        enabled: ids.length > 0,
+        enabled: investigationIds.length > 0,
       }))
       : [],
   });
 
-  const rows = useMemo(() => ids.map(id => ({
+  const rows = useMemo(() => investigationIds.map(id => ({
     id,
     name: techniques.find(item => item.attack_id === id)?.name ?? id,
     assessment: techniqueAssessments[id] ?? {},
     covered: coverageTechniques.has(id),
-  })), [coverageTechniques, ids, techniqueAssessments, techniques]);
+  })), [coverageTechniques, investigationIds, techniqueAssessments, techniques]);
 
   const relevantIocs = useMemo(
     () => actorIocQueries.flatMap(query => (query.data ?? []) as IOCItem[]),
     [actorIocQueries],
   );
   const localReport = useMemo(
-    () => buildLocalReport({ title: reportTitle, domain, rows, matches, relevantIocs, sections }),
-    [domain, matches, relevantIocs, reportTitle, rows, sections],
+    () => buildLocalReport({ title: reportTitle, domain, rows, matches, relevantIocs, sections, investigation: activeInvestigation }),
+    [activeInvestigation, domain, matches, relevantIocs, reportTitle, rows, sections],
   );
   const activeReport = generatedReport || localReport;
   const selectedSectionCount = Object.values(sections).filter(Boolean).length;
 
+  const updateActiveInvestigation = useMutation({
+    mutationFn: (body: Omit<Investigation, 'id' | 'created_at' | 'updated_at'>) => {
+      if (!activeInvestigation) throw new Error('Create or select an investigation first.');
+      return operationsApi.updateInvestigation(activeInvestigation.id, body);
+    },
+    onSuccess: row => {
+      setActiveInvestigationId(row.id);
+      queryClient.invalidateQueries({ queryKey: ['operations-investigations'] });
+    },
+  });
+
   const toggleSection = (key: keyof ReportSections) => {
     setSections(current => ({ ...current, [key]: !current[key] }));
+  };
+
+  const openLayerOnMatrix = () => {
+    if (!investigationIds.length) return;
+    replaceTechniques(investigationIds);
+    setWorkflowMessage(`Loaded ${investigationIds.length} investigation TTPs into the matrix.`);
+    navigate('/navigator');
+  };
+
+  const compareAndSave = async () => {
+    if (!activeInvestigation || !investigationIds.length) {
+      setWorkflowMessage('Create/select an investigation and add TTPs before comparing.');
+      return;
+    }
+    setWorkflowMessage('');
+    try {
+      const results = await aptApi.compare({ technique_ids: investigationIds, domain, version: version ?? undefined, top_n: 10 });
+      await updateActiveInvestigation.mutateAsync(mergeInvestigation(activeInvestigation, {
+        actor_ids: results.slice(0, 10).map(item => item.group_attack_id),
+        evidence_nodes: [{
+          id: `actor-comparison:${Date.now()}`,
+          type: 'actor-comparison',
+          label: 'Threat actor TTP comparison',
+          summary: `Compared ${investigationIds.length} investigation TTPs against known actor profiles.`,
+          results: results.slice(0, 10),
+        }],
+        timeline: [{
+          at: new Date().toISOString(),
+          event: `Compared investigation TTP layer with threat actors (${results.length} results)`,
+          source: 'Investigation',
+          technique_count: investigationIds.length,
+        }],
+      }));
+      replaceTechniques(investigationIds);
+      setWorkflowMessage(`Saved ${Math.min(results.length, 10)} actor-comparison leads to ${activeInvestigation.name}.`);
+    } catch (error) {
+      setWorkflowMessage(error instanceof Error ? error.message : String(error));
+    }
+  };
+
+  const summarizeInvestigation = async () => {
+    if (!activeInvestigation || !investigationIds.length) {
+      setWorkflowMessage('Create/select an investigation and add evidence before AI summary.');
+      return;
+    }
+    setIsSummaryGenerating(true);
+    setAiError('');
+    setWorkflowMessage('');
+    try {
+      const context = buildReportContext({ domain, rows, matches, relevantIocs, sections, investigation: activeInvestigation });
+      const response = await analyzeApi.chat({
+        provider,
+        context,
+        message: [
+          `Summarize the active investigation "${activeInvestigation.name}".`,
+          'Use this structure: current assessment, strongest evidence, IOC findings, TTP layer, actor-comparison leads, caveats, and next actions.',
+          'Use only the provided evidence. Do not claim attribution. Separate direct evidence from enrichment leads.',
+        ].join(' '),
+      });
+      const summary = (await readSseText(response)).trim() || 'AI summary returned no content.';
+      setAiSummary(summary);
+      await updateActiveInvestigation.mutateAsync(mergeInvestigation(activeInvestigation, {
+        evidence_nodes: [{
+          id: `ai-summary:${Date.now()}`,
+          type: 'ai-summary',
+          label: 'AI investigation summary',
+          summary,
+          provider,
+        }],
+        timeline: [{
+          at: new Date().toISOString(),
+          event: 'Generated AI investigation summary',
+          source: provider,
+          technique_count: investigationIds.length,
+        }],
+      }));
+      setWorkflowMessage(`AI summary saved to ${activeInvestigation.name}.`);
+    } catch (error) {
+      setAiError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setIsSummaryGenerating(false);
+    }
   };
 
   const generateLocal = () => {
@@ -97,12 +229,12 @@ export function InvestigationReport() {
   };
 
   const generateWithAi = async () => {
-    if (!ids.length || !selectedSectionCount) return;
+    if (!investigationIds.length || !selectedSectionCount) return;
     setIsAiGenerating(true);
     setAiError('');
     setGeneratedReport('');
     try {
-      const context = buildReportContext({ domain, rows, matches, relevantIocs, sections });
+      const context = buildReportContext({ domain, rows, matches, relevantIocs, sections, investigation: activeInvestigation });
       const response = await analyzeApi.chat({
         provider,
         context,
@@ -114,7 +246,25 @@ export function InvestigationReport() {
         ].join(' '),
       });
       const text = await readSseText(response);
-      setGeneratedReport(text.trim() || localReport);
+      const report = text.trim() || localReport;
+      setGeneratedReport(report);
+      if (activeInvestigation) {
+        await updateActiveInvestigation.mutateAsync(mergeInvestigation(activeInvestigation, {
+          evidence_nodes: [{
+            id: `investigation-report:${Date.now()}`,
+            type: 'investigation-report',
+            label: reportTitle,
+            summary: truncate(report.replace(/\s+/g, ' '), 500),
+            provider,
+          }],
+          timeline: [{
+            at: new Date().toISOString(),
+            event: `Generated investigation report: ${reportTitle}`,
+            source: provider,
+            technique_count: investigationIds.length,
+          }],
+        }));
+      }
     } catch (error) {
       setAiError(error instanceof Error ? error.message : String(error));
     } finally {
@@ -135,9 +285,80 @@ export function InvestigationReport() {
 
   return (
     <div className="flex h-full flex-col">
-      <Header title="Investigation Report" />
+      <Header title="Investigation" />
       <div className="flex-1 overflow-y-auto p-6">
         <div className="mx-auto max-w-7xl space-y-5">
+          <Panel title="Investigation flow">
+            <div className="grid gap-3 p-3 lg:grid-cols-3">
+              <FlowStep number={1} title="Create new investigation" text="Open a case workspace before analysis so every result has a destination." />
+              <FlowStep number={2} title="Analyze logs one by one" text="Open AI Analysis Log / PCAP mode. Analyze firewall logs first, then EDR logs as a separate run. No manual prompt is needed." actionLabel="Open AI Analysis" onAction={() => navigate('/analyze')} />
+              <FlowStep number={3} title="Add each result to my investigation" text="After each log analysis run, use Add to investigation and choose this case." />
+              <FlowStep number={4} title="Do additional IOC investigations" text="Investigate extracted IOCs and add useful IOC results back to the same case." actionLabel="Open IOC Investigation" onAction={() => navigate('/ioc-investigation')} />
+              <FlowStep number={5} title="Keep investigation structured" text="Review logs, reports, TTP layer, IOC list, evidence nodes, and timeline below." />
+              <FlowStep number={6} title="Create Navigator-like TTP layer" text="Send all investigation TTPs to the ATT&CK matrix." actionLabel="Send to matrix" onAction={openLayerOnMatrix} disabled={!investigationIds.length} />
+              <FlowStep number={7} title="Compare TTPs with threat actors" text="Compare the investigation layer and save overlap leads to this case." actionLabel="Compare + save" onAction={() => void compareAndSave()} disabled={!activeInvestigation || !investigationIds.length || updateActiveInvestigation.isPending} />
+              <FlowStep number={8} title="Summarize investigation with AI" text="Summarize saved evidence, TTPs, IOCs, actor leads, and caveats." actionLabel={isSummaryGenerating ? 'Summarizing...' : 'Summarize'} onAction={() => void summarizeInvestigation()} disabled={!activeInvestigation || !investigationIds.length || isSummaryGenerating} />
+              <FlowStep number={9} title="Create investigation report" text="Generate a local or AI-assisted report, then export PDF / Markdown / TXT." />
+            </div>
+            {(workflowMessage || updateActiveInvestigation.error) && (
+              <div className="border-t border-gray-800 px-4 py-3 text-xs">
+                {workflowMessage && <p className="text-green-300">{workflowMessage}</p>}
+                {updateActiveInvestigation.error && (
+                  <p className="text-red-300">{updateActiveInvestigation.error instanceof Error ? updateActiveInvestigation.error.message : String(updateActiveInvestigation.error)}</p>
+                )}
+              </div>
+            )}
+          </Panel>
+
+          <Panel title="Investigation workspace">
+            <div className="grid gap-4 p-3 xl:grid-cols-[420px_minmax(0,1fr)]">
+              <div className="space-y-3">
+                <div className="grid grid-cols-[1fr_auto] gap-2">
+                  <input
+                    value={newInvestigationName}
+                    onChange={event => setNewInvestigationName(event.target.value)}
+                    placeholder="New investigation name"
+                    className="field"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => createInvestigation.mutate()}
+                    disabled={createInvestigation.isPending}
+                    className="primary-action disabled:opacity-50"
+                  >
+                    Open the new investigation
+                  </button>
+                </div>
+                <select
+                  value={activeInvestigation?.id ?? ''}
+                  onChange={event => setActiveInvestigationId(event.target.value)}
+                  className="field w-full"
+                >
+                  {investigations.length ? investigations.map(item => (
+                    <option key={item.id} value={item.id}>{item.name}</option>
+                  )) : <option value="">No investigation yet</option>}
+                </select>
+                {createInvestigation.error && (
+                  <p className="rounded border border-red-500/50 bg-red-950/30 p-2 text-xs text-red-200">
+                    {createInvestigation.error instanceof Error ? createInvestigation.error.message : String(createInvestigation.error)}
+                  </p>
+                )}
+              </div>
+              <InvestigationStructure
+                investigation={activeInvestigation}
+                rows={rows}
+                selectedTechniqueCount={ids.length}
+                onOpenTtp={id => {
+                  replaceTechniques([id]);
+                  navigate('/navigator');
+                }}
+                onOpenAllTtps={openLayerOnMatrix}
+                onInvestigateIoc={value => navigate(`/ioc-investigation?indicator=${encodeURIComponent(value)}`)}
+                onSearchIoc={value => navigate(`/ioc-library?search=${encodeURIComponent(value)}`)}
+              />
+            </div>
+          </Panel>
+
           <section className="grid gap-5 xl:grid-cols-[420px_minmax(0,1fr)]">
             <div className="space-y-5">
               <Panel title="Report builder">
@@ -179,10 +400,36 @@ export function InvestigationReport() {
 
                   <div className="rounded border border-gray-800 bg-gray-950/40 p-3">
                     <div className="mb-2 text-xs font-semibold uppercase text-gray-500">Generation mode</div>
+                    <div className="mb-2 grid grid-cols-3 gap-2">
+                      <button
+                        type="button"
+                        onClick={openLayerOnMatrix}
+                        disabled={!investigationIds.length}
+                        className="secondary-action disabled:opacity-40"
+                      >
+                        Put TTPs on matrix
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void compareAndSave()}
+                        disabled={!activeInvestigation || !investigationIds.length || updateActiveInvestigation.isPending}
+                        className="secondary-action disabled:opacity-40"
+                      >
+                        Compare + save result
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void summarizeInvestigation()}
+                        disabled={!activeInvestigation || !investigationIds.length || isSummaryGenerating}
+                        className="primary-action disabled:opacity-40"
+                      >
+                        {isSummaryGenerating ? 'Summarizing...' : 'Complete AI analysis'}
+                      </button>
+                    </div>
                     <button
                       type="button"
                       onClick={generateLocal}
-                      disabled={!ids.length || !selectedSectionCount}
+                      disabled={!investigationIds.length || !selectedSectionCount}
                       className="secondary-action mb-2 w-full disabled:opacity-40"
                     >
                       Generate locally from selected sections
@@ -194,7 +441,7 @@ export function InvestigationReport() {
                       <button
                         type="button"
                         onClick={generateWithAi}
-                        disabled={!ids.length || !selectedSectionCount || isAiGenerating}
+                        disabled={!investigationIds.length || !selectedSectionCount || isAiGenerating}
                         className="primary-action disabled:opacity-40"
                       >
                         {isAiGenerating ? 'Generating...' : 'AI assistant'}
@@ -224,8 +471,14 @@ export function InvestigationReport() {
                   <Metric label="Relevant IOCs" value={relevantIocs.length} />
                 </div>
                 {matchesLoading && <p className="px-3 pb-3 text-xs text-gray-500">Loading actor comparison...</p>}
-                {!ids.length && <p className="px-3 pb-3 text-xs text-amber-300">Select TTPs in Navigator, AI Analysis, IOC enrichment, or actor pages before generating a report.</p>}
+                {!investigationIds.length && <p className="px-3 pb-3 text-xs text-amber-300">Select TTPs or add analytic results to an investigation before generating a report.</p>}
               </Panel>
+
+              {aiSummary && (
+                <Panel title="AI investigation summary">
+                  <pre className="max-h-72 overflow-auto whitespace-pre-wrap p-4 text-xs leading-6 text-gray-300">{aiSummary}</pre>
+                </Panel>
+              )}
             </div>
 
             <Panel title="Report preview">
@@ -281,6 +534,7 @@ function buildLocalReport({
   matches,
   relevantIocs,
   sections,
+  investigation,
 }: {
   title: string;
   domain: string;
@@ -288,6 +542,7 @@ function buildLocalReport({
   matches: Array<{ group_attack_id: string; group_name: string; similarity: number; shared_count: number; shared_techniques: string[] }>;
   relevantIocs: IOCItem[];
   sections: ReportSections;
+  investigation: Investigation | null;
 }) {
   const covered = rows.filter(row => row.covered).length;
   const lines: string[] = [
@@ -324,6 +579,25 @@ function buildLocalReport({
         '',
       );
     });
+  }
+  if (investigation) {
+    const logNodes = investigation.evidence_nodes.filter(item => String(item.type ?? '').includes('log'));
+    const reportNodes = investigation.evidence_nodes.filter(item => String(item.type ?? '').includes('report') || String(item.type ?? '').includes('analysis'));
+    const iocNodes = investigation.evidence_nodes.filter(item => String(item.type ?? '').includes('ioc') || String(item.type ?? '').includes('indicator'));
+    lines.push('## Investigation Workspace', '', `Investigation: ${investigation.name}`, `Status: ${investigation.status}`, '');
+    lines.push('### Logs - Result Analysis', '');
+    if (logNodes.length) logNodes.slice(0, 20).forEach(node => lines.push(`- ${String(node.label ?? node.value ?? node.id ?? 'Log analysis')} - ${String(node.summary ?? node.description ?? '')}`));
+    else lines.push('- No log analysis evidence has been added yet.');
+    lines.push('', '### Report Analysis', '');
+    if (reportNodes.length) reportNodes.slice(0, 20).forEach(node => lines.push(`- ${String(node.label ?? node.value ?? node.id ?? 'Report analysis')} - ${String(node.summary ?? node.description ?? '')}`));
+    else lines.push('- No report analysis evidence has been added yet.');
+    lines.push('', '### IOC List', '');
+    if (iocNodes.length) iocNodes.slice(0, 60).forEach(node => lines.push(`- ${String(node.value ?? node.label ?? node.id)} (${String(node.ioc_type ?? node.type ?? 'ioc')})`));
+    else lines.push('- No IOC evidence nodes have been added yet.');
+    lines.push('', '### Timeline', '');
+    if (investigation.timeline.length) investigation.timeline.slice(-20).forEach(item => lines.push(`- ${String(item.at ?? '')}: ${String(item.event ?? item.source ?? 'Investigation event')}`));
+    else lines.push('- No timeline events yet.');
+    lines.push('');
   }
   if (sections.actors) {
     lines.push('## Comparison With Threat Actors', '');
@@ -369,18 +643,369 @@ function buildLocalReport({
   return lines.join('\n');
 }
 
+function InvestigationStructure({
+  investigation,
+  rows,
+  selectedTechniqueCount,
+  onOpenTtp,
+  onOpenAllTtps,
+  onInvestigateIoc,
+  onSearchIoc,
+}: {
+  investigation: Investigation | null;
+  rows: ReportRow[];
+  selectedTechniqueCount: number;
+  onOpenTtp: (id: string) => void;
+  onOpenAllTtps: () => void;
+  onInvestigateIoc: (value: string) => void;
+  onSearchIoc: (value: string) => void;
+}) {
+  const nodes = investigation?.evidence_nodes ?? [];
+  const logNodes = nodes.filter(item => String(item.type ?? '').includes('log'));
+  const reportNodes = nodes.filter(item => String(item.type ?? '').includes('report') || String(item.type ?? '').includes('analysis'));
+  const iocNodes = uniqueIocNodes(nodes);
+  const behaviorNodes = uniqueSuspiciousBehaviorNodes(nodes);
+  const ttpEvidenceNodes = uniqueTtpEvidenceNodes(nodes);
+  const ttpRefsById = ttpEvidenceNodes.reduce((acc, item) => {
+    acc.set(item.attackId, mergeArrays(acc.get(item.attackId) ?? [], [item.sourceRef]));
+    return acc;
+  }, new Map<string, string[]>());
+  const ttpRows = rows.length
+    ? rows
+    : (investigation?.technique_ids ?? []).map(id => ({ id, name: id, covered: false, assessment: {} }));
+  return (
+    <div className="space-y-3">
+      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
+        <InvestigationBucket title="Logs - result analysis" count={logNodes.length} text="Log / PCAP findings, suspicious commands, observables, and mapped behavior." />
+        <InvestigationBucket title="Report analysis" count={reportNodes.length} text="CTI reports, uploaded analysis sessions, summaries, and source-backed TTPs." />
+        <InvestigationBucket title="Suspicious behaviors" count={behaviorNodes.length} text="Expected behavior patterns found in logs, mapped to TTP and IOC leads." />
+        <InvestigationBucket title="Founded TTP layer" count={investigation?.technique_ids.length ?? selectedTechniqueCount} text="Merged ATT&CK layer from Navigator, AI analysis, IOC investigation, and reports." />
+        <InvestigationBucket title="IOC list" count={iocNodes.length} text="Extracted indicators, enrichment nodes, source records, and graph pivots." />
+      </div>
+
+      <div className="rounded border border-gray-800 bg-gray-950/40 p-3">
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <b className="text-xs text-gray-200">Log analysis results</b>
+          <span className="rounded bg-gray-800 px-1.5 py-0.5 text-[10px] text-gray-300">{logNodes.length}</span>
+        </div>
+        {logNodes.length ? (
+          <div className="grid gap-2 lg:grid-cols-2">
+            {logNodes.slice(-20).map(node => (
+              <div key={String(node.id ?? node.label)} className="rounded border border-gray-800 bg-gray-950 p-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <b className="text-sm text-gray-100">{String(node.label ?? 'Log / PCAP analysis')}</b>
+                  <span className="rounded bg-cyan-950 px-1.5 py-0.5 font-mono text-[10px] text-cyan-200">
+                    {String(node.source_ref ?? node.analysis_id ?? 'log-source')}
+                  </span>
+                </div>
+                <p className="mt-2 line-clamp-3 text-xs leading-5 text-gray-400">{String(node.summary ?? '')}</p>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {Array.isArray(node.observables) && node.observables.slice(0, 8).map((observable, index) => {
+                    const value = String((observable as Record<string, unknown>).value ?? '');
+                    if (!value) return null;
+                    return (
+                      <button key={`${value}-${index}`} type="button" onClick={() => onInvestigateIoc(value)} className="max-w-[180px] truncate rounded border border-cyan-900 px-1.5 py-0.5 font-mono text-[10px] text-cyan-200 hover:border-cyan-400" title={value}>
+                        {value}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-xs text-gray-500">No Log / PCAP analysis results have been added to this investigation yet.</p>
+        )}
+      </div>
+
+      <div className="rounded border border-gray-800 bg-gray-950/40 p-3">
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <b className="text-xs text-gray-200">Expected suspicious behaviors</b>
+          <span className="rounded bg-gray-800 px-1.5 py-0.5 text-[10px] text-gray-300">{behaviorNodes.length}</span>
+        </div>
+        {behaviorNodes.length ? (
+          <div className="max-h-72 overflow-auto">
+            <table className="w-full border-collapse text-left text-xs">
+              <thead className="bg-gray-950/70 text-[10px] uppercase tracking-wide text-gray-500">
+                <tr>
+                  <th className="border-b border-gray-800 px-3 py-2">Evidence</th>
+                  <th className="border-b border-gray-800 px-3 py-2">Why it matters</th>
+                  <th className="border-b border-gray-800 px-3 py-2">TTP / IOC tags</th>
+                </tr>
+              </thead>
+              <tbody>
+                {behaviorNodes.map(node => (
+                  <tr key={node.key} className="bg-red-950/10">
+                    <td className="border-b border-gray-800 px-3 py-2 align-top">
+                      <p className="font-medium text-gray-100">{node.evidence}</p>
+                      {node.sourceRefs.length > 0 && (
+                        <div className="mt-1 flex flex-wrap gap-1">
+                          {node.sourceRefs.map(ref => (
+                            <span key={ref} className="rounded bg-cyan-950 px-1.5 py-0.5 font-mono text-[10px] text-cyan-200">{ref}</span>
+                          ))}
+                        </div>
+                      )}
+                      {node.refs.length > 0 && <p className="mt-1 line-clamp-2 font-mono text-[10px] text-gray-500">{node.refs[0]}</p>}
+                    </td>
+                    <td className="border-b border-gray-800 px-3 py-2 align-top text-gray-300">{node.why}</td>
+                    <td className="border-b border-gray-800 px-3 py-2 align-top">
+                      <div className="flex max-w-lg flex-wrap gap-1.5">
+                        {node.ttps.map(id => (
+                          <button
+                            key={id}
+                            type="button"
+                            onClick={() => onOpenTtp(id)}
+                            className="rounded border border-mitre-accent/50 bg-mitre-accent/10 px-1.5 py-0.5 font-mono text-[10px] text-mitre-accent hover:bg-mitre-accent hover:text-white"
+                          >
+                            {id}
+                          </button>
+                        ))}
+                        {node.iocs.map(value => (
+                          <button
+                            key={value}
+                            type="button"
+                            onClick={() => onInvestigateIoc(value)}
+                            className="max-w-[220px] truncate rounded border border-cyan-700/60 bg-cyan-950/20 px-1.5 py-0.5 font-mono text-[10px] text-cyan-200 hover:border-cyan-400"
+                            title={value}
+                          >
+                            {value}
+                          </button>
+                        ))}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="text-xs text-gray-500">No expected suspicious behavior rows have been added to this investigation yet.</p>
+        )}
+      </div>
+
+      <div className="grid gap-3 xl:grid-cols-2">
+        <div className="rounded border border-gray-800 bg-gray-950/40 p-3">
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <b className="text-xs text-gray-200">TTPs</b>
+            <button
+              type="button"
+              onClick={onOpenAllTtps}
+              disabled={!ttpRows.length}
+              className="rounded border border-gray-700 px-2 py-1 text-[10px] text-gray-300 hover:border-mitre-accent disabled:opacity-40"
+            >
+              Open all on matrix
+            </button>
+          </div>
+          <div className="max-h-52 overflow-auto">
+            {ttpRows.length ? (
+              <div className="flex flex-wrap gap-2">
+                {ttpRows.map(row => (
+                  <button
+                    key={row.id}
+                    type="button"
+                    onClick={() => onOpenTtp(row.id)}
+                    title={`Open ${row.id} on matrix`}
+                    className="rounded border border-gray-700 bg-gray-900 px-2 py-1 text-left text-[11px] text-gray-200 hover:border-mitre-accent hover:text-white"
+                  >
+                    <span className="font-mono text-mitre-accent">{row.id}</span>
+                    <span className="ml-1 text-gray-400">{row.name}</span>
+                    {(ttpRefsById.get(row.id) ?? []).slice(0, 3).map(ref => (
+                      <span key={`${row.id}-${ref}`} className="ml-1 rounded bg-cyan-950 px-1 py-0.5 font-mono text-[9px] text-cyan-200">{ref}</span>
+                    ))}
+                  </button>
+                ))}
+                {ttpEvidenceNodes.filter(item => !ttpRows.some(row => row.id === item.attackId)).map(item => (
+                  <button
+                    key={item.key}
+                    type="button"
+                    onClick={() => onOpenTtp(item.attackId)}
+                    title={`Open ${item.attackId} on matrix`}
+                    className="rounded border border-gray-700 bg-gray-900 px-2 py-1 text-left text-[11px] text-gray-200 hover:border-mitre-accent hover:text-white"
+                  >
+                    <span className="font-mono text-mitre-accent">{item.attackId}</span>
+                    <span className="ml-1 text-gray-400">{item.label.replace(item.attackId, '').trim()}</span>
+                    <span className="ml-1 rounded bg-cyan-950 px-1 py-0.5 font-mono text-[9px] text-cyan-200">{item.sourceRef}</span>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-gray-500">No TTPs have been added to this investigation yet.</p>
+            )}
+          </div>
+        </div>
+
+        <div className="rounded border border-gray-800 bg-gray-950/40 p-3">
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <b className="text-xs text-gray-200">IOCs</b>
+            <span className="rounded bg-gray-800 px-1.5 py-0.5 text-[10px] text-gray-300">{iocNodes.length}</span>
+          </div>
+          <div className="max-h-52 divide-y divide-gray-800 overflow-auto">
+            {iocNodes.length ? iocNodes.map(node => (
+              <div key={node.key} className="py-2">
+                <button
+                  type="button"
+                  onClick={() => onInvestigateIoc(node.value)}
+                  title={`Investigate ${node.value}`}
+                  className="block w-full truncate text-left font-mono text-xs text-gray-100 hover:text-mitre-accent"
+                >
+                  {node.value}
+                </button>
+                <p className="mt-1 line-clamp-2 text-[10px] leading-4 text-gray-500">
+                  {node.type} · {node.source || 'investigation evidence'}{node.description ? ` · ${node.description}` : ''}
+                </p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <button type="button" onClick={() => onInvestigateIoc(node.value)} className="rounded border border-gray-700 px-2 py-1 text-[10px] text-gray-300 hover:border-mitre-accent">Investigate IOC</button>
+                  <button type="button" onClick={() => onSearchIoc(node.value)} className="rounded border border-gray-700 px-2 py-1 text-[10px] text-gray-300 hover:border-mitre-accent">Search IOC Library</button>
+                </div>
+              </div>
+            )) : (
+              <p className="py-2 text-xs text-gray-500">No IOCs have been added to this investigation yet.</p>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function InvestigationBucket({ title, count, text }: { title: string; count: number; text: string }) {
+  return (
+    <div className="rounded border border-gray-800 bg-gray-950/40 p-3">
+      <div className="flex items-start justify-between gap-2">
+        <b className="text-xs text-gray-200">{title}</b>
+        <span className="rounded bg-gray-800 px-1.5 py-0.5 text-[10px] text-gray-300">{count}</span>
+      </div>
+      <p className="mt-2 text-[10px] leading-4 text-gray-500">{text}</p>
+    </div>
+  );
+}
+
+function uniqueIocNodes(nodes: Array<Record<string, unknown>>) {
+  const merged = new Map<string, { key: string; value: string; type: string; source: string; description: string; sourceRefs: string[] }>();
+  nodes
+    .map(node => {
+      const rawValue = String(node.value ?? node.indicator ?? node.observable ?? node.label ?? '');
+      const value = rawValue.trim();
+      const type = String(node.ioc_type ?? node.indicator_type ?? node.type ?? 'ioc');
+      const source = String(node.source ?? node.provider ?? node.evidence_source ?? '');
+      const description = String(node.description ?? node.summary ?? '');
+      const sourceRefs = collectNodeSourceRefs(node);
+      return { key: `${type}:${value}`, value, type, source, description, sourceRefs };
+    })
+    .forEach(node => {
+      if (!node.value) return false;
+      const normalized = node.key.toLowerCase();
+      const existing = merged.get(normalized);
+      if (!existing) {
+        merged.set(normalized, node);
+        return true;
+      }
+      merged.set(normalized, {
+        ...existing,
+        sourceRefs: mergeArrays(existing.sourceRefs, node.sourceRefs),
+        source: existing.source || node.source,
+        description: existing.description || node.description,
+      });
+      return true;
+    });
+  return Array.from(merged.values()).slice(0, 100);
+}
+
+function uniqueSuspiciousBehaviorNodes(nodes: Array<Record<string, unknown>>) {
+  const directNodes = nodes.filter(node => String(node.type ?? '') === 'suspicious-behavior');
+  const nestedNodes = nodes.flatMap(node => {
+    const nested = node.expected_suspicious_behaviors;
+    return Array.isArray(nested) ? nested.filter(item => item && typeof item === 'object') as Array<Record<string, unknown>> : [];
+  });
+  const seen = new Set<string>();
+  return [...directNodes, ...nestedNodes]
+    .map(node => {
+      const evidence = String(node.evidence ?? node.label ?? '');
+      const why = String(node.why ?? node.reason ?? '');
+      const refs = stringArray(node.refs);
+      const ttps = stringArray(node.ttps);
+      const iocs = stringArray(node.iocs);
+      const found = node.found !== false;
+      const sourceRefs = collectNodeSourceRefs(node);
+      return {
+        key: `${sourceRefs.join('|')}:${evidence}:${why}`.toLowerCase(),
+        evidence,
+        why,
+        refs,
+        ttps,
+        iocs,
+        found,
+        sourceRefs,
+      };
+    })
+    .filter(node => {
+      if (!node.found || !node.evidence) return false;
+      if (seen.has(node.key)) return false;
+      seen.add(node.key);
+      return true;
+    })
+    .slice(0, 60);
+}
+
+function uniqueTtpEvidenceNodes(nodes: Array<Record<string, unknown>>) {
+  const seen = new Set<string>();
+  return nodes
+    .filter(node => String(node.type ?? '') === 'ttp-evidence')
+    .map(node => {
+      const attackId = String(node.attack_id ?? node.id ?? '').toUpperCase();
+      const label = String(node.label ?? attackId);
+      const sourceRef = collectNodeSourceRefs(node)[0] ?? String(node.source ?? 'analysis');
+      return {
+        key: `${sourceRef}:${attackId}`,
+        attackId,
+        label,
+        sourceRef,
+      };
+    })
+    .filter(node => {
+      if (!node.attackId) return false;
+      const key = node.key.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .slice(0, 250);
+}
+
+function stringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.map(item => String(item)).filter(Boolean);
+}
+
+function collectNodeSourceRefs(node: Record<string, unknown>) {
+  return mergeArrays([
+    ...stringArray(node.source_refs),
+    ...stringArray(node.references),
+    ...stringArray(node.refs),
+    String(node.source_ref ?? '').trim(),
+    String(node.analysis_id ?? '').trim(),
+    String(node.source ?? '').trim(),
+  ].filter(Boolean), []);
+}
+
+function mergeArrays(a: string[], b: string[]) {
+  return Array.from(new Set([...a, ...b].filter(Boolean)));
+}
+
 function buildReportContext({
   domain,
   rows,
   matches,
   relevantIocs,
   sections,
+  investigation,
 }: {
   domain: string;
   rows: ReportRow[];
   matches: Array<{ group_attack_id: string; group_name: string; similarity: number; shared_count: number; shared_techniques: string[] }>;
   relevantIocs: IOCItem[];
   sections: ReportSections;
+  investigation: Investigation | null;
 }) {
   const lines = [
     `Domain: ${domain}`,
@@ -417,6 +1042,18 @@ function buildReportContext({
       lines.push(`${item.value} (${item.type}) | source=${item.source || 'unknown'} | malware=${item.malware_family || 'unknown'} | campaign=${item.campaign || 'unknown'} | ttps=${item.technique_ids?.slice(0, 8).join(', ') || 'none'} | confidence=${item.confidence ?? 0}`);
     });
     if (relevantIocs.length > 25) lines.push(`Additional IOCs omitted from AI context: ${relevantIocs.length - 25}.`);
+  }
+  if (investigation) {
+    lines.push('', 'Investigation workspace evidence:');
+    lines.push(`Name: ${investigation.name}`);
+    lines.push(`TTP layer: ${investigation.technique_ids.join(', ')}`);
+    lines.push(`Actor leads: ${investigation.actor_ids.join(', ') || 'none'}`);
+    lines.push(`Report/log/IOC evidence nodes: ${investigation.evidence_nodes.length}`);
+    investigation.evidence_nodes.slice(-30).forEach(node => {
+      lines.push(`${String(node.type ?? 'evidence')} | ${String(node.label ?? node.value ?? node.id ?? '')} | ${String(node.summary ?? node.description ?? '').slice(0, 180)}`);
+    });
+    lines.push('Timeline:');
+    investigation.timeline.slice(-20).forEach(item => lines.push(`${String(item.at ?? '')} | ${String(item.event ?? item.source ?? '')}`));
   }
   return truncate(lines.join('\n'), 7600);
 }
@@ -535,6 +1172,71 @@ function escapePdf(text: string) {
 
 function slug(value: string) {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'adversarygraph-report';
+}
+
+function FlowStep({
+  number,
+  title,
+  text,
+  actionLabel,
+  onAction,
+  disabled = false,
+}: {
+  number: number;
+  title: string;
+  text: string;
+  actionLabel?: string;
+  onAction?: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <div className="rounded border border-gray-800 bg-gray-950/40 p-3">
+      <div className="flex items-start gap-3">
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded bg-mitre-accent text-xs font-bold text-white">{number}</span>
+        <div className="min-w-0">
+          <b className="block text-sm text-gray-200">{title}</b>
+          <p className="mt-1 text-xs leading-5 text-gray-500">{text}</p>
+          {actionLabel && onAction && (
+            <button type="button" onClick={onAction} disabled={disabled} className="secondary-action mt-3 text-xs disabled:opacity-40">
+              {actionLabel}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function mergeInvestigation(
+  row: Investigation,
+  patch: Partial<Pick<Investigation, 'actor_ids' | 'technique_ids' | 'report_ids' | 'evidence_nodes' | 'evidence_edges' | 'timeline'>>,
+): Omit<Investigation, 'id' | 'created_at' | 'updated_at'> {
+  return {
+    name: row.name,
+    description: row.description,
+    status: row.status || 'active',
+    domain: row.domain,
+    actor_ids: mergeStrings(row.actor_ids, patch.actor_ids),
+    technique_ids: mergeStrings(row.technique_ids, patch.technique_ids?.map(item => item.toUpperCase())),
+    report_ids: mergeStrings(row.report_ids, patch.report_ids),
+    evidence_nodes: mergeObjects(row.evidence_nodes, patch.evidence_nodes),
+    evidence_edges: mergeObjects(row.evidence_edges, patch.evidence_edges),
+    timeline: [...(row.timeline ?? []), ...(patch.timeline ?? [])].slice(-250),
+  };
+}
+
+function mergeStrings(current: string[] = [], incoming: string[] = []) {
+  return Array.from(new Set([...current, ...incoming].filter(Boolean))).sort();
+}
+
+function mergeObjects(current: Array<Record<string, unknown>> = [], incoming: Array<Record<string, unknown>> = []) {
+  const seen = new Set<string>();
+  return [...current, ...incoming].filter(item => {
+    const key = String(item.id ?? item.value ?? item.label ?? JSON.stringify(item));
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  }).slice(-500);
 }
 
 function Panel({ title, children }: { title: string; children: React.ReactNode }) {
