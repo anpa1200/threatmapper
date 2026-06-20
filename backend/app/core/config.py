@@ -41,6 +41,12 @@ class Settings(BaseSettings):
     otx_api_key: str = ""
     virustotal_api_key: str = ""
 
+    # OpenCTI symmetric sync
+    opencti_url: str = ""
+    opencti_token: str = ""
+    opencti_sync_limit: int = 500
+    opencti_verify_tls: bool = True
+
     # Optional trusted-proxy team authentication. Keep disabled for local use.
     auth_enabled: bool = False
     auth_default_role: str = "admin"

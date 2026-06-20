@@ -50,6 +50,7 @@ def _api_key_check() -> SelfTestCheck:
         "threatfox": {"configured": bool(settings.threatfox_auth_key), "env_var": "THREATFOX_AUTH_KEY", "required_for": ["ThreatFox IOC sync"]},
         "otx": {"configured": bool(settings.otx_api_key), "env_var": "OTX_API_KEY", "required_for": ["OTX IOC sync"]},
         "virustotal": {"configured": bool(settings.virustotal_api_key), "env_var": "VIRUSTOTAL_API_KEY", "required_for": ["VirusTotal IOC lookup"]},
+        "opencti": {"configured": bool(settings.opencti_url and settings.opencti_token), "env_var": "OPENCTI_URL + OPENCTI_TOKEN", "required_for": ["OpenCTI pull/push/bidirectional sync"]},
     }
     configured = [name for name, data in providers.items() if data["configured"]]
     missing_optional = [name for name, data in providers.items() if not data["configured"]]

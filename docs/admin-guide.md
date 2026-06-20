@@ -46,6 +46,10 @@ Important settings:
 | `AUTO_THREATFOX_SYNC_DAYS` | Startup IOC sync window for recent IOC providers, clamped to 1-7 days |
 | `OTX_API_KEY` | Optional AlienVault OTX key for actor pulse IOC enrichment |
 | `VIRUSTOTAL_API_KEY` | Optional VirusTotal key for on-demand IOC reputation and ATT&CK context lookup |
+| `OPENCTI_URL` | Optional OpenCTI base URL for symmetric CTI sync |
+| `OPENCTI_TOKEN` | Optional OpenCTI API token for indicator, observable, label, and report sync |
+| `OPENCTI_SYNC_LIMIT` | Default OpenCTI object limit per sync action |
+| `OPENCTI_VERIFY_TLS` | Verify OpenCTI TLS certificates, default `true` |
 | `DYNAMIC_DB_SYNC_HOUR`, `DYNAMIC_DB_SYNC_MINUTE` | Daily dynamic DB refresh time in UTC |
 | `DYNAMIC_DB_IOC_SYNC_DAYS` | Daily IOC sync window, clamped to 1-7 days |
 | `LOG_LEVEL` | API/worker log verbosity |
@@ -323,7 +327,38 @@ Operators should define:
 - Who can delete analyses.
 - How backups are purged.
 
-## OpenCTI Export
+## OpenCTI Sync And Export
+
+AdversaryGraph supports two OpenCTI workflows:
+
+- **Symmetric IOC/report sync** from **Feeds Management** using:
+
+```bash
+GET  /api/ioc/opencti/status
+POST /api/ioc/opencti/pull
+POST /api/ioc/opencti/push
+POST /api/ioc/opencti/sync
+```
+
+Pull imports OpenCTI indicators, cyber observables, labels, and reports into the
+local IOC Library and analysis/report history. Push creates or updates OpenCTI
+indicators and reports from local AdversaryGraph records. Bidirectional sync
+pulls first, then pushes local records back out.
+
+Configure:
+
+```env
+OPENCTI_URL=https://opencti.example.com
+OPENCTI_TOKEN=...
+OPENCTI_SYNC_LIMIT=500
+OPENCTI_VERIFY_TLS=true
+```
+
+The OpenCTI token should be scoped to read indicators, observables, reports, and
+labels, and to create/update indicators and reports. AdversaryGraph does not
+delete OpenCTI data during sync.
+
+### STIX Analysis Export
 
 AdversaryGraph can export a completed analysis as a STIX 2.1 JSON bundle from:
 

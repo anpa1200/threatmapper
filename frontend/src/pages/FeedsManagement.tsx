@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Header } from '@/components/Layout/Header';
 import { iocApi, pipelineApi, sectorApi, syncApi } from '@/api/client';
-import type { CollectionSource, IOCSourceStatus } from '@/api/client';
+import type { CollectionSource, IOCSourceStatus, OpenCTISyncResult } from '@/api/client';
 
 type FeedKind = 'custom-json' | 'custom-csv' | 'custom-txt';
 type RuleFeedKind = 'sigma' | 'yara';
@@ -27,6 +27,8 @@ export function FeedsManagement() {
   const [taxiiToken, setTaxiiToken] = useState('');
   const [taxiiUsername, setTaxiiUsername] = useState('');
   const [taxiiPassword, setTaxiiPassword] = useState('');
+  const [openctiLimit, setOpenctiLimit] = useState(500);
+  const [openctiLastResult, setOpenctiLastResult] = useState<OpenCTISyncResult | null>(null);
   const [ruleName, setRuleName] = useState('');
   const [ruleUrl, setRuleUrl] = useState('');
   const [ruleKind, setRuleKind] = useState<RuleFeedKind>('sigma');
@@ -128,6 +130,28 @@ export function FeedsManagement() {
       source_label: 'TAXII IOC Import',
     }),
     onSuccess: refreshFeeds,
+  });
+  const checkOpencti = useMutation({ mutationFn: iocApi.openctiStatus });
+  const pullOpencti = useMutation({
+    mutationFn: () => iocApi.openctiPull({ limit: openctiLimit }),
+    onSuccess: data => {
+      setOpenctiLastResult(data);
+      refreshFeeds();
+    },
+  });
+  const pushOpencti = useMutation({
+    mutationFn: () => iocApi.openctiPush({ limit: openctiLimit, include_reports: true }),
+    onSuccess: data => {
+      setOpenctiLastResult(data);
+      refreshFeeds();
+    },
+  });
+  const syncOpencti = useMutation({
+    mutationFn: () => iocApi.openctiSync({ limit: openctiLimit, include_reports: true }),
+    onSuccess: data => {
+      setOpenctiLastResult(data);
+      refreshFeeds();
+    },
   });
 
   const createRuleFeed = useMutation({
@@ -424,6 +448,59 @@ export function FeedsManagement() {
 
             <Panel title="MISP, TAXII, and STIX">
               <div className="space-y-4 p-4">
+                <div className="rounded border border-gray-800 bg-gray-950 p-3">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <h3 className="text-sm font-semibold text-white">OpenCTI symmetric sync</h3>
+                      <p className="mt-1 max-w-2xl text-xs leading-relaxed text-gray-500">
+                        Pull OpenCTI indicators, observables, labels, and reports into the local IOC Library and report history. Push local AdversaryGraph IOCs and completed reports back to OpenCTI as STIX-compatible indicators and reports.
+                      </p>
+                    </div>
+                    {checkOpencti.data && (
+                      <span className="rounded bg-green-950 px-2 py-1 text-[10px] text-green-300">
+                        Connected{checkOpencti.data.version ? ` · ${checkOpencti.data.version}` : ''}
+                      </span>
+                    )}
+                  </div>
+                  <div className="mt-3 grid gap-2 md:grid-cols-[160px_repeat(4,auto)]">
+                    <input
+                      className={field}
+                      type="number"
+                      min={1}
+                      max={5000}
+                      value={openctiLimit}
+                      onChange={event => setOpenctiLimit(Number(event.target.value) || 500)}
+                      title="Maximum objects per sync action"
+                    />
+                    <button className="secondary-action" disabled={checkOpencti.isPending} onClick={() => checkOpencti.mutate()}>
+                      Check OpenCTI
+                    </button>
+                    <button className="secondary-action" disabled={pullOpencti.isPending} onClick={() => pullOpencti.mutate()}>
+                      {pullOpencti.isPending ? 'Pulling...' : 'Pull from OpenCTI'}
+                    </button>
+                    <button className="secondary-action" disabled={pushOpencti.isPending} onClick={() => pushOpencti.mutate()}>
+                      {pushOpencti.isPending ? 'Pushing...' : 'Push to OpenCTI'}
+                    </button>
+                    <button className="primary" disabled={syncOpencti.isPending} onClick={() => syncOpencti.mutate()}>
+                      {syncOpencti.isPending ? 'Syncing...' : 'Bidirectional sync'}
+                    </button>
+                  </div>
+                  <p className="mt-2 text-[10px] text-gray-600">
+                    Configure `OPENCTI_URL` and `OPENCTI_TOKEN` in `.env`, then restart the API container.
+                  </p>
+                  {checkOpencti.data && (
+                    <div className="mt-3 rounded border border-gray-800 bg-gray-900 p-2 text-xs text-gray-400">
+                      {checkOpencti.data.url}{checkOpencti.data.user ? ` · ${checkOpencti.data.user}` : ''}
+                    </div>
+                  )}
+                  {openctiLastResult && (
+                    <pre className="mt-3 max-h-56 overflow-auto rounded border border-gray-800 bg-black/40 p-3 text-[11px] text-gray-400">{JSON.stringify(openctiLastResult, null, 2)}</pre>
+                  )}
+                  <MutationStatus label="OpenCTI status" mutation={checkOpencti} />
+                  <MutationStatus label="OpenCTI pull" mutation={pullOpencti} />
+                  <MutationStatus label="OpenCTI push" mutation={pushOpencti} />
+                  <MutationStatus label="OpenCTI sync" mutation={syncOpencti} />
+                </div>
                 <div className="rounded border border-gray-800 bg-gray-950 p-3">
                   <h3 className="text-sm font-semibold text-white">MISP IOC JSON export</h3>
                   <p className="mt-1 text-xs leading-relaxed text-gray-500">

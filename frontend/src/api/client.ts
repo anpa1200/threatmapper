@@ -219,6 +219,34 @@ export interface IOCSummary {
   techniques: Record<string, number>;
 }
 
+export interface OpenCTIStatus {
+  configured: boolean;
+  reachable: boolean;
+  version: string;
+  url: string;
+  user?: string;
+}
+
+export interface OpenCTISyncResult {
+  source: string;
+  direction: string;
+  indicators_seen?: number | null;
+  observables_seen?: number | null;
+  reports_seen?: number | null;
+  reports_imported?: number | null;
+  inserted?: number | null;
+  updated?: number | null;
+  actor_links?: number | null;
+  ttp_enriched?: number | null;
+  seen?: number | null;
+  pushed_indicators?: number | null;
+  skipped?: number | null;
+  pushed_reports?: number | null;
+  errors: string[];
+  pull?: Record<string, unknown> | null;
+  push?: Record<string, unknown> | null;
+}
+
 type IOCSyncOptions = {
   ai_enrich?: boolean;
   ai_provider?: 'local' | 'claude' | 'openai' | 'gemini' | 'minimax';
@@ -351,6 +379,14 @@ export const iocApi = {
     items_seen: number;
   }> =>
     http.post('/ioc/import/taxii', payload).then(r => r.data),
+  openctiStatus: (): Promise<OpenCTIStatus> =>
+    http.get('/ioc/opencti/status').then(r => r.data),
+  openctiPull: (params?: { limit?: number; domain?: string }): Promise<OpenCTISyncResult> =>
+    http.post('/ioc/opencti/pull', null, { params: { limit: params?.limit ?? 500, domain: params?.domain ?? 'enterprise-attack' } }).then(r => r.data),
+  openctiPush: (params?: { limit?: number; source_id?: string; include_reports?: boolean }): Promise<OpenCTISyncResult> =>
+    http.post('/ioc/opencti/push', null, { params: { limit: params?.limit ?? 500, source_id: params?.source_id ?? '', include_reports: params?.include_reports ?? true } }).then(r => r.data),
+  openctiSync: (params?: { limit?: number; domain?: string; include_reports?: boolean }): Promise<OpenCTISyncResult> =>
+    http.post('/ioc/opencti/sync', null, { params: { limit: params?.limit ?? 500, domain: params?.domain ?? 'enterprise-attack', include_reports: params?.include_reports ?? true } }).then(r => r.data),
   stixExportUrl: (params: IOCLibraryParams) => `/api/ioc/library/export/stix?${iocLibraryQuery(params).toString()}`,
   actor: (actorId: string, params?: {days?: number; active_only?: boolean; limit?: number}): Promise<IOCItem[]> =>
     http.get(`/ioc/actors/${actorId}`, { params: { days: params?.days ?? 180, active_only: params?.active_only ?? true, limit: params?.limit ?? 250 } }).then(r => r.data),

@@ -34,6 +34,13 @@ from app.services.ioc_intel import (
 )
 from app.services.virustotal import lookup_virustotal_ioc
 from app.services.ioc_stix import export_ioc_stix_bundle, import_ioc_stix_bundle, import_taxii_collection
+from app.services.opencti_sync import (
+    OpenCTISyncError,
+    opencti_status,
+    pull_from_opencti,
+    push_to_opencti,
+    sync_opencti,
+)
 
 router = APIRouter(prefix="/ioc", tags=["IOC Intelligence"])
 
@@ -230,6 +237,26 @@ class ReportIOCImportOut(BaseModel):
 
 class IOCCountsOut(BaseModel):
     counts: dict[str, int]
+
+
+class OpenCTISyncOut(BaseModel):
+    source: str
+    direction: str
+    indicators_seen: int | None = None
+    observables_seen: int | None = None
+    reports_seen: int | None = None
+    reports_imported: int | None = None
+    inserted: int | None = None
+    updated: int | None = None
+    actor_links: int | None = None
+    ttp_enriched: int | None = None
+    seen: int | None = None
+    pushed_indicators: int | None = None
+    skipped: int | None = None
+    pushed_reports: int | None = None
+    errors: list[str] = Field(default_factory=list)
+    pull: dict[str, Any] | None = None
+    push: dict[str, Any] | None = None
 
 
 class VirusTotalLookupIn(BaseModel):
@@ -459,6 +486,60 @@ async def import_ioc_taxii_route(
         )
     except Exception as exc:
         raise HTTPException(400, f"TAXII IOC import failed: {exc}") from exc
+
+
+@router.get("/opencti/status")
+async def opencti_status_route():
+    try:
+        return await opencti_status()
+    except OpenCTISyncError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(502, f"OpenCTI status check failed: {type(exc).__name__}: {exc}") from exc
+
+
+@router.post("/opencti/pull", response_model=OpenCTISyncOut)
+async def opencti_pull_route(
+    limit: int = Query(500, ge=1, le=5000),
+    domain: str = Query("enterprise-attack"),
+    session: AsyncSession = Depends(get_session),
+):
+    try:
+        return await pull_from_opencti(session, limit=limit, domain=domain)
+    except OpenCTISyncError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(502, f"OpenCTI pull failed: {type(exc).__name__}: {exc}") from exc
+
+
+@router.post("/opencti/push", response_model=OpenCTISyncOut)
+async def opencti_push_route(
+    limit: int = Query(500, ge=1, le=5000),
+    source_id: str = Query("", max_length=120),
+    include_reports: bool = Query(True),
+    session: AsyncSession = Depends(get_session),
+):
+    try:
+        return await push_to_opencti(session, limit=limit, source_id=source_id, include_reports=include_reports)
+    except OpenCTISyncError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(502, f"OpenCTI push failed: {type(exc).__name__}: {exc}") from exc
+
+
+@router.post("/opencti/sync", response_model=OpenCTISyncOut)
+async def opencti_sync_route(
+    limit: int = Query(500, ge=1, le=5000),
+    domain: str = Query("enterprise-attack"),
+    include_reports: bool = Query(True),
+    session: AsyncSession = Depends(get_session),
+):
+    try:
+        return await sync_opencti(session, limit=limit, domain=domain, include_reports=include_reports)
+    except OpenCTISyncError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(502, f"OpenCTI sync failed: {type(exc).__name__}: {exc}") from exc
 
 
 @router.post("/sync/threatfox", response_model=SyncOut)

@@ -56,6 +56,12 @@ OTX_API_KEY=
 # VirusTotal on-demand IOC reputation and relationship lookup
 VIRUSTOTAL_API_KEY=
 
+# OpenCTI symmetric sync
+OPENCTI_URL=
+OPENCTI_TOKEN=
+OPENCTI_SYNC_LIMIT=500
+OPENCTI_VERIFY_TLS=true
+
 # Daily dynamic DB refresh schedule in UTC
 DYNAMIC_DB_SYNC_HOUR=3
 DYNAMIC_DB_SYNC_MINUTE=30
@@ -73,6 +79,7 @@ Feed and key behavior:
 - `THREATFOX_AUTH_KEY` enables abuse.ch ThreatFox recent IOC sync.
 - `OTX_API_KEY` enables AlienVault OTX actor-attributed pulse enrichment.
 - `VIRUSTOTAL_API_KEY` enables on-demand IOC checks from IOC Library and VirusTotal Lookup.
+- `OPENCTI_URL` and `OPENCTI_TOKEN` enable Feeds Management actions for OpenCTI pull, push, and bidirectional sync.
 - MISP event/attribute JSON exports, STIX bundles, TAXII collection URLs, custom JSON/CSV/TXT feeds, Sigma/YARA feeds, and sandbox behavior feeds are connected from the UI or API as source URLs/tokens.
 - Never commit a filled `.env` file.
 

@@ -92,13 +92,19 @@ OTX_API_KEY=your_otx_key
 # VirusTotal on-demand IOC reputation and relationship lookup
 VIRUSTOTAL_API_KEY=your_virustotal_key
 
+# OpenCTI symmetric sync
+OPENCTI_URL=https://opencti.example.com
+OPENCTI_TOKEN=your_opencti_token
+OPENCTI_SYNC_LIMIT=500
+OPENCTI_VERIFY_TLS=true
+
 # Daily dynamic DB refresh schedule in UTC
 DYNAMIC_DB_SYNC_HOUR=3
 DYNAMIC_DB_SYNC_MINUTE=30
 DYNAMIC_DB_IOC_SYNC_DAYS=7
 ```
 
-No key is required for MITRE ATT&CK/ATLAS sync or built-in public MISP Galaxy metadata sync. MISP JSON exports, STIX/TAXII collection URLs, custom JSON/CSV/TXT feeds, Sigma/YARA feeds, and sandbox behavior feeds are connected from the UI or API as source URLs/tokens. Keep filled `.env` files private.
+No key is required for MITRE ATT&CK/ATLAS sync or built-in public MISP Galaxy metadata sync. MISP JSON exports, STIX/TAXII collection URLs, custom JSON/CSV/TXT feeds, Sigma/YARA feeds, and sandbox behavior feeds are connected from the UI or API as source URLs/tokens. OpenCTI sync needs an OpenCTI API token with read access to indicators, observables, reports, and labels, plus create/update access for indicators and reports. Keep filled `.env` files private.
 
 Start the stack:
 
@@ -303,6 +309,10 @@ AUTO_IOC_FULL_SYNC_ON_STARTUP=true
 AUTO_THREATFOX_SYNC_DAYS=7
 OTX_API_KEY=your_otx_key
 VIRUSTOTAL_API_KEY=your_virustotal_key
+OPENCTI_URL=https://opencti.example.com
+OPENCTI_TOKEN=your_opencti_token
+OPENCTI_SYNC_LIMIT=500
+OPENCTI_VERIFY_TLS=true
 DYNAMIC_DB_SYNC_HOUR=3
 DYNAMIC_DB_SYNC_MINUTE=30
 DYNAMIC_DB_IOC_SYNC_DAYS=7
@@ -312,7 +322,7 @@ LOG_LEVEL=info
 
 > You only need one working provider. Cloud API keys can be left blank if you use the local provider.
 >
-> Enrichment keys are optional. `AUTO_IOC_FULL_SYNC_ON_STARTUP=true` starts a non-blocking IOC source sync after API startup for ThreatFox, Malpedia, OTX, and enabled custom feeds. `THREATFOX_AUTH_KEY` enables abuse.ch ThreatFox IOC sync, `OTX_API_KEY` enables AlienVault OTX pulse enrichment, and `VIRUSTOTAL_API_KEY` enables on-demand IOC reputation and relationship lookup. MITRE ATT&CK/ATLAS and public MISP Galaxy sync do not require API keys. MISP JSON exports, STIX/TAXII URLs, custom JSON/CSV/TXT feeds, Sigma/YARA feeds, and sandbox behavior feeds are configured later from the UI/API as source URLs or tokens.
+> Enrichment keys are optional. `AUTO_IOC_FULL_SYNC_ON_STARTUP=true` starts a non-blocking IOC source sync after API startup for ThreatFox, Malpedia, OTX, and enabled custom feeds. `THREATFOX_AUTH_KEY` enables abuse.ch ThreatFox IOC sync, `OTX_API_KEY` enables AlienVault OTX pulse enrichment, `VIRUSTOTAL_API_KEY` enables on-demand IOC reputation and relationship lookup, and `OPENCTI_URL` plus `OPENCTI_TOKEN` enables OpenCTI pull/push/bidirectional sync. MITRE ATT&CK/ATLAS and public MISP Galaxy sync do not require API keys. MISP JSON exports, STIX/TAXII URLs, custom JSON/CSV/TXT feeds, Sigma/YARA feeds, and sandbox behavior feeds are configured later from the UI/API as source URLs or tokens.
 >
 > **You must create `.env` before running `docker compose up`.** Without it, cloud API keys are empty and local-provider defaults are used.
 >
@@ -756,6 +766,9 @@ Supported initial sources:
 - **STIX 2.1 / TAXII** — export filtered IOC Library records as STIX 2.1,
   import STIX bundles, or pull a TAXII 2.1 collection objects URL into the
   local IOC database.
+- **OpenCTI symmetric sync** — set `OPENCTI_URL` and `OPENCTI_TOKEN`, then use
+  Feeds Management to pull OpenCTI indicators, observables, labels, and reports
+  into AdversaryGraph or push local IOCs and completed reports back to OpenCTI.
 - **Manual report import** — JSON import for report, MISP, OpenCTI, or vendor CTI
   extracts where the actor mapping is already known.
 

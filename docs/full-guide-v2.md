@@ -509,6 +509,7 @@ Initial sources:
 - custom or personal JSON, CSV, and TXT IOC feeds
 - MISP event or attribute JSON exports connected as custom JSON IOC feeds
 - STIX 2.1 bundles and TAXII 2.1 collection object URLs
+- OpenCTI symmetric sync for indicators, observables, labels, and reports
 - manual JSON import for report, MISP, OpenCTI, or vendor CTI extracts
 
 Before syncing ThreatFox, set:
@@ -556,13 +557,37 @@ Workflow:
    into Navigator, ATT&CK Group Library, source reports, and IOC search.
 5. Use Check in VT on a row to enrich one IOC with VirusTotal context, found
    ATT&CK TTPs, and local actor matches.
-6. Use Export STIX to hand off the filtered IOC set to OpenCTI or another CTI
-   platform, Import STIX to load a bundle, or Pull TAXII STIX to ingest a TAXII
-   collection objects URL.
+6. Use Export STIX to hand off the filtered IOC set to another CTI platform,
+   Import STIX to load a bundle, Pull TAXII STIX to ingest a TAXII collection
+   objects URL, or use Feeds Management for OpenCTI pull, push, and
+   bidirectional sync.
 7. Open ATT&CK Group Library, select an actor, and use the IOCs tab when the
    investigation is actor-centric.
 8. Review current IOCs, add IOC-linked TTPs to `My TTPs`, show IOC-linked TTPs
    on the matrix, and export CSV when needed.
+
+### OpenCTI Symmetric Sync
+
+OpenCTI sync is configured in `.env` and operated from Feeds Management:
+
+```bash
+OPENCTI_URL=https://opencti.example.com
+OPENCTI_TOKEN=your_opencti_token
+OPENCTI_SYNC_LIMIT=500
+OPENCTI_VERIFY_TLS=true
+```
+
+Available actions:
+
+- **Check OpenCTI** validates the API URL and token.
+- **Pull from OpenCTI** imports indicators, cyber observables, labels, and
+  reports into the local AdversaryGraph IOC Library and report history.
+- **Push to OpenCTI** creates or updates OpenCTI indicators and reports from
+  local AdversaryGraph records.
+- **Bidirectional sync** pulls first and then pushes local records back to
+  OpenCTI.
+
+The sync is additive/update-oriented. It does not delete records from OpenCTI.
 
 Custom JSON/CSV feeds can include:
 
