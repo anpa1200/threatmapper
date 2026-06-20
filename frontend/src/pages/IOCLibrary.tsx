@@ -264,6 +264,7 @@ export function IOCLibrary() {
                           item={item}
                           onEnrichment={() => openEnrichment(item.value)}
                           onOpenDetail={() => navigate(`/ioc-library/${item.id}`)}
+                          onInvestigate={() => navigate(`/ioc-investigation?indicator=${encodeURIComponent(item.value)}`)}
                         />
                       )) : (
                         <tr><td colSpan={7} className="p-6 text-center text-gray-500">No IOC records match the current filters.</td></tr>
@@ -428,10 +429,11 @@ export function IOCLibrary() {
   );
 }
 
-function IOCRow({ item, onEnrichment, onOpenDetail }: {
+function IOCRow({ item, onEnrichment, onOpenDetail, onInvestigate }: {
   item: IOCLibraryItem;
   onEnrichment: () => void;
   onOpenDetail: () => void;
+  onInvestigate: () => void;
 }) {
   const navigate = useNavigate();
   return (
@@ -487,6 +489,9 @@ function IOCRow({ item, onEnrichment, onOpenDetail }: {
         <div className="flex flex-col gap-2">
           <button onClick={onEnrichment} className="primary-action">
             Live lookup
+          </button>
+          <button onClick={onInvestigate} className="secondary-action">
+            Investigate IOC
           </button>
           <button onClick={onOpenDetail} className="secondary-action">
             Open detail

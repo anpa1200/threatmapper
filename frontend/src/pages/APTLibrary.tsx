@@ -24,8 +24,10 @@ export function APTLibrary() {
   useEffect(() => {
     const id = params.get('group');
     const tab = params.get('tab') as GroupTab | null;
+    const searchParam = params.get('search');
     if (id) setSelectedGroupId(id);
     if (tab && ['overview', 'techniques', 'campaigns', 'reports', 'iocs'].includes(tab)) setGroupTab(tab);
+    if (searchParam) setSearch(searchParam);
   }, [params]);
 
   const { data: groups = [], isLoading } = useQuery({
@@ -460,6 +462,7 @@ export function APTLibrary() {
                     navigate('/navigator');
                   }}
                   onOpenDetail={(id) => navigate(`/ioc-library/${id}`)}
+                  onInvestigate={(indicator) => navigate(`/ioc-investigation?indicator=${encodeURIComponent(indicator)}`)}
                 />
               )}
             </div>
@@ -507,6 +510,7 @@ function ActorIOCs({
   onAddTechniques,
   onShowTechniques,
   onOpenDetail,
+  onInvestigate,
 }: {
   actorId: string;
   actorName: string;
@@ -550,6 +554,7 @@ function ActorIOCs({
   onAddTechniques: (ids: string[]) => void;
   onShowTechniques: (ids: string[]) => void;
   onOpenDetail: (id: number) => void;
+  onInvestigate: (indicator: string) => void;
 }) {
   const [feedLabel, setFeedLabel] = useState('');
   const [feedUrl, setFeedUrl] = useState('');
@@ -823,6 +828,9 @@ function ActorIOCs({
                   <div className="mt-1 text-[10px] uppercase text-gray-600">{item.tlp}</div>
                 </div>
                 <div className="flex flex-wrap gap-2">
+                  <button type="button" onClick={() => onInvestigate(item.value)} className="primary-action">
+                    Investigate IOC
+                  </button>
                   <button type="button" onClick={() => openEnrichment(item.value)} className="primary-action">
                     Enrichment
                   </button>

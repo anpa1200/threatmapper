@@ -67,7 +67,7 @@ Output schema:
     }
   ],
   "apt_hints": ["APT29", "Lazarus Group"],
-  "summary":   "2-3 sentence TL;DR of the threat activity described"
+  "summary":   "Clear 3-5 sentence executive summary: activity, likely objective, strongest evidence, main ATT&CK themes, and caveat if confidence is limited"
 }
 
 Rules:
@@ -80,6 +80,7 @@ Rules:
 - evidence_start/evidence_end: character offsets of the supporting evidence in the source text when you can identify them; null if unknown.
 - evidence_source: use "source-text" when the evidence is directly quoted from the input, otherwise "llm".
 - apt_hints: group names or aliases explicitly mentioned or strongly implied. Empty array if none.
+- summary: write for a CTI analyst. Be concise but readable. Mention the main behavior chain, important IOCs or malware names if present, and avoid attribution certainty unless the source explicitly states it.
 - Include ALL techniques you can identify; do not truncate the list.
 - tactic: use the framework kill-chain shortname (for example initial-access, execution, persistence, reconnaissance).
 - If the text contains no detectable adversary behaviour, return empty arrays and explain in summary."""

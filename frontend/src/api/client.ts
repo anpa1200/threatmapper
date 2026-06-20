@@ -290,6 +290,7 @@ export interface VirusTotalLookupResult {
 }
 
 export interface IOCInvestigationResult {
+  session_id?: string | null;
   artifact: string;
   artifact_type: string;
   depth: number;
@@ -310,11 +311,26 @@ export interface IOCInvestigationResult {
     raw: Record<string, unknown>;
   }>;
   tier2_sources: Array<Record<string, unknown>>;
+  tier3_sources?: Array<Record<string, unknown>>;
   relationships: {
     nodes: Array<{ id: string; kind: string; type: string; value: string; tier: number; sources: string[]; suspicious: number }>;
     edges: Array<{ source: string; target: string; type: string; tier: number; evidence_source: string; evidence: string }>;
   };
   ai_input: Record<string, unknown>;
+}
+
+export interface IOCInvestigationHistoryItem {
+  session_id: string;
+  artifact: string;
+  artifact_type: string;
+  verdict: string;
+  suspicion_score: number;
+  depth: number;
+  ai_summarize: boolean;
+  ai_provider: string;
+  created_at: string;
+  technique_count: number;
+  actor_count: number;
 }
 
 type IOCLibraryParams = {
@@ -463,6 +479,12 @@ export const iocApi = {
     ai_provider?: 'local' | 'claude' | 'openai' | 'gemini' | 'minimax';
   }): Promise<IOCInvestigationResult> =>
     http.post('/ioc/investigate', payload).then(r => r.data),
+  investigations: (limit = 50, offset = 0): Promise<IOCInvestigationHistoryItem[]> =>
+    http.get('/ioc/investigations', { params: { limit, offset } }).then(r => r.data),
+  investigation: (sessionId: string): Promise<IOCInvestigationResult> =>
+    http.get(`/ioc/investigations/${sessionId}`).then(r => r.data),
+  deleteInvestigation: (sessionId: string): Promise<void> =>
+    http.delete(`/ioc/investigations/${sessionId}`).then(() => {}),
 };
 
 // ── Analysis ──────────────────────────────────────────────────────────────────
@@ -485,6 +507,7 @@ export interface AnalysisResult {
   }>;
   apt_matches: Array<{ group_attack_id: string; group_name: string; similarity: number; shared_count: number; shared_techniques: string[] }>;
   apt_hints: string[];
+  raw_response?: string;
 }
 
 export interface LogPcapAnalysisResult {

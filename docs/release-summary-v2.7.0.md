@@ -36,6 +36,7 @@ reporting.
 - GreyNoise
 - AbuseIPDB
 - Shodan
+- Censys Platform
 
 ## Verification
 
@@ -52,4 +53,3 @@ reporting.
 - Project hub: https://1200km.com/adversarygraph/
 - Full guide: `docs/full-guide-v2.md`
 - Detailed notes: `docs/release-notes/v2.7.0.md`
-

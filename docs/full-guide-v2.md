@@ -96,9 +96,12 @@ VIRUSTOTAL_API_KEY=your_virustotal_key
 
 # Optional IOC Investigation pivots
 URLSCAN_API_KEY=your_urlscan_key
-GREYNOISE_API_KEY=your_greynoise_key
+# GreyNoise Community is used by default; no key is needed for baseline lookup.
+GREYNOISE_API_KEY=
 SHODAN_API_KEY=your_shodan_key
 ABUSEIPDB_API_KEY=your_abuseipdb_key
+CENSYS_API_KEY=your_censys_platform_pat
+CENSYS_ORG_ID=optional_censys_org_id
 
 # Daily dynamic DB refresh schedule in UTC
 DYNAMIC_DB_SYNC_HOUR=3
@@ -110,8 +113,9 @@ Enrichment behavior:
 
 - MITRE ATT&CK / ATLAS feeds management uses public STIX bundles and does not require an API key.
 - Built-in MISP Galaxy actor metadata sync is public and does not require a MISP key.
-- ThreatFox, OTX, VirusTotal, AbuseIPDB, and Shodan require their own keys only when those enrichment paths are used.
-- urlscan.io and GreyNoise community lookups may return public context without keys; keys raise provider limits and context depth.
+- ThreatFox, OTX, VirusTotal, AbuseIPDB, Shodan, and Censys require their own keys only when those enrichment paths are used.
+- urlscan.io may return public context without a key within provider limits.
+- GreyNoise Community lookup is used by default without a key.
 - MISP JSON exports, STIX/TAXII collection URLs, custom JSON/CSV/TXT feeds, Sigma/YARA feeds, and sandbox behavior feeds are connected from the UI/API as source URLs or tokens.
 - Detection Studio can generate Sigma, YARA, YARA-L, KQL, SPL, and EQL skeletons or optional AI-assisted rules; all generated detections require analyst review before use.
 - Do not commit a filled `.env` file. Use a secret manager or orchestrator secrets for team deployments.
@@ -134,7 +138,7 @@ Open:
 Health should return:
 
 ```json
-{"status":"ok","version":"2.7.0"}
+{"status":"ok","version":"3.0.0"}
 ```
 
 Run the built-in deployment self-test after Docker startup:
@@ -631,8 +635,9 @@ POST /api/ioc/investigate
 
 ## 16. IOC Investigation
 
-IOC Investigation is the Tier 1 / Tier 2 pivot workflow for one suspicious
-artifact. It accepts IPs, domains, URLs, hashes, and generic artifact strings.
+IOC Investigation is the v3.0 Tier 1 / Tier 2 / Tier 3 pivot workflow for one
+suspicious artifact. It accepts IPs, domains, URLs, hashes, and generic
+artifact strings.
 
 Open:
 
@@ -648,15 +653,24 @@ The workflow checks:
 - ThreatFox and MalwareBazaar from abuse.ch
 - AlienVault OTX when `OTX_API_KEY` is configured
 - urlscan.io URL/domain/IP pivots
-- GreyNoise IP classification
+- GreyNoise Community IP classification without a required API key
 - AbuseIPDB IP abuse context when `ABUSEIPDB_API_KEY` is configured
 - Shodan host exposure context when `SHODAN_API_KEY` is configured
+- Censys Platform host, DNS, service, ASN, and certificate-name pivots when
+  `CENSYS_API_KEY` is configured
 
 The result includes:
 
 - artifact type and normalized value
 - source-by-source status and evidence summary
-- Tier 1 relationship nodes and local Tier 2 pivots
+- Tier 1, Tier 2, and Tier 3 relationship nodes
+- clickable relationship graph nodes with focused follow-up pivots and node
+  detail pages
+- saved investigations with reopen and delete actions
+- evidence ranking, next-best pivots, timeline extraction, and source-conflict
+  notes
+- urlscan activity analysis for suspicious redirect, payload, URL, and
+  infrastructure behavior
 - ATT&CK technique leads extracted from source metadata
 - actor/APT leads from local actor links and alias matching
 - kill-chain/tactic coverage based on discovered TTPs
@@ -682,7 +696,7 @@ Example request:
 {
   "artifact": "8.8.8.8",
   "domain": "enterprise-attack",
-  "depth": 2,
+  "depth": 3,
   "max_tier_nodes": 25,
   "ai_summarize": false,
   "ai_provider": "local"

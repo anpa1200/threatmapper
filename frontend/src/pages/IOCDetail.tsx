@@ -46,6 +46,12 @@ export function IOCDetail() {
                     <div className="mt-3 flex flex-wrap gap-2">
                       <ClickableValue value={item.value} label="Lookup" />
                       {item.source_url && <ClickableValue value={item.source_url} label="Source report" />}
+                      <button
+                        onClick={() => navigate(`/ioc-investigation?indicator=${encodeURIComponent(item.value)}`)}
+                        className="primary-action"
+                      >
+                        Investigate IOC
+                      </button>
                       <button onClick={() => navigate('/ioc-library')} className="secondary-action">Back to IOC Library</button>
                     </div>
                   </div>

@@ -58,9 +58,12 @@ VIRUSTOTAL_API_KEY=
 
 # Optional IOC Investigation pivots
 URLSCAN_API_KEY=
+# GreyNoise Community is used by default; no key is needed for baseline lookup.
 GREYNOISE_API_KEY=
 SHODAN_API_KEY=
 ABUSEIPDB_API_KEY=
+CENSYS_API_KEY=
+CENSYS_ORG_ID=
 
 # OpenCTI symmetric sync
 OPENCTI_URL=
@@ -85,10 +88,11 @@ Feed and key behavior:
 - `THREATFOX_AUTH_KEY` enables abuse.ch ThreatFox recent IOC sync.
 - `OTX_API_KEY` enables AlienVault OTX actor-attributed pulse enrichment.
 - `VIRUSTOTAL_API_KEY` enables on-demand IOC checks from IOC Library and VirusTotal Lookup.
-- `URLSCAN_API_KEY`, `GREYNOISE_API_KEY`, `SHODAN_API_KEY`, and
-  `ABUSEIPDB_API_KEY` enable optional IOC Investigation pivots. Public
-  urlscan/GreyNoise community responses may work without keys within provider
-  limits; Shodan and AbuseIPDB require keys for their API paths.
+- `URLSCAN_API_KEY`, `SHODAN_API_KEY`, `ABUSEIPDB_API_KEY`, `CENSYS_API_KEY`,
+  and optional `CENSYS_ORG_ID` enable IOC Investigation pivots. Public urlscan
+  responses may work without a key within provider limits. GreyNoise Community
+  is used by default without a key. Shodan, AbuseIPDB, and Censys require keys
+  for their API paths.
 - `OPENCTI_URL` and `OPENCTI_TOKEN` enable Feeds Management actions for OpenCTI pull, push, and bidirectional sync.
 - MISP event/attribute JSON exports, STIX bundles, TAXII collection URLs, custom JSON/CSV/TXT feeds, Sigma/YARA feeds, and sandbox behavior feeds are connected from the UI or API as source URLs/tokens.
 - Never commit a filled `.env` file.
@@ -131,7 +135,7 @@ curl "http://localhost:8000/api/attack/versions"
 Expected health response:
 
 ```json
-{"status":"ok","version":"2.7.0"}
+{"status":"ok","version":"3.0.0"}
 ```
 
 Run the deployment self-test:
@@ -243,11 +247,11 @@ Open:
 http://localhost:3000/ioc-investigation
 ```
 
-Paste an IP, domain, URL, hash, or suspicious artifact. Select Tier 1 only or
-Tier 1 + Tier 2 expansion. AdversaryGraph checks the local IOC database and
-configured enrichment sources, then returns source status, relationship pivots,
-ATT&CK TTP leads, possible actor leads, kill-chain/tactic context, and optional
-AI summary input.
+Paste an IP, domain, URL, hash, or suspicious artifact. Select Tier 1, Tier 2,
+or Tier 3 expansion. AdversaryGraph checks the local IOC database and configured
+enrichment sources, then returns source status, relationship pivots, ATT&CK TTP
+leads, possible actor leads, kill-chain/tactic context, source-conflict notes,
+next-best pivots, and optional AI summary input.
 
 Useful actions after a result:
 
@@ -255,3 +259,5 @@ Useful actions after a result:
 - add discovered TTPs to `My TTPs`
 - search the artifact in IOC Library
 - continue in VirusTotal Lookup
+- save, reopen, or delete the investigation
+- open graph nodes as follow-up IOC pages

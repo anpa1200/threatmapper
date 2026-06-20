@@ -4,7 +4,7 @@
 
 ### Investigation: Cluster Multiple APT Reports: AdversaryGraph Use Case
 
-**Version focus:** AdversaryGraph v2.7.0
+**Version focus:** AdversaryGraph v3.0.0
 **Level:** Complex investigation workflow
 **Workflow group:** Complex Investigation Usecases
 

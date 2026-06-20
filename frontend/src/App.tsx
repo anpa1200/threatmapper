@@ -17,6 +17,7 @@ import { VirusTotalLookup } from '@/pages/VirusTotalLookup';
 import { IOCInvestigation } from '@/pages/IOCInvestigation';
 import { IOCLibrary } from '@/pages/IOCLibrary';
 import { IOCDetail } from '@/pages/IOCDetail';
+import { IOCNodeDetail } from '@/pages/IOCNodeDetail';
 import { FeedsManagement } from '@/pages/FeedsManagement';
 import { SystemSelfTestPopup } from '@/components/SystemSelfTestPopup';
 import { GlobalErrorPopup } from '@/components/GlobalErrorPopup';
@@ -52,6 +53,7 @@ export default function App() {
               <Route path="/sector-intel" element={<SectorIntel />} />
               <Route path="/ioc-library" element={<IOCLibrary />} />
               <Route path="/ioc-library/:id" element={<IOCDetail />} />
+              <Route path="/ioc-node" element={<IOCNodeDetail />} />
               <Route path="/feeds" element={<FeedsManagement />} />
               <Route path="/troubleshooting" element={<Troubleshooting />} />
               <Route path="/virustotal" element={<VirusTotalLookup />} />

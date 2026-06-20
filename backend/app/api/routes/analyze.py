@@ -67,6 +67,7 @@ class AnalysisOut(BaseModel):
     techniques: list[TechniqueHit]
     apt_matches: list[AptMatch]
     apt_hints: list[str]
+    raw_response: str = ""
 
 
 _MODEL_RE = re.compile(r'^[\w./:@-]{1,100}$')
@@ -479,6 +480,7 @@ async def get_result(
         techniques=techniques,
         apt_matches=apt_matches,
         apt_hints=[],
+        raw_response=res.raw_response or "",
     )
 
 
@@ -794,6 +796,7 @@ def _build_out(
         ],
         apt_matches=apt_matches,
         apt_hints=result.apt_hints,
+        raw_response=result.raw_response[:10_000],
     )
 
 

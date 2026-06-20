@@ -72,7 +72,7 @@ async def investigate_ioc(
     source_results.append(otx)
     _merge_graph(graph_nodes, graph_edges, otx, normalized)
 
-    urlscan = await _safe_source("urlscan", lambda: _urlscan_enrichment(normalized, target.type))
+    urlscan = await _safe_source("urlscan", lambda: _urlscan_enrichment(normalized, target.type, options))
     source_results.append(urlscan)
     _merge_graph(graph_nodes, graph_edges, urlscan, normalized)
 
@@ -88,23 +88,27 @@ async def investigate_ioc(
     source_results.append(shodan)
     _merge_graph(graph_nodes, graph_edges, shodan, normalized)
 
-    tier1_values = _tier_values(graph_nodes, 1, options.max_tier_nodes)
-    tier2_results: list[dict[str, Any]] = []
-    if options.depth >= 2:
-        for related in tier1_values:
-            result = await _safe_source("local-tier2", lambda value=related: _local_enrichment(session, value, "", options.domain, tier=2))
-            if result["status"] == "ok" and result.get("relationships"):
-                tier2_results.append(result)
-                _merge_graph(graph_nodes, graph_edges, result, related, default_tier=2)
+    censys = await _safe_source("censys", lambda: _censys_enrichment(normalized, target.type))
+    source_results.append(censys)
+    _merge_graph(graph_nodes, graph_edges, censys, normalized)
 
-    techniques = await _resolve_techniques(session, _collect_attack_ids(source_results, tier2_results), options.domain)
-    actors = await _resolve_actors(session, source_results, tier2_results, options.domain)
+    tier2_results: list[dict[str, Any]] = []
+    tier3_results: list[dict[str, Any]] = []
+    if options.depth >= 2:
+        tier2_results = await _expand_local_tier(session, graph_nodes, graph_edges, options, source_tier=1, target_tier=2)
+    if options.depth >= 3:
+        tier3_results = await _expand_local_tier(session, graph_nodes, graph_edges, options, source_tier=2, target_tier=3)
+
+    pivot_results = [*tier2_results, *tier3_results]
+    techniques = await _resolve_techniques(session, _collect_attack_ids(source_results, pivot_results), options.domain)
+    actors = await _resolve_actors(session, source_results, pivot_results, options.domain)
     score = _suspicion_score(source_results, graph_nodes)
     report_input = _report_input(
         normalized=normalized,
         artifact_type=target.type,
         source_results=source_results,
         tier2_results=tier2_results,
+        tier3_results=tier3_results,
         graph_nodes=list(graph_nodes.values()),
         graph_edges=graph_edges,
         techniques=techniques,
@@ -125,12 +129,34 @@ async def investigate_ioc(
         "actors": actors,
         "sources": source_results,
         "tier2_sources": tier2_results,
+        "tier3_sources": tier3_results,
         "relationships": {
             "nodes": sorted(graph_nodes.values(), key=lambda item: (item["tier"], item["type"], item["value"]))[:300],
             "edges": graph_edges[:500],
         },
         "ai_input": report_input,
     }
+
+
+async def _expand_local_tier(
+    session: AsyncSession,
+    graph_nodes: dict[str, dict[str, Any]],
+    graph_edges: list[dict[str, Any]],
+    options: InvestigationOptions,
+    *,
+    source_tier: int,
+    target_tier: int,
+) -> list[dict[str, Any]]:
+    results: list[dict[str, Any]] = []
+    for related in _tier_values(graph_nodes, source_tier, options.max_tier_nodes):
+        result = await _safe_source(
+            f"local-tier{target_tier}",
+            lambda value=related: _local_enrichment(session, value, "", options.domain, tier=target_tier),
+        )
+        if result["status"] == "ok" and result.get("relationships"):
+            results.append(result)
+            _merge_graph(graph_nodes, graph_edges, result, related, default_tier=target_tier)
+    return results
 
 
 async def _safe_source(name: str, fn) -> dict[str, Any]:
@@ -298,12 +324,15 @@ async def _otx_enrichment(value: str, artifact_type: str) -> dict[str, Any]:
     }
 
 
-async def _urlscan_enrichment(value: str, artifact_type: str) -> dict[str, Any]:
+async def _urlscan_enrichment(value: str, artifact_type: str, options: InvestigationOptions) -> dict[str, Any]:
     query = value
     if artifact_type == "domain":
         query = f"domain:{value}"
     elif artifact_type == "ip":
         query = f"ip:{value}"
+    elif artifact_type == "url":
+        host = urlparse(value).hostname
+        query = f"domain:{host}" if host else value
     headers = {"API-Key": settings.urlscan_api_key} if settings.urlscan_api_key else {}
     payload = await _get_json("https://urlscan.io/api/v1/search/", params={"q": query, "size": "10"}, headers=headers)
     rows = payload.get("results") or []
@@ -319,21 +348,145 @@ async def _urlscan_enrichment(value: str, artifact_type: str) -> dict[str, Any]:
         ]:
             if candidate:
                 relationships.append(_relationship(value, str(candidate), kind, "urlscan", 1, evidence))
+    activity = await _urlscan_activity_analysis(value, rows[:10], payload, options)
+    technique_ids = [str(item) for item in activity.get("technique_ids", [])]
+    for finding in activity.get("findings", []):
+        label = str(finding.get("pattern") or finding.get("severity") or "").strip()
+        if label:
+            relationships.append(_relationship(value, label, "suspicious-pattern", "urlscan-analysis", 1, str(finding.get("evidence") or "urlscan activity analysis")))
     return {
         "source": "urlscan",
         "status": "ok",
-        "summary": f"urlscan returned {len(rows)} scan result(s).",
+        "summary": f"urlscan returned {len(rows)} scan result(s). {activity.get('summary', '')}".strip(),
         "relationships": relationships,
-        "technique_ids": [],
+        "technique_ids": technique_ids,
         "actors": [],
-        "raw": _compact_raw(payload),
+        "raw": {**_compact_raw(payload), "activity_analysis": activity},
+    }
+
+
+async def _urlscan_activity_analysis(
+    value: str,
+    rows: list[dict[str, Any]],
+    payload: dict[str, Any],
+    options: InvestigationOptions,
+) -> dict[str, Any]:
+    heuristic = _urlscan_heuristic_analysis(value, rows, payload)
+    if not options.ai_summarize:
+        return heuristic
+    try:
+        adapter = get_adapter(options.ai_provider)
+        text = json.dumps({"indicator": value, "urlscan_results": rows}, ensure_ascii=True, default=str)[:18000]
+        system = "You are a CTI analyst reviewing urlscan activity. Return only valid JSON."
+        user = (
+            "Analyze these urlscan search results for suspicious or malicious web activity patterns. "
+            "Return JSON with keys summary, findings, technique_ids. findings must be a list of objects "
+            "with severity, pattern, evidence, rationale. technique_ids must contain only ATT&CK IDs when "
+            "there is defensible behavior evidence. Do not overclaim attribution.\n\n"
+            f"{text}"
+        )
+        raw = await adapter._raw_complete(system, user)
+        data = _extract_json_object(raw)
+        findings = data.get("findings") if isinstance(data.get("findings"), list) else []
+        technique_ids = _dedupe([*heuristic.get("technique_ids", []), *[str(item) for item in data.get("technique_ids", [])]])
+        return {
+            "mode": f"ai:{options.ai_provider}",
+            "summary": str(data.get("summary") or heuristic.get("summary") or ""),
+            "findings": [item for item in findings if isinstance(item, dict)][:12] or heuristic.get("findings", []),
+            "technique_ids": technique_ids,
+            "heuristic_findings": heuristic.get("findings", []),
+        }
+    except Exception as exc:
+        return {**heuristic, "mode": "heuristic", "ai_error": str(exc)}
+
+
+def _urlscan_heuristic_analysis(value: str, rows: list[dict[str, Any]], payload: dict[str, Any]) -> dict[str, Any]:
+    findings: list[dict[str, Any]] = []
+    technique_ids: list[str] = []
+    raw_text = json.dumps({"value": value, "rows": rows, "payload": payload}, default=str).lower()
+    verdict_hits = 0
+    redirect_hosts: set[str] = set()
+    submitted_hosts: set[str] = set()
+    ips: set[str] = set()
+
+    for row in rows:
+        page = row.get("page") or {}
+        task = row.get("task") or {}
+        verdicts = row.get("verdicts") or {}
+        stats = row.get("stats") or {}
+        if any(str(verdicts.get(key, {})).lower().find("malicious") >= 0 for key in ("overall", "urlscan", "engines", "community")):
+            verdict_hits += 1
+        page_url = str(page.get("url") or "")
+        task_url = str(task.get("url") or "")
+        for url_value in (page_url, task_url):
+            host = urlparse(url_value).hostname
+            if host:
+                if url_value == task_url:
+                    submitted_hosts.add(host.lower())
+                else:
+                    redirect_hosts.add(host.lower())
+        if page.get("ip"):
+            ips.add(str(page["ip"]))
+        if int(stats.get("uniqIPs") or stats.get("uniq_ips") or 0) >= 5:
+            findings.append({
+                "severity": "medium",
+                "pattern": "multiple network destinations",
+                "evidence": f"urlscan reported {stats.get('uniqIPs') or stats.get('uniq_ips')} unique IPs",
+                "rationale": "Multiple distinct network destinations can indicate redirect, loader, or injected third-party activity.",
+            })
+
+    if verdict_hits:
+        findings.append({
+            "severity": "high",
+            "pattern": "malicious urlscan verdict",
+            "evidence": f"{verdict_hits} urlscan result(s) contain malicious verdict context",
+            "rationale": "A malicious verdict is a source-backed signal requiring analyst review.",
+        })
+        technique_ids.append("T1204")
+    if redirect_hosts - submitted_hosts:
+        findings.append({
+            "severity": "medium",
+            "pattern": "redirect or hosted-content pivot",
+            "evidence": f"observed page hosts differ from submitted hosts: {', '.join(sorted((redirect_hosts - submitted_hosts))[:5])}",
+            "rationale": "Domain changes after submission may indicate redirect chains, compromised content, or external payload hosting.",
+        })
+        technique_ids.append("T1189")
+    for term, pattern, technique in [
+        ("phish", "phishing-themed content", "T1566"),
+        ("credential", "credential collection language", "T1056"),
+        ("login", "login page or credential prompt", "T1056"),
+        ("c2", "command-and-control keyword", "T1071"),
+        ("payload", "payload delivery keyword", "T1105"),
+        ("malware", "malware keyword", "T1105"),
+    ]:
+        if term in raw_text:
+            findings.append({
+                "severity": "medium",
+                "pattern": pattern,
+                "evidence": f"urlscan metadata contains '{term}'",
+                "rationale": "Keyword evidence is weak alone, but useful for triage when combined with verdicts and pivots.",
+            })
+            technique_ids.append(technique)
+
+    findings = _dedupe_findings(findings)
+    summary = f"urlscan activity analysis found {len(findings)} suspicious pattern(s)." if findings else "urlscan activity analysis found no obvious suspicious pattern."
+    return {
+        "mode": "heuristic",
+        "summary": summary,
+        "findings": findings[:12],
+        "technique_ids": _dedupe(technique_ids),
+        "observed_ips": sorted(ips)[:20],
+        "observed_hosts": sorted(redirect_hosts | submitted_hosts)[:20],
     }
 
 
 async def _greynoise_enrichment(value: str, artifact_type: str) -> dict[str, Any]:
     if artifact_type != "ip":
         return {"source": "greynoise", "status": "skipped", "summary": "GreyNoise is IP-focused; input is not an IP.", "relationships": [], "technique_ids": [], "actors": [], "raw": {}}
-    headers = {"key": settings.greynoise_api_key} if settings.greynoise_api_key else {}
+    # Use GreyNoise Community by default. It does not require an API key and is
+    # safer for local deployments because a stale optional key cannot break
+    # baseline IP reputation context.
+    headers: dict[str, str] = {}
     endpoint = f"https://api.greynoise.io/v3/community/{quote(value)}"
     payload = await _get_json(endpoint, headers=headers)
     relationships = []
@@ -347,7 +500,7 @@ async def _greynoise_enrichment(value: str, artifact_type: str) -> dict[str, Any
         "relationships": relationships,
         "technique_ids": [],
         "actors": [],
-        "raw": _compact_raw(payload),
+        "raw": _compact_raw({"mode": "community", **payload}),
     }
 
 
@@ -406,6 +559,68 @@ async def _shodan_enrichment(value: str, artifact_type: str) -> dict[str, Any]:
         "summary": f"Shodan returned {len(payload.get('ports') or [])} open port(s).",
         "relationships": relationships,
         "technique_ids": [],
+        "actors": [],
+        "raw": _compact_raw(payload),
+    }
+
+
+async def _censys_enrichment(value: str, artifact_type: str) -> dict[str, Any]:
+    if artifact_type not in {"ip", "domain", "url"}:
+        return {"source": "censys", "status": "skipped", "summary": "Censys host and search pivots support IP, domain, and URL inputs.", "relationships": [], "technique_ids": [], "actors": [], "raw": {}}
+    if not settings.censys_api_key:
+        return _not_configured("censys", "CENSYS_API_KEY")
+
+    headers = {
+        "Authorization": f"Bearer {settings.censys_api_key}",
+        "Accept": "application/vnd.censys.api.v3.host.v1+json" if artifact_type == "ip" else "application/json",
+    }
+    if settings.censys_org_id:
+        headers["X-Organization-ID"] = settings.censys_org_id
+
+    if artifact_type == "ip":
+        payload = await _get_json(f"https://api.platform.censys.io/v3/global/asset/host/{quote(value)}", headers=headers)
+        resource = ((payload.get("result") or {}).get("resource") or payload.get("resource") or {})
+        relationships = _censys_host_relationships(value, resource)
+        return {
+            "source": "censys",
+            "status": "ok",
+            "summary": f"Censys host lookup returned {len(resource.get('services') or [])} service(s).",
+            "relationships": relationships,
+            "technique_ids": _dedupe([match.upper() for match in ATTACK_ID_RE.findall(json.dumps(payload, default=str))]),
+            "actors": [],
+            "raw": _compact_raw(payload),
+        }
+
+    host = urlparse(value).hostname if artifact_type == "url" else value
+    if not host:
+        return {"source": "censys", "status": "skipped", "summary": "Censys could not extract a domain host from this URL.", "relationships": [], "technique_ids": [], "actors": [], "raw": {}}
+    query = f'host.dns.names: "{host}" or host.services.tls.certificates.leaf_data.names: "{host}"'
+    payload = await _post_json(
+        "https://api.platform.censys.io/v3/global/search/query",
+        json_body={
+            "query": query,
+            "page_size": 10,
+            "fields": [
+                "host.ip",
+                "host.location.country",
+                "host.autonomous_system.name",
+                "host.services.port",
+                "host.services.service_name",
+                "host.dns.names",
+            ],
+        },
+        headers=headers,
+    )
+    hits = _censys_hits(payload)
+    relationships: list[dict[str, Any]] = []
+    for hit in hits[:10]:
+        relationships.extend(_censys_search_relationships(host, hit))
+    return {
+        "source": "censys",
+        "status": "ok",
+        "summary": f"Censys search returned {len(hits)} host result(s) for {host}.",
+        "relationships": relationships,
+        "technique_ids": _dedupe([match.upper() for match in ATTACK_ID_RE.findall(json.dumps(payload, default=str))]),
         "actors": [],
         "raw": _compact_raw(payload),
     }
@@ -526,6 +741,83 @@ def _row_relationships(root: str, row: dict[str, Any], source: str) -> list[dict
     return relationships
 
 
+def _censys_host_relationships(root: str, resource: dict[str, Any]) -> list[dict[str, Any]]:
+    relationships: list[dict[str, Any]] = []
+    location = resource.get("location") or {}
+    autonomous_system = resource.get("autonomous_system") or {}
+    whois = resource.get("whois") or {}
+    dns = resource.get("dns") or {}
+
+    for candidate, kind, evidence in [
+        (location.get("country") or location.get("country_code"), "country", "Censys host location"),
+        (location.get("city"), "city", "Censys host location"),
+        (autonomous_system.get("name") or autonomous_system.get("description"), "asn", "Censys autonomous system"),
+        (autonomous_system.get("asn"), "asn", "Censys ASN"),
+        (((whois.get("organization") or {}).get("name")), "organization", "Censys WHOIS organization"),
+        (((whois.get("network") or {}).get("name")), "network", "Censys WHOIS network"),
+    ]:
+        if candidate:
+            relationships.append(_relationship(root, str(candidate), kind, "censys", 1, evidence))
+
+    for name in _dedupe([*(dns.get("names") or []), *((dns.get("reverse_dns") or {}).get("names") or [])]):
+        relationships.append(_relationship(root, str(name), "domain", "censys", 1, "Censys DNS name"))
+
+    for service in resource.get("services") or []:
+        if not isinstance(service, dict):
+            continue
+        port = service.get("port")
+        service_name = service.get("service_name") or service.get("protocol") or service.get("transport_protocol")
+        if port:
+            label = f"{service_name or 'service'}:{port}"
+            relationships.append(_relationship(root, label, "service-port", "censys", 1, "Censys exposed service"))
+        for software in service.get("software") or []:
+            if isinstance(software, dict):
+                name = software.get("name") or software.get("product") or software.get("vendor")
+                if name:
+                    relationships.append(_relationship(root, str(name), "software", "censys", 1, "Censys service software"))
+        tls = service.get("tls") or {}
+        certs = tls.get("certificates") or {}
+        leaf = certs.get("leaf_data") or certs.get("leaf") or {}
+        for name in leaf.get("names") or []:
+            relationships.append(_relationship(root, str(name), "domain", "censys", 1, "Censys TLS certificate name"))
+        for hash_key in ("fingerprint_sha256", "fingerprint_sha1"):
+            if leaf.get(hash_key):
+                relationships.append(_relationship(root, str(leaf[hash_key]), "hash", "censys", 1, f"Censys TLS {hash_key}"))
+    return relationships
+
+
+def _censys_hits(payload: dict[str, Any]) -> list[dict[str, Any]]:
+    result = payload.get("result") or {}
+    for key in ("hits", "resources", "results"):
+        value = result.get(key) or payload.get(key)
+        if isinstance(value, list):
+            return [item for item in value if isinstance(item, dict)]
+    return []
+
+
+def _censys_search_relationships(root: str, hit: dict[str, Any]) -> list[dict[str, Any]]:
+    relationships: list[dict[str, Any]] = []
+    host = hit.get("host") if isinstance(hit.get("host"), dict) else hit
+    ip = host.get("ip") or hit.get("ip")
+    if ip:
+        relationships.append(_relationship(root, str(ip), "ip", "censys", 1, "Censys host search result"))
+    location = host.get("location") or {}
+    autonomous_system = host.get("autonomous_system") or {}
+    for candidate, kind, evidence in [
+        (location.get("country") or location.get("country_code"), "country", "Censys search host location"),
+        (autonomous_system.get("name") or autonomous_system.get("description"), "asn", "Censys search autonomous system"),
+    ]:
+        if candidate:
+            relationships.append(_relationship(root, str(candidate), kind, "censys", 1, evidence))
+    dns = host.get("dns") or {}
+    for name in dns.get("names") or []:
+        relationships.append(_relationship(root, str(name), "domain", "censys", 1, "Censys search DNS name"))
+    for service in host.get("services") or []:
+        if isinstance(service, dict) and service.get("port"):
+            relationships.append(_relationship(root, f"{service.get('service_name') or 'service'}:{service['port']}", "service-port", "censys", 1, "Censys search exposed service"))
+    return relationships
+
+
 def _merge_graph(nodes: dict[str, dict[str, Any]], edges: list[dict[str, Any]], result: dict[str, Any], root: str, default_tier: int = 1) -> None:
     for rel in result.get("relationships") or []:
         source = str(rel.get("source") or root)
@@ -594,6 +886,18 @@ def _suspicion_score(source_results: list[dict[str, Any]], nodes: dict[str, dict
             score += 20
         if result.get("actors"):
             score += 20
+        activity = (result.get("raw") or {}).get("activity_analysis") if isinstance(result.get("raw"), dict) else {}
+        if isinstance(activity, dict):
+            for finding in activity.get("findings") or []:
+                if not isinstance(finding, dict):
+                    continue
+                severity = str(finding.get("severity") or "").lower()
+                if severity == "high":
+                    score += 14
+                elif severity == "medium":
+                    score += 8
+                elif severity:
+                    score += 3
         for term in ("c2", "botnet", "ransomware", "trojan", "stealer", "backdoor"):
             if term in raw_text:
                 score += 8
@@ -701,11 +1005,41 @@ def _dedupe_actors(values: list[dict[str, Any]]) -> list[dict[str, Any]]:
     seen: set[str] = set()
     output: list[dict[str, Any]] = []
     for value in values:
-        key = (str(value.get("attack_id") or ""), str(value.get("name") or "")).lower()
+        key = f"{value.get('attack_id') or ''}:{value.get('name') or ''}".lower()
         if key.strip(":") and key not in seen:
             seen.add(key)
             output.append(value)
     return output[:50]
+
+
+def _dedupe_findings(values: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    seen: set[str] = set()
+    output: list[dict[str, Any]] = []
+    for value in values:
+        key = f"{value.get('severity') or ''}:{value.get('pattern') or ''}:{value.get('evidence') or ''}".lower()
+        if key.strip(":") and key not in seen:
+            seen.add(key)
+            output.append(value)
+    return output
+
+
+def _extract_json_object(text: str) -> dict[str, Any]:
+    cleaned = text.strip()
+    cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r"\s*```$", "", cleaned)
+    try:
+        value = json.loads(cleaned)
+        return value if isinstance(value, dict) else {}
+    except json.JSONDecodeError:
+        start = cleaned.find("{")
+        end = cleaned.rfind("}")
+        if start >= 0 and end > start:
+            try:
+                value = json.loads(cleaned[start:end + 1])
+                return value if isinstance(value, dict) else {}
+            except json.JSONDecodeError:
+                return {}
+    return {}
 
 
 def _short(value: str, limit: int) -> str:

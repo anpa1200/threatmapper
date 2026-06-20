@@ -44,6 +44,8 @@ class Settings(BaseSettings):
     greynoise_api_key: str = ""
     shodan_api_key: str = ""
     abuseipdb_api_key: str = ""
+    censys_api_key: str = ""
+    censys_org_id: str = ""
 
     # OpenCTI symmetric sync
     opencti_url: str = ""

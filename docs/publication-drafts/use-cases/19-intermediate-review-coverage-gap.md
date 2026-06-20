@@ -4,7 +4,7 @@
 
 ### Review One Coverage Gap: AdversaryGraph Use Case
 
-**Version focus:** AdversaryGraph v2.7.0
+**Version focus:** AdversaryGraph v3.0.0
 **Level:** Intermediate, 3-5 steps
 **Workflow group:** Intermediate Usecases
 

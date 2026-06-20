@@ -4,6 +4,28 @@
 
 No unreleased changes.
 
+## v3.0.0 - 2026-06-20
+
+- Promoted AdversaryGraph to v3.0.0 with the investigation workflow as the
+  main platform focus.
+- Expanded IOC Investigation with Tier 1, Tier 2, and Tier 3 relationship
+  expansion for IPs, domains, URLs, hashes, and suspicious artifacts.
+- Added saved IOC investigations with history, reload, and delete actions.
+- Added an analyst-focused relationship graph with actionable-node filtering,
+  node detail pages, connected-node focus, clickable pivots, and observable
+  reinvestigation from any graph node.
+- Added evidence ranking, next-best pivot ranking, timeline extraction, and
+  source-conflict summaries to make IOC investigations easier to defend.
+- Added urlscan activity analysis for suspicious URL/page behavior and TTP
+  leads.
+- Added AI log/PCAP analysis workflows for extracting IOCs, suspicious
+  behavior, functions, PowerShell indicators, TTP leads, and report-ready
+  summaries from telemetry.
+- Added richer AI report formatting and safer overlap/explanation language for
+  analyst handoff.
+- Added the v3.0 release notes, release summary, and Medium-style publication
+  draft.
+
 ## v2.7.0 - 2026-06-20
 
 - Added IOC Investigation as a dedicated Tier 1 / Tier 2 pivot workflow for

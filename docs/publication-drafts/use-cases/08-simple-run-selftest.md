@@ -4,7 +4,7 @@
 
 ### Run Deployment Selftest: AdversaryGraph Use Case
 
-**Version focus:** AdversaryGraph v2.7.0
+**Version focus:** AdversaryGraph v3.0.0
 **Level:** Simple, 1-2 steps
 **Workflow group:** Simple Usecases
 

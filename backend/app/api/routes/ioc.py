@@ -3,15 +3,18 @@ from __future__ import annotations
 import csv
 import io
 import re
+import uuid
 from datetime import datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel, Field
+from sqlalchemy import delete as sql_delete, desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_session
+from app.models.ioc import IOCInvestigationSession
 from app.services.file_parser import extract_text
 from app.services.ioc_extractor import extract_iocs_from_text
 from app.services.ioc_intel import (
@@ -364,13 +367,28 @@ class VirusTotalLookupOut(BaseModel):
 class IOCInvestigationIn(BaseModel):
     artifact: str = Field(..., min_length=1, max_length=1000)
     domain: str = "enterprise-attack"
-    depth: int = Field(2, ge=1, le=2)
+    depth: int = Field(2, ge=1, le=3)
     max_tier_nodes: int = Field(25, ge=5, le=75)
     ai_summarize: bool = False
     ai_provider: str = Field("local", pattern="^(local|claude|openai|gemini|minimax)$")
 
 
+class IOCInvestigationHistoryOut(BaseModel):
+    session_id: str
+    artifact: str
+    artifact_type: str
+    verdict: str
+    suspicion_score: int
+    depth: int
+    ai_summarize: bool
+    ai_provider: str
+    created_at: str
+    technique_count: int = 0
+    actor_count: int = 0
+
+
 class IOCInvestigationOut(BaseModel):
+    session_id: str | None = None
     artifact: str
     artifact_type: str
     depth: int
@@ -382,6 +400,7 @@ class IOCInvestigationOut(BaseModel):
     actors: list[dict[str, Any]] = Field(default_factory=list)
     sources: list[dict[str, Any]] = Field(default_factory=list)
     tier2_sources: list[dict[str, Any]] = Field(default_factory=list)
+    tier3_sources: list[dict[str, Any]] = Field(default_factory=list)
     relationships: dict[str, Any] = Field(default_factory=dict)
     ai_input: dict[str, Any] = Field(default_factory=dict)
 
@@ -407,7 +426,7 @@ async def virustotal_lookup(payload: VirusTotalLookupIn, session: AsyncSession =
 @router.post("/investigate", response_model=IOCInvestigationOut)
 async def investigate_ioc_route(payload: IOCInvestigationIn, session: AsyncSession = Depends(get_session)):
     try:
-        return await investigate_ioc(
+        result = await investigate_ioc(
             session,
             payload.artifact,
             options=InvestigationOptions(
@@ -418,10 +437,83 @@ async def investigate_ioc_route(payload: IOCInvestigationIn, session: AsyncSessi
                 ai_provider=payload.ai_provider,
             ),
         )
+        saved = IOCInvestigationSession(
+            id=uuid.uuid4(),
+            artifact=result["artifact"],
+            artifact_type=result["artifact_type"],
+            verdict=result["verdict"],
+            suspicion_score=result["suspicion_score"],
+            depth=result["depth"],
+            ai_summarize=payload.ai_summarize,
+            ai_provider=payload.ai_provider,
+            result=result,
+        )
+        session.add(saved)
+        await session.commit()
+        result["session_id"] = str(saved.id)
+        return result
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
     except Exception as exc:
         raise HTTPException(502, f"IOC investigation failed: {type(exc).__name__}: {exc}") from exc
+
+
+@router.get("/investigations", response_model=list[IOCInvestigationHistoryOut])
+async def list_ioc_investigations(
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+    session: AsyncSession = Depends(get_session),
+):
+    rows = await session.execute(
+        select(IOCInvestigationSession)
+        .order_by(desc(IOCInvestigationSession.created_at))
+        .offset(offset)
+        .limit(limit)
+    )
+    output: list[IOCInvestigationHistoryOut] = []
+    for item in rows.scalars().all():
+        result = item.result or {}
+        output.append(IOCInvestigationHistoryOut(
+            session_id=str(item.id),
+            artifact=item.artifact,
+            artifact_type=item.artifact_type,
+            verdict=item.verdict,
+            suspicion_score=item.suspicion_score,
+            depth=item.depth,
+            ai_summarize=item.ai_summarize,
+            ai_provider=item.ai_provider,
+            created_at=item.created_at.isoformat() if item.created_at else "",
+            technique_count=len(result.get("techniques") or []),
+            actor_count=len(result.get("actors") or []),
+        ))
+    return output
+
+
+@router.get("/investigations/{session_id}", response_model=IOCInvestigationOut)
+async def get_ioc_investigation(session_id: str, session: AsyncSession = Depends(get_session)):
+    try:
+        sid = uuid.UUID(session_id)
+    except ValueError:
+        raise HTTPException(400, "Invalid investigation session ID") from None
+    row = await session.execute(select(IOCInvestigationSession).where(IOCInvestigationSession.id == sid))
+    item = row.scalar_one_or_none()
+    if not item:
+        raise HTTPException(404, "IOC investigation session not found")
+    result = dict(item.result or {})
+    result["session_id"] = str(item.id)
+    return result
+
+
+@router.delete("/investigations/{session_id}", status_code=204)
+async def delete_ioc_investigation(session_id: str, session: AsyncSession = Depends(get_session)):
+    try:
+        sid = uuid.UUID(session_id)
+    except ValueError:
+        raise HTTPException(400, "Invalid investigation session ID") from None
+    result = await session.execute(sql_delete(IOCInvestigationSession).where(IOCInvestigationSession.id == sid))
+    if not getattr(result, "rowcount", 0):
+        raise HTTPException(404, "IOC investigation session not found")
+    await session.commit()
 
 
 @router.post("/sources", response_model=IOCSourceOut)

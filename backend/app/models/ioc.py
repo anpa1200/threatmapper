@@ -1,7 +1,9 @@
 from datetime import datetime
 
 from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, func
-from sqlalchemy.dialects.postgresql import JSONB
+import uuid
+
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -68,3 +70,20 @@ class IOCActorLink(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     indicator: Mapped["IOCIndicator"] = relationship(back_populates="actor_links")
+
+
+class IOCInvestigationSession(Base):
+    """Stored IOC investigation result for analyst review and reuse."""
+
+    __tablename__ = "ioc_investigation_sessions"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    artifact: Mapped[str] = mapped_column(Text, index=True)
+    artifact_type: Mapped[str] = mapped_column(String(80), index=True)
+    verdict: Mapped[str] = mapped_column(String(80), default="")
+    suspicion_score: Mapped[int] = mapped_column(Integer, default=0)
+    depth: Mapped[int] = mapped_column(Integer, default=2)
+    ai_summarize: Mapped[bool] = mapped_column(default=False)
+    ai_provider: Mapped[str] = mapped_column(String(40), default="local")
+    result: Mapped[dict] = mapped_column(JSONB, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

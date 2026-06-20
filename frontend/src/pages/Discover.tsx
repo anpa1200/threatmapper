@@ -109,7 +109,7 @@ export function Discover() {
                   </button>
                 </div>
                 <ActionLink label="Open IOC Library" detail="Search, sort, enrich, export STIX." onClick={() => navigate('/ioc-library')} />
-                <ActionLink label="Open IOC Investigation" detail="Tier 1/Tier 2 pivots, TTPs, actors, AI summary." onClick={() => navigate('/ioc-investigation')} />
+                <ActionLink label="Open IOC Investigation" detail="Tier 1/2/3 pivots, graph, saved sessions, TTPs, actors, AI summary." onClick={() => navigate('/ioc-investigation')} />
                 <ActionLink label="Manage feeds" detail={`${enabledSources.length} enabled sources${staleSources.length ? `, ${staleSources.length} need attention` : ''}.`} onClick={() => navigate('/feeds')} />
               </div>
             </Panel>

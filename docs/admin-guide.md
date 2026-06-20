@@ -47,9 +47,11 @@ Important settings:
 | `OTX_API_KEY` | Optional AlienVault OTX key for actor pulse IOC enrichment |
 | `VIRUSTOTAL_API_KEY` | Optional VirusTotal key for on-demand IOC reputation and ATT&CK context lookup |
 | `URLSCAN_API_KEY` | Optional urlscan.io key for IOC Investigation URL/domain pivots |
-| `GREYNOISE_API_KEY` | Optional GreyNoise key for IP noise/benign scanner context |
+| `GREYNOISE_API_KEY` | Reserved for future GreyNoise paid API support; IOC Investigation uses GreyNoise Community without a key |
 | `SHODAN_API_KEY` | Optional Shodan key for exposed service, hostname, and vulnerability pivots |
 | `ABUSEIPDB_API_KEY` | Optional AbuseIPDB key for IP abuse confidence, ISP, hostname, and usage-type pivots |
+| `CENSYS_API_KEY` | Optional Censys Platform personal access token for host, DNS, service, ASN, and certificate pivots |
+| `CENSYS_ORG_ID` | Optional Censys organization ID for organization-scoped Platform API calls |
 | `OPENCTI_URL` | Optional OpenCTI base URL for symmetric CTI sync |
 | `OPENCTI_TOKEN` | Optional OpenCTI API token for indicator, observable, label, and report sync |
 | `OPENCTI_SYNC_LIMIT` | Default OpenCTI object limit per sync action |
@@ -150,7 +152,7 @@ docker compose up -d --build
 Review `CHANGELOG.md` before upgrading tagged releases.
 
 For the current feature scope, review
-[`docs/release-summary-v2.7.0.md`](release-summary-v2.7.0.md).
+[`docs/release-summary-v3.0.0.md`](release-summary-v3.0.0.md).
 
 ## Feeds Management
 
@@ -440,10 +442,12 @@ matched adversary on the matrix.
 
 ## IOC Investigation
 
-IOC Investigation is the v2.7 Tier 1 / Tier 2 pivot workflow for one artifact.
+IOC Investigation is the v3.0 Tier 1 / Tier 2 / Tier 3 pivot workflow for one artifact.
 It combines local IOC database evidence with configured enrichment providers and
 returns source status, relationship pivots, TTP leads, actor leads, kill-chain
-context, and optional AI summary output.
+context, clickable graph pivots, saved investigation history, evidence ranking,
+next-best pivots, timeline notes, source-conflict notes, urlscan activity
+analysis, and optional AI summary output.
 
 Optional provider settings:
 
@@ -453,9 +457,11 @@ Optional provider settings:
 | `THREATFOX_AUTH_KEY` | ThreatFox IOC and hash lookup |
 | `OTX_API_KEY` | AlienVault OTX pulse context |
 | `URLSCAN_API_KEY` | Higher-limit urlscan.io search; public lookup can work without a key |
-| `GREYNOISE_API_KEY` | GreyNoise IP context beyond public/community limits |
+| `GREYNOISE_API_KEY` | Reserved for future GreyNoise paid API support; Community lookup is used by default without a key |
 | `ABUSEIPDB_API_KEY` | AbuseIPDB IP abuse confidence and ISP/hostname context |
 | `SHODAN_API_KEY` | Shodan host exposure, ports, hostnames, and vulnerability context |
+| `CENSYS_API_KEY` | Censys Platform host lookup and search query pivots |
+| `CENSYS_ORG_ID` | Optional Censys organization ID, sent as `X-Organization-ID` |
 
 API:
 
@@ -476,6 +482,6 @@ Request:
 }
 ```
 
-`depth` is capped at 2 by design to keep external-provider fan-out bounded.
+`depth` is capped at 3 by design to keep external-provider fan-out bounded.
 Missing optional keys are returned as source-level `not_configured` statuses and
 do not prevent local enrichment or other configured providers from running.

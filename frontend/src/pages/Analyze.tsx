@@ -565,14 +565,27 @@ function ResultsView({
 
   const canReview = result.session_id !== 'stream';
   const canInject = acceptedTechniqueIds().length > 0;
+  const acceptedCount = displayResult.techniques.filter(t => t.review_status === 'accepted').length;
+  const needsEvidenceCount = displayResult.techniques.filter(t => t.review_status === 'needs-evidence').length;
+  const rejectedCount = displayResult.techniques.filter(t => t.review_status === 'rejected').length;
+  const sourceBoundCount = displayResult.techniques.filter(t => t.evidence_source === 'source-text').length;
+  const averageConfidence = displayResult.techniques.length
+    ? displayResult.techniques.reduce((sum, t) => sum + Number(t.confidence || 0), 0) / displayResult.techniques.length
+    : 0;
+  const groupedTechniques = groupTechniquesByTactic(displayResult.techniques);
+  const topActorLead = displayResult.apt_matches[0] ?? null;
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* Summary bar */}
-      <div className="px-6 py-4 border-b border-gray-800 bg-gray-900/50">
-        <div className="flex items-center justify-between mb-2">
-          <div>
+      <div className="space-y-4 border-b border-gray-800 bg-gray-900/50 px-6 py-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
             <span className="text-xs text-gray-500 font-mono">{displayResult.provider} / {displayResult.model}</span>
+            <h2 className="mt-1 text-xl font-semibold text-white">AI CTI Analysis Result</h2>
+            <p className="mt-1 text-xs text-gray-500">
+              Review the extracted techniques before using them for coverage, comparison, or reporting.
+            </p>
           </div>
           <div className="flex flex-wrap justify-end gap-2">
             <a
@@ -616,9 +629,20 @@ function ResultsView({
             </button>
           </div>
         </div>
-        {displayResult.summary && (
-          <p className="text-sm text-gray-300 leading-relaxed">{displayResult.summary}</p>
-        )}
+        <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_520px]">
+          <section className="rounded-lg border border-gray-800 bg-gray-950/50 p-4">
+            <div className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">Executive summary</div>
+            <p className="mt-2 text-sm leading-7 text-gray-200">
+              {displayResult.summary || 'No summary was returned by the selected model.'}
+            </p>
+          </section>
+          <section className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <ResultMetric label="Techniques" value={displayResult.techniques.length} detail={`${sourceBoundCount} source-bound`} />
+            <ResultMetric label="Avg confidence" value={`${Math.round(averageConfidence * 100)}%`} detail={confidenceLabel(averageConfidence)} />
+            <ResultMetric label="Actor leads" value={displayResult.apt_matches.length} detail={topActorLead ? topActorLead.group_name : 'none'} />
+            <ResultMetric label="Review queue" value={needsEvidenceCount} detail={`${acceptedCount} accepted, ${rejectedCount} rejected`} />
+          </section>
+        </div>
         {displayResult.apt_hints.length > 0 && (
           <div className="flex gap-1.5 flex-wrap mt-2">
             <span className="text-xs text-gray-500">Mentioned:</span>
@@ -644,62 +668,111 @@ function ResultsView({
 
       <div className="flex-1 overflow-y-auto px-6 py-4">
         {tab === 'techniques' && (
-          <div className="space-y-2">
+          <div className="space-y-4">
             {displayResult.techniques.length === 0 && <p className="text-gray-500 text-sm">No techniques extracted.</p>}
-            {displayResult.techniques.map(t => (
-              <div key={t.attack_id} className="flex gap-3 p-3 bg-gray-800 rounded-lg">
-                <span className="font-mono text-xs text-mitre-accent pt-0.5 w-20 shrink-0">{t.attack_id}</span>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-sm text-white font-medium">{t.name}</span>
-                    <span className="text-[10px] bg-gray-700 text-gray-300 px-1.5 rounded">{t.tactic}</span>
-                    <ConfidenceBadge value={t.confidence} />
-                    <ReviewStatusSelect
-                      value={t.review_status ?? 'suggested'}
-                      disabled={!canReview || reviewMutation.isPending}
-                      onChange={reviewStatus =>
-                        reviewMutation.mutate({
-                          attackId: t.attack_id,
-                          reviewStatus,
-                          evidence: t.evidence,
-                        })
-                      }
-                    />
-                    {t.evidence_source === 'source-text' && (
-                      <span className="text-[10px] px-1.5 rounded border border-green-800 bg-green-950/40 text-green-300">
-                        source-bound
-                      </span>
-                    )}
+            {groupedTechniques.map(group => (
+              <section key={group.tactic} className="overflow-hidden rounded-lg border border-gray-800 bg-gray-900/50">
+                <div className="flex items-center justify-between border-b border-gray-800 bg-gray-950/60 px-4 py-3">
+                  <div>
+                    <h3 className="text-sm font-semibold text-white">{group.tactic || 'Unmapped tactic'}</h3>
+                    <p className="text-[10px] text-gray-500">{group.items.length} technique{group.items.length === 1 ? '' : 's'} extracted</p>
                   </div>
-                  {t.evidence && <p className="text-xs text-gray-500 mt-1 italic">"{t.evidence}"</p>}
-                  {typeof t.evidence_start === 'number' && typeof t.evidence_end === 'number' && (
-                    <p className="text-[10px] text-gray-600 mt-1">
-                      Evidence span: chars {t.evidence_start}-{t.evidence_end}
-                    </p>
-                  )}
+                  <div className="h-2 w-28 overflow-hidden rounded-full bg-gray-800">
+                    <div
+                      className="h-full rounded-full bg-mitre-accent"
+                      style={{ width: `${Math.min(100, Math.max(8, group.items.length * 12))}%` }}
+                    />
+                  </div>
                 </div>
-              </div>
+                <div className="divide-y divide-gray-800">
+                  {group.items.map(t => (
+                    <article key={t.attack_id} className="grid gap-3 p-4 lg:grid-cols-[112px_minmax(0,1fr)_180px]">
+                      <div>
+                        <a href={`/navigator?technique=${t.attack_id}`} className="font-mono text-sm font-semibold text-mitre-accent hover:underline">
+                          {t.attack_id}
+                        </a>
+                        <div className="mt-2">
+                          <ConfidenceBadge value={t.confidence} />
+                        </div>
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h4 className="text-sm font-semibold text-white">{t.name || 'Technique'}</h4>
+                          {t.evidence_source === 'source-text' && (
+                            <span className="rounded border border-green-800 bg-green-950/40 px-1.5 py-0.5 text-[10px] text-green-300">
+                              source-bound
+                            </span>
+                          )}
+                        </div>
+                        {t.evidence ? (
+                          <blockquote className="mt-2 rounded border-l-2 border-mitre-accent bg-gray-950/70 px-3 py-2 text-xs leading-6 text-gray-300">
+                            {t.evidence}
+                          </blockquote>
+                        ) : (
+                          <p className="mt-2 text-xs text-amber-300">No evidence excerpt was returned. Mark as needs-evidence before relying on it.</p>
+                        )}
+                        {typeof t.evidence_start === 'number' && typeof t.evidence_end === 'number' && (
+                          <p className="mt-2 text-[10px] text-gray-600">
+                            Evidence span: chars {t.evidence_start}-{t.evidence_end}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex flex-col items-start gap-2 lg:items-end">
+                        <ReviewStatusSelect
+                          value={t.review_status ?? 'suggested'}
+                          disabled={!canReview || reviewMutation.isPending}
+                          onChange={reviewStatus =>
+                            reviewMutation.mutate({
+                              attackId: t.attack_id,
+                              reviewStatus,
+                              evidence: t.evidence,
+                            })
+                          }
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            addComparisonLayer({
+                              name: `${t.attack_id} from AI analysis`,
+                              techniqueIds: [t.attack_id],
+                              source: 'ai-analysis-technique',
+                            });
+                            navigate('/navigator');
+                          }}
+                          className="secondary-action text-[10px]"
+                        >
+                          Show on matrix
+                        </button>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              </section>
             ))}
           </div>
         )}
 
         {tab === 'groups' && (
-          <div className="space-y-2">
+          <div className="space-y-3">
             {displayResult.apt_matches.length === 0 && <p className="text-gray-500 text-sm">No group-similarity leads.</p>}
             {displayResult.apt_matches.map((m, i) => (
-              <div key={m.group_attack_id} className="p-3 bg-gray-800 rounded-lg">
-                <div className="flex items-center gap-3">
-                  <span className="text-xs text-gray-600 w-5">#{i + 1}</span>
-                  <div className="w-24 bg-gray-700 rounded-full h-1.5">
-                    <div className="bg-mitre-accent h-1.5 rounded-full" style={{ width: `${m.similarity * 100}%` }} />
+              <article key={m.group_attack_id} className="rounded-lg border border-gray-800 bg-gray-900/50 p-4">
+                <div className="flex flex-wrap items-center gap-3">
+                  <span className="rounded bg-gray-950 px-2 py-1 text-xs text-gray-500">#{i + 1}</span>
+                  <div className="min-w-[120px] flex-1">
+                    <div className="mb-1 flex items-center justify-between gap-2">
+                      <a href={`/apt?group=${m.group_attack_id}`} className="text-sm font-semibold text-white hover:text-mitre-accent">{m.group_name}</a>
+                      <span className="font-mono text-xs text-mitre-accent">{Math.round(m.similarity * 100)}%</span>
+                    </div>
+                    <div className="h-2 rounded-full bg-gray-800">
+                      <div className="h-2 rounded-full bg-mitre-accent" style={{ width: `${m.similarity * 100}%` }} />
+                    </div>
                   </div>
-                  <span className="text-sm font-medium text-white flex-1">{m.group_name}</span>
                   <span className="text-xs font-mono text-gray-500">{m.group_attack_id}</span>
-                  <span className="text-xs text-mitre-accent font-mono">{Math.round(m.similarity * 100)}%</span>
-                  <span className="text-xs text-gray-500">{m.shared_count} shared</span>
+                  <span className="rounded bg-gray-800 px-2 py-1 text-xs text-gray-300">{m.shared_count} shared TTPs</span>
                 </div>
                 {m.shared_techniques.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mt-2 ml-8">
+                  <div className="mt-3 flex flex-wrap gap-1">
                     {m.shared_techniques.map(id => (
                       <span key={id} className="text-[10px] font-mono bg-mitre-accent/10 text-mitre-accent px-1.5 py-0.5 rounded">
                         {id}
@@ -707,15 +780,22 @@ function ResultsView({
                     ))}
                   </div>
                 )}
-              </div>
+              </article>
             ))}
           </div>
         )}
 
         {tab === 'raw' && (
-          <pre className="text-[10px] font-mono text-gray-400 whitespace-pre-wrap bg-gray-900 p-4 rounded-lg overflow-x-auto">
-            {JSON.stringify(displayResult, null, 2)}
-          </pre>
+          <div className="space-y-4">
+            <Panel title="Readable model response">
+              <FormattedText text={displayResult.raw_response || displayResult.summary || 'No raw response stored.'} />
+            </Panel>
+            <Panel title="Full structured JSON">
+              <pre className="max-h-[560px] overflow-auto bg-gray-950 p-4 text-[10px] font-mono text-gray-400 whitespace-pre-wrap">
+                {JSON.stringify(displayResult, null, 2)}
+              </pre>
+            </Panel>
+          </div>
         )}
       </div>
     </div>
@@ -852,4 +932,68 @@ function ConfidenceBadge({ value }: { value: number }) {
   const pct = Math.round(value * 100);
   const cls = pct >= 80 ? 'bg-green-900/50 text-green-400' : pct >= 50 ? 'bg-yellow-900/50 text-yellow-400' : 'bg-gray-700 text-gray-400';
   return <span className={`text-[10px] px-1.5 py-0.5 rounded ${cls}`}>{pct}%</span>;
+}
+
+function ResultMetric({ label, value, detail }: { label: string; value: React.ReactNode; detail: string }) {
+  return (
+    <div className="rounded-lg border border-gray-800 bg-gray-950/60 p-3">
+      <div className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">{label}</div>
+      <div className="mt-2 truncate text-2xl font-semibold text-white">{value}</div>
+      <div className="mt-1 truncate text-[10px] text-gray-500" title={detail}>{detail}</div>
+    </div>
+  );
+}
+
+function groupTechniquesByTactic(techniques: AnalysisResult['techniques']) {
+  const groups = new Map<string, AnalysisResult['techniques']>();
+  techniques.forEach(technique => {
+    const tactic = technique.tactic || 'Unmapped tactic';
+    groups.set(tactic, [...(groups.get(tactic) ?? []), technique]);
+  });
+  return Array.from(groups.entries())
+    .map(([tactic, items]) => ({
+      tactic,
+      items: [...items].sort((a, b) => a.attack_id.localeCompare(b.attack_id)),
+    }))
+    .sort((a, b) => a.tactic.localeCompare(b.tactic));
+}
+
+function confidenceLabel(value: number) {
+  if (value >= 0.8) return 'strong model confidence';
+  if (value >= 0.5) return 'moderate model confidence';
+  if (value > 0) return 'low model confidence';
+  return 'no mapped confidence';
+}
+
+function FormattedText({ text }: { text: string }) {
+  const lines = text.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+  if (!lines.length) return <p className="p-4 text-xs text-gray-500">No readable text available.</p>;
+
+  return (
+    <div className="space-y-2 p-4 text-sm leading-7 text-gray-300">
+      {lines.map((line, index) => {
+        const heading = line.match(/^#{1,6}\s+(.+)$/);
+        if (heading) {
+          return <h3 key={`${line}-${index}`} className="pt-2 text-base font-semibold text-white">{heading[1]}</h3>;
+        }
+        if (/^[-*]\s+/.test(line)) {
+          return (
+            <div key={`${line}-${index}`} className="flex gap-2">
+              <span className="mt-3 h-1.5 w-1.5 shrink-0 rounded-full bg-mitre-accent" />
+              <span>{line.replace(/^[-*]\s+/, '')}</span>
+            </div>
+          );
+        }
+        if (/^\d+[.)]\s+/.test(line)) {
+          return (
+            <div key={`${line}-${index}`} className="flex gap-2">
+              <span className="font-mono text-xs text-mitre-accent">{line.match(/^\d+/)?.[0]}.</span>
+              <span>{line.replace(/^\d+[.)]\s+/, '')}</span>
+            </div>
+          );
+        }
+        return <p key={`${line}-${index}`}>{line}</p>;
+      })}
+    </div>
+  );
 }
