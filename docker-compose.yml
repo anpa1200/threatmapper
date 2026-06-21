@@ -108,6 +108,8 @@ services:
       - /tmp:size=256m,noexec,nosuid,nodev
     volumes:
       - malwaregraph_storage:/app/storage
+    networks:
+      - malwaregraph_internal
     healthcheck:
       test:
         [
@@ -181,6 +183,9 @@ services:
         condition: service_healthy
       malwaregraph:
         condition: service_healthy
+    networks:
+      - default
+      - malwaregraph_internal
     ports:
       - "8000:8000"
 
@@ -320,3 +325,7 @@ volumes:
   attck_data:
   atlas_site:
   malwaregraph_storage:
+
+networks:
+  malwaregraph_internal:
+    internal: true

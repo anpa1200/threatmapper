@@ -984,6 +984,34 @@ export interface MalwareGraphDebugSession {
   }>;
 }
 
+export interface MalwareGraphRuntimeDebugSession extends MalwareGraphDebugSession {
+  isolation: Record<string, unknown>;
+  current_step: number;
+  completed: boolean;
+}
+
+export interface MalwareGraphStringsAnalysis {
+  job_id: string;
+  sample_ref: string;
+  target_name: string;
+  target_entity_id: string;
+  entropy: number;
+  obfuscated: boolean;
+  strings_total: number;
+  strings_preview: string[];
+  categories: Record<string, string[]>;
+  findings: Array<{
+    category: string;
+    value: string;
+    severity: 'info' | 'low' | 'medium' | 'high';
+    adversarygraph_route: string | null;
+  }>;
+  ai_prompt: string | null;
+  ai_analysis: string | null;
+  ai_provider: string | null;
+  ai_status: string;
+}
+
 export interface MalwareGraphProvider {
   provider: string;
   configured: boolean;
@@ -1010,4 +1038,10 @@ export const malwareGraphApi = {
     http.get(`/malwaregraph/analyses/${jobId}/workflow-graph`).then(r => r.data),
   debugSession: (jobId: string, sampleRef = 'archive--file--0001'): Promise<MalwareGraphDebugSession> =>
     http.post(`/malwaregraph/analyses/${jobId}/debug-sessions`, null, { params: { sample_ref: sampleRef } }).then(r => r.data),
+  runtimeDebugSession: (jobId: string, sampleRef = 'archive--file--0001'): Promise<MalwareGraphRuntimeDebugSession> =>
+    http.post(`/malwaregraph/analyses/${jobId}/runtime-debug-sessions`, null, { params: { sample_ref: sampleRef } }).then(r => r.data),
+  stepRuntimeDebugSession: (sessionId: string): Promise<MalwareGraphRuntimeDebugSession> =>
+    http.post(`/malwaregraph/runtime-debug-sessions/${sessionId}/step`).then(r => r.data),
+  strings: (jobId: string, sampleRef = 'archive--file--0001', ai = false, aiProvider = 'local'): Promise<MalwareGraphStringsAnalysis> =>
+    http.get(`/malwaregraph/analyses/${jobId}/strings`, { params: { sample_ref: sampleRef, ai, ai_provider: aiProvider } }).then(r => r.data),
 };
