@@ -90,6 +90,7 @@ class ChatRequest(BaseModel):
     provider: str = "claude"
     model: str | None = Field(default=None, max_length=100)
     context: str = Field(default="", max_length=8000)
+    system_prompt: str | None = Field(default=None, max_length=5000)
 
 
 class TechniqueReviewUpdate(BaseModel):
@@ -494,7 +495,7 @@ async def chat(req: ChatRequest):
     """
     adapter = _get_adapter(req.provider, req.model)
 
-    system = (
+    system = req.system_prompt or (
         "You are a senior threat intelligence analyst with deep expertise in the MITRE ATT&CK "
         "framework. Answer the analyst's question clearly and concisely. Reference specific "
         "ATT&CK technique IDs where relevant. Be precise and actionable."

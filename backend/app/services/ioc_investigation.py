@@ -22,6 +22,23 @@ from app.services.virustotal import classify_indicator, lookup_virustotal_ioc
 
 ATTACK_ID_RE = re.compile(r"\bT\d{4}(?:\.\d{3})?\b", re.IGNORECASE)
 HASH_RE = re.compile(r"^[A-Fa-f0-9]{32}$|^[A-Fa-f0-9]{40}$|^[A-Fa-f0-9]{64}$")
+GRAPH_OBJECT_TYPES = {"ioc", "ip", "ipv4", "ipv6", "domain", "url", "hash", "md5", "sha1", "sha256", "file", "report", "collection"}
+GRAPH_TYPE_ALIASES = {
+    "a": "ip",
+    "aaaa": "ip",
+    "cname": "domain",
+    "dns": "domain",
+    "host": "domain",
+    "hostname": "domain",
+    "mx": "domain",
+    "ns": "domain",
+    "ip_address": "ip",
+    "sha256_hash": "hash",
+    "sha1_hash": "hash",
+    "md5_hash": "hash",
+    "file-name": "file",
+    "filename": "file",
+}
 
 
 @dataclass
@@ -103,6 +120,9 @@ async def investigate_ioc(
     techniques = await _resolve_techniques(session, _collect_attack_ids(source_results, pivot_results), options.domain)
     actors = await _resolve_actors(session, source_results, pivot_results, options.domain)
     score = _suspicion_score(source_results, graph_nodes)
+    for node in graph_nodes.values():
+        if node.get("tier") == 0:
+            node["suspicious"] = max(int(node.get("suspicious") or 0), score)
     report_input = _report_input(
         normalized=normalized,
         artifact_type=target.type,
@@ -317,9 +337,7 @@ async def _otx_enrichment(value: str, artifact_type: str) -> dict[str, Any]:
     for pulse in pulses[:20] if isinstance(pulses, list) else []:
         name = str(pulse.get("name") or pulse.get("title") or "")
         if name:
-            relationships.append(_relationship(value, name, "report", "otx", 1, "OTX pulse"))
-        for tag in pulse.get("tags") or []:
-            relationships.append(_relationship(value, str(tag), "tag", "otx", 1, "OTX pulse tag"))
+            relationships.append(_relationship(value, name, "collection", "otx", 1, "OTX pulse"))
     return {
         "source": "otx",
         "status": "ok",
@@ -767,11 +785,7 @@ def _row_relationships(root: str, row: dict[str, Any], source: str) -> list[dict
         "sha256_hash": "hash",
         "sha1_hash": "hash",
         "md5_hash": "hash",
-        "malware": "malware",
-        "malware_printable": "malware",
-        "signature": "malware",
-        "file_name": "file-name",
-        "tags": "tag",
+        "file_name": "file",
     }
     for key, kind in keys.items():
         raw = row.get(key)
@@ -914,15 +928,18 @@ def _merge_graph(nodes: dict[str, dict[str, Any]], edges: list[dict[str, Any]], 
     for rel in result.get("relationships") or []:
         source = str(rel.get("source") or root)
         target = str(rel.get("target") or "")
-        if not target:
+        target_type = _graph_object_type(str(rel.get("target_type") or "unknown"), target)
+        if not target or not target_type:
             continue
         tier = int(rel.get("tier") or default_tier)
-        _add_node(nodes, "artifact", source, "ioc", tier=max(0, tier - 1), source=result.get("source", "unknown"))
-        _add_node(nodes, "relationship", target, str(rel.get("target_type") or "unknown"), tier=tier, source=str(rel.get("evidence_source") or result.get("source") or "unknown"))
+        source_type = _infer_graph_source_type(source)
+        suspicious = _relationship_suspicious_score(result, rel)
+        _add_node(nodes, "artifact", source, source_type, tier=max(0, tier - 1), source=result.get("source", "unknown"), suspicious=suspicious)
+        _add_node(nodes, "relationship", target, target_type, tier=tier, source=str(rel.get("evidence_source") or result.get("source") or "unknown"), suspicious=suspicious)
         edge = {
             "source": source,
             "target": target,
-            "type": rel.get("target_type") or "related",
+            "type": target_type,
             "tier": tier,
             "evidence_source": rel.get("evidence_source") or result.get("source"),
             "evidence": rel.get("evidence") or "",
@@ -931,7 +948,7 @@ def _merge_graph(nodes: dict[str, dict[str, Any]], edges: list[dict[str, Any]], 
             edges.append(edge)
 
 
-def _add_node(nodes: dict[str, dict[str, Any]], kind: str, value: str, node_type: str, *, tier: int, source: str, suspicious: int = 0) -> None:
+def _add_node(nodes: dict[str, dict[str, Any]], kind: str, value: str, node_type: str, *, tier: int, source: str, suspicious: int = -1) -> None:
     if not value:
         return
     key = f"{node_type}:{value}".lower()
@@ -953,7 +970,93 @@ def _add_node(nodes: dict[str, dict[str, Any]], kind: str, value: str, node_type
 
 
 def _tier_values(nodes: dict[str, dict[str, Any]], tier: int, limit: int) -> list[str]:
-    return [node["value"] for node in nodes.values() if node["tier"] == tier and node["type"] in {"ioc", "ip", "domain", "url", "hash"}][:limit]
+    return [node["value"] for node in nodes.values() if node["tier"] == tier and _graph_object_type(node["type"], node["value"]) in {"ioc", "ip", "domain", "url", "hash", "file"}][:limit]
+
+
+def _relationship_suspicious_score(result: dict[str, Any], rel: dict[str, Any]) -> int:
+    if result.get("status") not in {"ok", "warning"}:
+        return -1
+    score = 0
+    raw = result.get("raw") or {}
+    raw_text = json.dumps(raw, default=str).lower()
+    evidence_text = f"{rel.get('evidence') or ''} {rel.get('target') or ''} {rel.get('target_type') or ''}".lower()
+    stats = _nested_dict(raw, "last_analysis_stats") if isinstance(raw, dict) else {}
+    if stats:
+        malicious = int(stats.get("malicious") or 0)
+        suspicious = int(stats.get("suspicious") or 0)
+        harmless = int(stats.get("harmless") or 0)
+        score = max(score, min(100, malicious * 8 + suspicious * 5))
+        if malicious == 0 and suspicious == 0 and harmless > 0:
+            score = max(score, 8)
+    if result.get("technique_ids"):
+        score = max(score, 45)
+    if result.get("actors"):
+        score = max(score, 35)
+    for finding in ((raw.get("activity_analysis") or {}).get("findings") or []) if isinstance(raw, dict) else []:
+        if not isinstance(finding, dict):
+            continue
+        severity = str(finding.get("severity") or "").lower()
+        if severity == "high":
+            score = max(score, 80)
+        elif severity == "medium":
+            score = max(score, 55)
+        elif severity:
+            score = max(score, 25)
+    if re.search(r"malicious|ransom|phish|c2|command.?and.?control|botnet|trojan|stealer|backdoor|abuse|suspicious", f"{raw_text} {evidence_text}"):
+        score = max(score, 60)
+    if re.search(r"benign|harmless|clean|known good", f"{raw_text} {evidence_text}") and score < 45:
+        score = max(score, 10)
+    return score if score > 0 else -1
+
+
+def _graph_object_type(raw_type: str, value: str) -> str | None:
+    node_type = GRAPH_TYPE_ALIASES.get(raw_type.lower(), raw_type.lower())
+    value = str(value or "").strip()
+    if node_type not in GRAPH_OBJECT_TYPES or not value:
+        return None
+    if node_type in {"ip", "ipv4", "ipv6"}:
+        return "ip" if _looks_like_ip(value) else None
+    if node_type == "domain":
+        return "domain" if _looks_like_domain(value) else None
+    if node_type == "url":
+        return "url" if _looks_like_url(value) else None
+    if node_type in {"hash", "md5", "sha1", "sha256"}:
+        return "hash" if HASH_RE.fullmatch(value) else None
+    if node_type == "file":
+        return "file" if _looks_like_file(value) else None
+    if node_type in {"report", "collection"}:
+        return node_type
+    return node_type
+
+
+def _infer_graph_source_type(value: str) -> str:
+    detected = classify_indicator(value).type
+    return _graph_object_type(detected, value) or "ioc"
+
+
+def _looks_like_ip(value: str) -> bool:
+    try:
+        ipaddress.ip_address(value)
+        return True
+    except ValueError:
+        return False
+
+
+def _looks_like_domain(value: str) -> bool:
+    if _looks_like_url(value) or " " in value or "/" in value or ":" in value:
+        return False
+    return "." in value and bool(re.fullmatch(r"[A-Za-z0-9*_.-]+", value))
+
+
+def _looks_like_url(value: str) -> bool:
+    parsed = urlparse(value)
+    return parsed.scheme in {"http", "https", "ftp"} and bool(parsed.netloc)
+
+
+def _looks_like_file(value: str) -> bool:
+    if " " in value or len(value) > 180:
+        return False
+    return bool(HASH_RE.fullmatch(value) or re.search(r"\.[A-Za-z0-9]{1,8}$", value))
 
 
 def _collect_attack_ids(source_results: list[dict[str, Any]], tier2_results: list[dict[str, Any]]) -> list[str]:

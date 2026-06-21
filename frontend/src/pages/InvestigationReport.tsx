@@ -26,6 +26,42 @@ type ReportRow = {
   };
   covered: boolean;
 };
+type SavedReportNode = {
+  id: string;
+  type: string;
+  label: string;
+  summary?: string;
+  content?: string;
+  provider?: string;
+  format?: string;
+  created_at?: string;
+};
+type SourceTaggedEvidence = {
+  sourceTag: string;
+  reference: string;
+  evidence: string;
+  confidence?: string | number;
+};
+type EvidenceIndex = {
+  ttps: Map<string, SourceTaggedEvidence[]>;
+  iocs: Map<string, SourceTaggedEvidence[]>;
+};
+type ReportIocItem = {
+  value: string;
+  type: string;
+  sourceTag: string;
+  reference: string;
+  source?: string;
+  source_url?: string;
+  first_seen?: string | null;
+  last_seen?: string | null;
+  confidence?: number;
+  tlp?: string;
+  malware_family?: string;
+  campaign?: string;
+  technique_ids?: string[];
+  evidence?: string;
+};
 
 const providerOptions: { id: Provider; label: string }[] = [
   { id: 'local', label: 'Local LLM' },
@@ -34,6 +70,54 @@ const providerOptions: { id: Provider; label: string }[] = [
   { id: 'gemini', label: 'Gemini' },
   { id: 'minimax', label: 'MiniMax' },
 ];
+
+const INVESTIGATION_REPORT_SYSTEM_PROMPT = [
+  'You are the AdversaryGraph investigation report writer.',
+  'Create a polished, human-readable threat intelligence report in Markdown.',
+  'Do not output raw JSON, schema labels, or compressed one-line Markdown.',
+  'Use clear paragraphs, analyst language, and defensible caveats.',
+  '',
+  'Required report schema:',
+  '# <report title>',
+  '## Executive Summary',
+  'Short narrative summary of what was observed, what matters, and what remains uncertain.',
+  '## Scope and Inputs',
+  'Describe selected domain, investigation workspace, selected TTPs, report/log inputs, IOC enrichment, and actor comparison inputs.',
+  '## Key Findings',
+  'Use concise findings with evidence and operational meaning.',
+  '## ATT&CK TTP Evidence',
+  'For every TTP you report, include exactly these fields in readable prose or bullets:',
+  '- Technique: ATT&CK ID and name',
+  '- Source tag: log, pcap, report, manual, ioc-investigation, or feed/source name',
+  '- Why it is relevant: explain the behavior or platform signal that caused this TTP to be included',
+  '- Evidence: quote or summarize the evidence from logs, reports, analyst notes, Navigator coverage, or enrichment',
+  '- Reference: the exact source of the TTP, such as log filename, PCAP filename, report/session ID, manual Navigator selection, IOC investigation ID, feed, or enrichment platform',
+  '- Confidence: high / medium / low and why',
+  'If a TTP has no direct evidence, mark it as a coverage/planning item and do not present it as observed behavior.',
+  '## IOC Evidence and Enrichment',
+  'For every IOC you report, include exactly these fields:',
+  '- Indicator: value and type',
+  '- Source tag: log, pcap, report, manual, ioc-investigation, or feed/source name',
+  '- Why it is relevant: actor link, report link, feed hit, local extraction, or enrichment relationship',
+  '- Evidence: source result, malware/campaign context, first/last seen, confidence, or extracted log context',
+  '- Reference: the exact source of the IOC, such as log filename, PCAP filename, report/session ID, manual entry, IOC investigation ID, feed, OpenCTI/MISP/TAXII/source URL, or enrichment platform',
+  '- Recommended handling: monitor, block, hunt, enrich further, or validate first',
+  '## Threat Actor Comparison',
+  'Explain overlap as hypothesis generation only. Include shared TTPs and why high-frequency TTPs are weaker signals.',
+  '## Detection and Hunting Priorities',
+  'Translate TTPs and IOCs into practical detection/hunting actions.',
+  '## Limitations and Caveats',
+  'State missing evidence, enrichment uncertainty, source conflicts, and that overlap is not attribution.',
+  '## Recommended Next Actions',
+  'Give concrete analyst next steps.',
+  '',
+  'Rules:',
+  '- Never use proves, confirms, attributes, or matches for attribution.',
+  '- Do not invent evidence, IOCs, references, actors, or TTPs.',
+  '- Prefer fewer well-explained TTPs/IOCs over a long weak list.',
+  '- If evidence is missing, say what validation is required.',
+  '- Do not use generic workspace references when a specific source tag or source reference is available.',
+].join('\n');
 
 export function InvestigationReport() {
   const navigate = useNavigate();
@@ -51,7 +135,9 @@ export function InvestigationReport() {
   const [provider, setProvider] = useState<Provider>('local');
   const [reportTitle, setReportTitle] = useState('AdversaryGraph Investigation Report');
   const [generatedReport, setGeneratedReport] = useState('');
+  const [selectedSavedReportId, setSelectedSavedReportId] = useState('');
   const [aiSummary, setAiSummary] = useState('');
+  const [summaryViewer, setSummaryViewer] = useState<{ title: string; text: string; source?: string } | null>(null);
   const [isAiGenerating, setIsAiGenerating] = useState(false);
   const [isSummaryGenerating, setIsSummaryGenerating] = useState(false);
   const [aiError, setAiError] = useState('');
@@ -119,11 +205,18 @@ export function InvestigationReport() {
     () => actorIocQueries.flatMap(query => (query.data ?? []) as IOCItem[]),
     [actorIocQueries],
   );
+  const evidenceIndex = useMemo(() => buildEvidenceIndex(activeInvestigation), [activeInvestigation]);
   const localReport = useMemo(
-    () => buildLocalReport({ title: reportTitle, domain, rows, matches, relevantIocs, sections, investigation: activeInvestigation }),
-    [activeInvestigation, domain, matches, relevantIocs, reportTitle, rows, sections],
+    () => buildLocalReport({ title: reportTitle, domain, rows, matches, relevantIocs, sections, investigation: activeInvestigation, evidenceIndex }),
+    [activeInvestigation, domain, evidenceIndex, matches, relevantIocs, reportTitle, rows, sections],
   );
-  const activeReport = generatedReport || localReport;
+  const savedReports = useMemo(() => savedReportNodes(activeInvestigation), [activeInvestigation]);
+  const selectedSavedReport = useMemo(
+    () => savedReports.find(report => report.id === selectedSavedReportId) ?? null,
+    [savedReports, selectedSavedReportId],
+  );
+  const activeReport = selectedSavedReport?.content || generatedReport || localReport;
+  const activeReportTitle = selectedSavedReport?.label || reportTitle || 'adversarygraph-investigation-report';
   const selectedSectionCount = Object.values(sections).filter(Boolean).length;
 
   const updateActiveInvestigation = useMutation({
@@ -188,7 +281,7 @@ export function InvestigationReport() {
     setAiError('');
     setWorkflowMessage('');
     try {
-      const context = buildReportContext({ domain, rows, matches, relevantIocs, sections, investigation: activeInvestigation });
+      const context = buildReportContext({ domain, rows, matches, relevantIocs, sections, investigation: activeInvestigation, evidenceIndex });
       const response = await analyzeApi.chat({
         provider,
         context,
@@ -223,9 +316,31 @@ export function InvestigationReport() {
     }
   };
 
-  const generateLocal = () => {
+  const saveGeneratedReport = async (content: string, mode: 'local' | Provider, title = reportTitle) => {
+    if (!activeInvestigation) {
+      setGeneratedReport(content);
+      setWorkflowMessage('Report generated. Create or select an investigation to save it to the report list.');
+      return;
+    }
+    const reportNode = buildSavedReportNode({ title, content, provider: mode, format: 'markdown' });
+    await updateActiveInvestigation.mutateAsync(mergeInvestigation(activeInvestigation, {
+      report_ids: [reportNode.id],
+      evidence_nodes: [reportNode],
+      timeline: [{
+        at: new Date().toISOString(),
+        event: `Generated investigation report: ${title}`,
+        source: mode,
+        technique_count: investigationIds.length,
+      }],
+    }));
+    setSelectedSavedReportId(reportNode.id);
+    setWorkflowMessage(`Report saved to ${activeInvestigation.name}.`);
+  };
+
+  const generateLocal = async () => {
     setAiError('');
     setGeneratedReport(localReport);
+    await saveGeneratedReport(localReport, 'local');
   };
 
   const generateWithAi = async () => {
@@ -234,37 +349,24 @@ export function InvestigationReport() {
     setAiError('');
     setGeneratedReport('');
     try {
-      const context = buildReportContext({ domain, rows, matches, relevantIocs, sections, investigation: activeInvestigation });
+      const context = buildReportContext({ domain, rows, matches, relevantIocs, sections, investigation: activeInvestigation, evidenceIndex });
       const response = await analyzeApi.chat({
         provider,
         context,
+        system_prompt: INVESTIGATION_REPORT_SYSTEM_PROMPT,
         message: [
-          `Generate a professional threat intelligence investigation report titled "${reportTitle}".`,
-          'Use only the provided context. Do not invent evidence, IOCs, actors, or TTPs.',
-          'Write in Markdown with these sections when data exists: Executive Summary, Scope, Navigator Layer, ATT&CK TTP Evidence, Threat Actor Comparison, Relevant IOC Enrichment, Detection and Coverage Priorities, Analytic Caveats.',
-          'Make it client-ready, concise, and actionable.',
+          `Generate the investigation report titled "${reportTitle}".`,
+          'Use the required report schema from the system instructions.',
+          'Use only the provided context.',
+          'For every TTP and IOC included, explain why it is relevant, what evidence supports it, and which reference/source it came from.',
+          'If a TTP or IOC lacks direct evidence, state that it is a hypothesis or coverage item requiring validation.',
+          'Make the report client-ready, readable, concise, and actionable.',
         ].join(' '),
       });
       const text = await readSseText(response);
       const report = text.trim() || localReport;
       setGeneratedReport(report);
-      if (activeInvestigation) {
-        await updateActiveInvestigation.mutateAsync(mergeInvestigation(activeInvestigation, {
-          evidence_nodes: [{
-            id: `investigation-report:${Date.now()}`,
-            type: 'investigation-report',
-            label: reportTitle,
-            summary: truncate(report.replace(/\s+/g, ' '), 500),
-            provider,
-          }],
-          timeline: [{
-            at: new Date().toISOString(),
-            event: `Generated investigation report: ${reportTitle}`,
-            source: provider,
-            technique_count: investigationIds.length,
-          }],
-        }));
-      }
+      await saveGeneratedReport(report, provider);
     } catch (error) {
       setAiError(error instanceof Error ? error.message : String(error));
     } finally {
@@ -273,7 +375,7 @@ export function InvestigationReport() {
   };
 
   const download = (format: ReportFormat) => {
-    const filenameBase = slug(reportTitle || 'adversarygraph-investigation-report');
+    const filenameBase = slug(activeReportTitle || 'adversarygraph-investigation-report');
     if (format === 'pdf') {
       const pdf = buildSimplePdf(markdownToPlainText(activeReport));
       downloadBlob(pdf, `${filenameBase}.pdf`, 'application/pdf');
@@ -311,9 +413,9 @@ export function InvestigationReport() {
           </Panel>
 
           <Panel title="Investigation workspace">
-            <div className="grid gap-4 p-3 xl:grid-cols-[420px_minmax(0,1fr)]">
-              <div className="space-y-3">
-                <div className="grid grid-cols-[1fr_auto] gap-2">
+            <div className="space-y-4 p-3">
+              <div className="grid gap-3 xl:grid-cols-[minmax(260px,1fr)_minmax(320px,1.4fr)]">
+                <div className="grid gap-2 sm:grid-cols-[minmax(220px,1fr)_auto]">
                   <input
                     value={newInvestigationName}
                     onChange={event => setNewInvestigationName(event.target.value)}
@@ -338,12 +440,12 @@ export function InvestigationReport() {
                     <option key={item.id} value={item.id}>{item.name}</option>
                   )) : <option value="">No investigation yet</option>}
                 </select>
-                {createInvestigation.error && (
-                  <p className="rounded border border-red-500/50 bg-red-950/30 p-2 text-xs text-red-200">
-                    {createInvestigation.error instanceof Error ? createInvestigation.error.message : String(createInvestigation.error)}
-                  </p>
-                )}
               </div>
+              {createInvestigation.error && (
+                <p className="rounded border border-red-500/50 bg-red-950/30 p-2 text-xs text-red-200">
+                  {createInvestigation.error instanceof Error ? createInvestigation.error.message : String(createInvestigation.error)}
+                </p>
+              )}
               <InvestigationStructure
                 investigation={activeInvestigation}
                 rows={rows}
@@ -355,6 +457,7 @@ export function InvestigationReport() {
                 onOpenAllTtps={openLayerOnMatrix}
                 onInvestigateIoc={value => navigate(`/ioc-investigation?indicator=${encodeURIComponent(value)}`)}
                 onSearchIoc={value => navigate(`/ioc-library?search=${encodeURIComponent(value)}`)}
+                onOpenSummary={summary => setSummaryViewer(summary)}
               />
             </div>
           </Panel>
@@ -428,7 +531,7 @@ export function InvestigationReport() {
                     </div>
                     <button
                       type="button"
-                      onClick={generateLocal}
+                      onClick={() => void generateLocal()}
                       disabled={!investigationIds.length || !selectedSectionCount}
                       className="secondary-action mb-2 w-full disabled:opacity-40"
                     >
@@ -455,11 +558,62 @@ export function InvestigationReport() {
                 </div>
               </Panel>
 
+              <Panel title="Saved reports">
+                <div className="space-y-3 p-3">
+                  {savedReports.length ? (
+                    <>
+                      <select
+                        value={selectedSavedReportId}
+                        onChange={event => setSelectedSavedReportId(event.target.value)}
+                        className="field w-full"
+                      >
+                        <option value="">Current generated / live preview</option>
+                        {savedReports.map(report => (
+                          <option key={report.id} value={report.id}>
+                            {report.label} · {formatReportDate(report.created_at)} · {report.provider || 'saved'}
+                          </option>
+                        ))}
+                      </select>
+                      <div className="max-h-64 divide-y divide-gray-800 overflow-auto rounded border border-gray-800 bg-gray-950/40">
+                        {savedReports.map(report => (
+                          <button
+                            key={report.id}
+                            type="button"
+                            onClick={() => setSelectedSavedReportId(report.id)}
+                            className={`block w-full p-3 text-left hover:bg-gray-900 ${selectedSavedReportId === report.id ? 'bg-mitre-accent/10' : ''}`}
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <b className="text-xs text-gray-100">{report.label}</b>
+                              <span className="shrink-0 rounded bg-gray-800 px-1.5 py-0.5 font-mono text-[10px] text-gray-300">
+                                {report.provider || 'saved'}
+                              </span>
+                            </div>
+                            <p className="mt-1 text-[10px] text-gray-500">
+                              {formatReportDate(report.created_at)} · {report.content?.length.toLocaleString() ?? 0} chars
+                            </p>
+                            {report.summary && <p className="mt-2 line-clamp-2 text-[10px] leading-4 text-gray-400">{report.summary}</p>}
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  ) : (
+                    <p className="text-xs leading-5 text-gray-500">
+                      No saved reports yet. Generate locally or with AI to save the report into the active investigation.
+                    </p>
+                  )}
+                </div>
+              </Panel>
+
               <Panel title="Download">
-                <div className="grid grid-cols-3 gap-2 p-3">
-                  <button type="button" onClick={() => download('pdf')} disabled={!activeReport.trim()} className="secondary-action disabled:opacity-40">PDF</button>
-                  <button type="button" onClick={() => download('md')} disabled={!activeReport.trim()} className="secondary-action disabled:opacity-40">MD</button>
-                  <button type="button" onClick={() => download('txt')} disabled={!activeReport.trim()} className="secondary-action disabled:opacity-40">TXT</button>
+                <div className="space-y-3 p-3">
+                  <p className="text-[10px] leading-4 text-gray-500">
+                    Downloading: <span className="text-gray-300">{selectedSavedReport?.label ?? 'Current generated / live preview'}</span>
+                  </p>
+                  <div className="grid grid-cols-3 gap-2">
+                    <button type="button" onClick={() => download('pdf')} disabled={!activeReport.trim()} className="secondary-action disabled:opacity-40">PDF</button>
+                    <button type="button" onClick={() => download('md')} disabled={!activeReport.trim()} className="secondary-action disabled:opacity-40">MD</button>
+                    <button type="button" onClick={() => download('txt')} disabled={!activeReport.trim()} className="secondary-action disabled:opacity-40">TXT</button>
+                  </div>
                 </div>
               </Panel>
 
@@ -476,15 +630,27 @@ export function InvestigationReport() {
 
               {aiSummary && (
                 <Panel title="AI investigation summary">
-                  <pre className="max-h-72 overflow-auto whitespace-pre-wrap p-4 text-xs leading-6 text-gray-300">{aiSummary}</pre>
+                  <div className="p-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-xs text-gray-500">Full AI summary is available in a readable investigation view.</p>
+                      <button
+                        type="button"
+                        onClick={() => setSummaryViewer({ title: 'AI investigation summary', text: aiSummary, source: provider })}
+                        className="secondary-action"
+                      >
+                        Open summary
+                      </button>
+                    </div>
+                    <p className="mt-3 line-clamp-5 whitespace-pre-wrap text-xs leading-5 text-gray-300">{aiSummary}</p>
+                  </div>
                 </Panel>
               )}
             </div>
 
-            <Panel title="Report preview">
-              <pre className="max-h-[calc(100vh-220px)] overflow-auto whitespace-pre-wrap p-4 text-xs leading-6 text-gray-300">
-                {activeReport || 'No report content yet.'}
-              </pre>
+            <Panel title={selectedSavedReport ? `Report preview: ${selectedSavedReport.label}` : 'Report preview'}>
+              <div className="max-h-[calc(100vh-220px)] overflow-auto p-6">
+                {activeReport.trim() ? <ReadableMarkdown text={activeReport} /> : <p className="text-sm text-gray-500">No report content yet.</p>}
+              </div>
             </Panel>
           </section>
 
@@ -523,6 +689,14 @@ export function InvestigationReport() {
           )}
         </div>
       </div>
+      {summaryViewer && (
+        <SummaryViewer
+          title={summaryViewer.title}
+          text={summaryViewer.text}
+          source={summaryViewer.source}
+          onClose={() => setSummaryViewer(null)}
+        />
+      )}
     </div>
   );
 }
@@ -535,6 +709,7 @@ function buildLocalReport({
   relevantIocs,
   sections,
   investigation,
+  evidenceIndex,
 }: {
   title: string;
   domain: string;
@@ -543,6 +718,7 @@ function buildLocalReport({
   relevantIocs: IOCItem[];
   sections: ReportSections;
   investigation: Investigation | null;
+  evidenceIndex: EvidenceIndex;
 }) {
   const covered = rows.filter(row => row.covered).length;
   const lines: string[] = [
@@ -567,15 +743,25 @@ function buildLocalReport({
   if (sections.ttps) {
     lines.push('## ATT&CK TTP Evidence', '');
     rows.forEach(row => {
+      const sourceEvidence = evidenceIndex.ttps.get(row.id) ?? [];
+      const evidence = cleanReportValue(row.assessment.evidence) || sourceEvidence[0]?.evidence || '';
+      const source = cleanReportValue(row.assessment.source) || formatSourceReferences(sourceEvidence) || 'manual / navigator selection';
+      const sourceTag = sourceEvidence[0]?.sourceTag || (row.assessment.source ? sourceTagFromValue(row.assessment.source) : 'manual');
+      const notes = cleanReportValue(row.assessment.notes);
+      const confidence = row.assessment.confidence ?? (evidence ? 'medium' : 'low');
       lines.push(
         `### ${row.id} - ${row.name}`,
-        `- Coverage: ${row.covered ? 'covered' : 'gap'}`,
-        `- Mapping: ${row.assessment.mapping ?? 'weak'}`,
-        `- Confidence: ${row.assessment.confidence ?? 'low'}`,
-        `- Maturity: ${row.assessment.maturity ?? 'none'}`,
-        `- Evidence: ${row.assessment.evidence ?? 'Not recorded'}`,
-        `- Source: ${row.assessment.source ?? 'Not recorded'}`,
-        `- Notes: ${row.assessment.notes ?? 'Not recorded'}`,
+        '',
+        `**Source tag:** ${sourceTag}`,
+        '',
+        `**Why it is relevant:** ${ttpRelevance(row, evidence)}`,
+        '',
+        `**Evidence:** ${evidence || 'No direct source-backed evidence is attached to this technique in the current workspace. Treat it as a planning or coverage item until validated against logs, reports, or enrichment sources.'}`,
+        '',
+        `**Reference:** ${source || 'AdversaryGraph investigation layer / Navigator selection.'}`,
+        '',
+        `**Confidence:** ${confidence}. ${confidence === 'low' && !evidence ? 'Low confidence because no direct evidence text is attached.' : 'Confidence is based on the available analyst evidence and mapping context.'}`,
+        notes ? `\n**Analyst notes:** ${notes}` : '',
         '',
       );
     });
@@ -617,15 +803,24 @@ function buildLocalReport({
   }
   if (sections.iocs) {
     lines.push('## Relevant IOC Enrichment', '');
-    if (relevantIocs.length) {
-      relevantIocs.slice(0, 60).forEach(item => {
+    const reportIocs = buildReportIocItems(relevantIocs, evidenceIndex);
+    if (reportIocs.length) {
+      reportIocs.slice(0, 80).forEach(item => {
         lines.push(
-          `- ${item.value} (${item.type})`,
-          `  - Source: ${item.source || 'unknown'}`,
-          `  - Malware: ${item.malware_family || 'unknown'}`,
-          `  - Campaign: ${item.campaign || 'unknown'}`,
-          `  - TTPs: ${item.technique_ids?.join(', ') || 'none mapped'}`,
-          `  - Confidence: ${item.confidence ?? 0}`,
+          `### ${item.value}`,
+          '',
+          `**Indicator type:** ${item.type}`,
+          '',
+          `**Source tag:** ${item.sourceTag}`,
+          '',
+          `**Why it is relevant:** ${iocRelevance(item)}`,
+          '',
+          `**Evidence:** ${iocEvidence(item)}`,
+          '',
+          `**Reference:** ${item.reference}`,
+          '',
+          `**Recommended handling:** ${iocHandling(item)}`,
+          '',
         );
       });
     } else {
@@ -643,6 +838,78 @@ function buildLocalReport({
   return lines.join('\n');
 }
 
+function cleanReportValue(value?: string) {
+  const cleaned = String(value ?? '').trim();
+  if (!cleaned || /^not recorded$/i.test(cleaned) || /^none$/i.test(cleaned)) return '';
+  return cleaned;
+}
+
+function ttpRelevance(row: ReportRow, evidence: string) {
+  if (evidence) {
+    return `${row.id} is included because the workspace contains analyst evidence for ${row.name}.`;
+  }
+  if (row.covered) {
+    return `${row.id} is included because it is part of the current covered Navigator layer for ${row.name}. It should be reviewed as coverage context, not as directly observed behavior.`;
+  }
+  return `${row.id} is included because it is present in the current investigation TTP layer for ${row.name}. It is currently a coverage gap or hypothesis item requiring validation.`;
+}
+
+function iocRelevance(item: ReportIocItem) {
+  const links = [
+    item.malware_family ? `malware family ${item.malware_family}` : '',
+    item.campaign ? `campaign ${item.campaign}` : '',
+    item.technique_ids?.length ? `mapped TTPs ${item.technique_ids.slice(0, 6).join(', ')}` : '',
+  ].filter(Boolean);
+  if (links.length) return `The indicator is relevant because enrichment links it to ${links.join(', ')}.`;
+  return 'The indicator is relevant because it appears in the selected actor or investigation enrichment context and should be validated before operational action.';
+}
+
+function iocEvidence(item: ReportIocItem) {
+  if (item.evidence) return item.evidence;
+  const evidence = [
+    `Source: ${item.source || 'unknown'}`,
+    item.first_seen ? `first seen ${item.first_seen}` : '',
+    item.last_seen ? `last seen ${item.last_seen}` : '',
+    `confidence ${item.confidence ?? 0}`,
+    item.tlp ? `TLP ${item.tlp}` : '',
+  ].filter(Boolean);
+  return evidence.join('; ') || 'No detailed enrichment evidence was returned for this indicator.';
+}
+
+function iocHandling(item: ReportIocItem) {
+  const confidence = item.confidence ?? 0;
+  if (confidence >= 80) return 'Prioritize for hunting or preventive control review, then validate against local telemetry before blocking.';
+  if (confidence >= 50) return 'Use for threat hunting and correlation. Validate source freshness and local sightings before enforcement.';
+  return 'Enrich further and validate source context before alerting or blocking.';
+}
+
+function buildReportIocItems(relevantIocs: IOCItem[], evidenceIndex: EvidenceIndex): ReportIocItem[] {
+  const merged = new Map<string, ReportIocItem>();
+  relevantIocs.forEach(item => {
+    const sourceEvidence = evidenceIndex.iocs.get(item.value) ?? [];
+    merged.set(item.value.toLowerCase(), {
+      ...item,
+      sourceTag: sourceEvidence[0]?.sourceTag || sourceTagFromValue(item.source || 'feed'),
+      reference: formatSourceReferences(sourceEvidence) || item.source_url || item.source || 'ioc-feed',
+      evidence: sourceEvidence[0]?.evidence,
+    });
+  });
+  evidenceIndex.iocs.forEach((items, value) => {
+    if (merged.has(value.toLowerCase())) return;
+    const first = items[0];
+    merged.set(value.toLowerCase(), {
+      value,
+      type: inferIocType(value),
+      sourceTag: first?.sourceTag || 'manual',
+      reference: formatSourceReferences(items) || first?.reference || 'investigation evidence',
+      source: first?.sourceTag,
+      confidence: typeof first?.confidence === 'number' ? first.confidence : undefined,
+      evidence: first?.evidence,
+    });
+  });
+  return Array.from(merged.values());
+}
+
 function InvestigationStructure({
   investigation,
   rows,
@@ -651,6 +918,7 @@ function InvestigationStructure({
   onOpenAllTtps,
   onInvestigateIoc,
   onSearchIoc,
+  onOpenSummary,
 }: {
   investigation: Investigation | null;
   rows: ReportRow[];
@@ -659,10 +927,12 @@ function InvestigationStructure({
   onOpenAllTtps: () => void;
   onInvestigateIoc: (value: string) => void;
   onSearchIoc: (value: string) => void;
+  onOpenSummary: (summary: { title: string; text: string; source?: string }) => void;
 }) {
   const nodes = investigation?.evidence_nodes ?? [];
   const logNodes = nodes.filter(item => String(item.type ?? '').includes('log'));
   const reportNodes = nodes.filter(item => String(item.type ?? '').includes('report') || String(item.type ?? '').includes('analysis'));
+  const summaryNodes = nodes.filter(item => String(item.type ?? '') === 'ai-summary');
   const iocNodes = uniqueIocNodes(nodes);
   const behaviorNodes = uniqueSuspiciousBehaviorNodes(nodes);
   const ttpEvidenceNodes = uniqueTtpEvidenceNodes(nodes);
@@ -675,7 +945,7 @@ function InvestigationStructure({
     : (investigation?.technique_ids ?? []).map(id => ({ id, name: id, covered: false, assessment: {} }));
   return (
     <div className="space-y-3">
-      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5">
         <InvestigationBucket title="Logs - result analysis" count={logNodes.length} text="Log / PCAP findings, suspicious commands, observables, and mapped behavior." />
         <InvestigationBucket title="Report analysis" count={reportNodes.length} text="CTI reports, uploaded analysis sessions, summaries, and source-backed TTPs." />
         <InvestigationBucket title="Suspicious behaviors" count={behaviorNodes.length} text="Expected behavior patterns found in logs, mapped to TTP and IOC leads." />
@@ -683,107 +953,140 @@ function InvestigationStructure({
         <InvestigationBucket title="IOC list" count={iocNodes.length} text="Extracted indicators, enrichment nodes, source records, and graph pivots." />
       </div>
 
-      <div className="rounded border border-gray-800 bg-gray-950/40 p-3">
-        <div className="mb-2 flex items-center justify-between gap-2">
-          <b className="text-xs text-gray-200">Log analysis results</b>
-          <span className="rounded bg-gray-800 px-1.5 py-0.5 text-[10px] text-gray-300">{logNodes.length}</span>
-        </div>
-        {logNodes.length ? (
-          <div className="grid gap-2 lg:grid-cols-2">
-            {logNodes.slice(-20).map(node => (
-              <div key={String(node.id ?? node.label)} className="rounded border border-gray-800 bg-gray-950 p-3">
-                <div className="flex flex-wrap items-center gap-2">
-                  <b className="text-sm text-gray-100">{String(node.label ?? 'Log / PCAP analysis')}</b>
-                  <span className="rounded bg-cyan-950 px-1.5 py-0.5 font-mono text-[10px] text-cyan-200">
-                    {String(node.source_ref ?? node.analysis_id ?? 'log-source')}
-                  </span>
-                </div>
-                <p className="mt-2 line-clamp-3 text-xs leading-5 text-gray-400">{String(node.summary ?? '')}</p>
-                <div className="mt-2 flex flex-wrap gap-1.5">
-                  {Array.isArray(node.observables) && node.observables.slice(0, 8).map((observable, index) => {
-                    const value = String((observable as Record<string, unknown>).value ?? '');
-                    if (!value) return null;
-                    return (
-                      <button key={`${value}-${index}`} type="button" onClick={() => onInvestigateIoc(value)} className="max-w-[180px] truncate rounded border border-cyan-900 px-1.5 py-0.5 font-mono text-[10px] text-cyan-200 hover:border-cyan-400" title={value}>
-                        {value}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
+      {summaryNodes.length > 0 && (
+        <div className="rounded border border-gray-800 bg-gray-950/40 p-3">
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <b className="text-xs text-gray-200">AI summaries</b>
+            <span className="rounded bg-gray-800 px-1.5 py-0.5 text-[10px] text-gray-300">{summaryNodes.length}</span>
           </div>
-        ) : (
-          <p className="text-xs text-gray-500">No Log / PCAP analysis results have been added to this investigation yet.</p>
-        )}
-      </div>
-
-      <div className="rounded border border-gray-800 bg-gray-950/40 p-3">
-        <div className="mb-2 flex items-center justify-between gap-2">
-          <b className="text-xs text-gray-200">Expected suspicious behaviors</b>
-          <span className="rounded bg-gray-800 px-1.5 py-0.5 text-[10px] text-gray-300">{behaviorNodes.length}</span>
+          <div className="grid gap-2 lg:grid-cols-2">
+            {summaryNodes.slice(-4).map(node => {
+              const text = String(node.summary ?? node.description ?? '');
+              const title = String(node.label ?? 'AI investigation summary');
+              return (
+                <div key={String(node.id ?? title)} className="rounded border border-gray-800 bg-gray-950 p-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <b className="text-sm text-gray-100">{title}</b>
+                    <span className="rounded bg-cyan-950 px-1.5 py-0.5 font-mono text-[10px] text-cyan-200">{String(node.provider ?? node.source ?? 'ai')}</span>
+                  </div>
+                  <p className="mt-2 line-clamp-3 text-xs leading-5 text-gray-400">{text}</p>
+                  <button
+                    type="button"
+                    onClick={() => onOpenSummary({ title, text, source: String(node.provider ?? node.source ?? 'ai') })}
+                    className="secondary-action mt-3"
+                  >
+                    Open summary
+                  </button>
+                </div>
+              );
+            })}
+          </div>
         </div>
-        {behaviorNodes.length ? (
-          <div className="max-h-72 overflow-auto">
-            <table className="w-full border-collapse text-left text-xs">
-              <thead className="bg-gray-950/70 text-[10px] uppercase tracking-wide text-gray-500">
-                <tr>
-                  <th className="border-b border-gray-800 px-3 py-2">Evidence</th>
-                  <th className="border-b border-gray-800 px-3 py-2">Why it matters</th>
-                  <th className="border-b border-gray-800 px-3 py-2">TTP / IOC tags</th>
-                </tr>
-              </thead>
-              <tbody>
-                {behaviorNodes.map(node => (
-                  <tr key={node.key} className="bg-red-950/10">
-                    <td className="border-b border-gray-800 px-3 py-2 align-top">
-                      <p className="font-medium text-gray-100">{node.evidence}</p>
-                      {node.sourceRefs.length > 0 && (
-                        <div className="mt-1 flex flex-wrap gap-1">
-                          {node.sourceRefs.map(ref => (
-                            <span key={ref} className="rounded bg-cyan-950 px-1.5 py-0.5 font-mono text-[10px] text-cyan-200">{ref}</span>
+      )}
+
+      <div className="grid gap-3 2xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.35fr)]">
+        <div className="rounded border border-gray-800 bg-gray-950/40 p-3">
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <b className="text-xs text-gray-200">Log analysis results</b>
+            <span className="rounded bg-gray-800 px-1.5 py-0.5 text-[10px] text-gray-300">{logNodes.length}</span>
+          </div>
+          {logNodes.length ? (
+            <div className="grid gap-2 lg:grid-cols-2 2xl:grid-cols-1">
+              {logNodes.slice(-20).map(node => (
+                <div key={String(node.id ?? node.label)} className="rounded border border-gray-800 bg-gray-950 p-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <b className="text-sm text-gray-100">{String(node.label ?? 'Log / PCAP analysis')}</b>
+                    <span className="rounded bg-cyan-950 px-1.5 py-0.5 font-mono text-[10px] text-cyan-200">
+                      {String(node.source_ref ?? node.analysis_id ?? 'log-source')}
+                    </span>
+                  </div>
+                  <p className="mt-2 line-clamp-4 text-xs leading-5 text-gray-400">{String(node.summary ?? '')}</p>
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {Array.isArray(node.observables) && node.observables.slice(0, 10).map((observable, index) => {
+                      const value = String((observable as Record<string, unknown>).value ?? '');
+                      if (!value) return null;
+                      return (
+                        <button key={`${value}-${index}`} type="button" onClick={() => onInvestigateIoc(value)} className="max-w-[180px] truncate rounded border border-cyan-900 px-1.5 py-0.5 font-mono text-[10px] text-cyan-200 hover:border-cyan-400" title={value}>
+                          {value}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-gray-500">No Log / PCAP analysis results have been added to this investigation yet.</p>
+          )}
+        </div>
+
+        <div className="rounded border border-gray-800 bg-gray-950/40 p-3">
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <b className="text-xs text-gray-200">Expected suspicious behaviors</b>
+            <span className="rounded bg-gray-800 px-1.5 py-0.5 text-[10px] text-gray-300">{behaviorNodes.length}</span>
+          </div>
+          {behaviorNodes.length ? (
+            <div className="max-h-[360px] overflow-auto">
+              <table className="w-full border-collapse text-left text-xs">
+                <thead className="sticky top-0 z-10 bg-gray-950 text-[10px] uppercase tracking-wide text-gray-500">
+                  <tr>
+                    <th className="border-b border-gray-800 px-3 py-2">Evidence</th>
+                    <th className="border-b border-gray-800 px-3 py-2">Why it matters</th>
+                    <th className="border-b border-gray-800 px-3 py-2">TTP / IOC tags</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {behaviorNodes.map(node => (
+                    <tr key={node.key} className="bg-red-950/10">
+                      <td className="border-b border-gray-800 px-3 py-2 align-top">
+                        <p className="font-medium text-gray-100">{node.evidence}</p>
+                        {node.sourceRefs.length > 0 && (
+                          <div className="mt-1 flex flex-wrap gap-1">
+                            {node.sourceRefs.map(ref => (
+                              <span key={ref} className="rounded bg-cyan-950 px-1.5 py-0.5 font-mono text-[10px] text-cyan-200">{ref}</span>
+                            ))}
+                          </div>
+                        )}
+                        {node.refs.length > 0 && <p className="mt-1 line-clamp-2 font-mono text-[10px] text-gray-500">{node.refs[0]}</p>}
+                      </td>
+                      <td className="border-b border-gray-800 px-3 py-2 align-top text-gray-300">{node.why}</td>
+                      <td className="border-b border-gray-800 px-3 py-2 align-top">
+                        <div className="flex max-w-lg flex-wrap gap-1.5">
+                          {node.ttps.map(id => (
+                            <button
+                              key={id}
+                              type="button"
+                              onClick={() => onOpenTtp(id)}
+                              className="rounded border border-mitre-accent/50 bg-mitre-accent/10 px-1.5 py-0.5 font-mono text-[10px] text-mitre-accent hover:bg-mitre-accent hover:text-white"
+                            >
+                              {id}
+                            </button>
+                          ))}
+                          {node.iocs.map(value => (
+                            <button
+                              key={value}
+                              type="button"
+                              onClick={() => onInvestigateIoc(value)}
+                              className="max-w-[220px] truncate rounded border border-cyan-700/60 bg-cyan-950/20 px-1.5 py-0.5 font-mono text-[10px] text-cyan-200 hover:border-cyan-400"
+                              title={value}
+                            >
+                              {value}
+                            </button>
                           ))}
                         </div>
-                      )}
-                      {node.refs.length > 0 && <p className="mt-1 line-clamp-2 font-mono text-[10px] text-gray-500">{node.refs[0]}</p>}
-                    </td>
-                    <td className="border-b border-gray-800 px-3 py-2 align-top text-gray-300">{node.why}</td>
-                    <td className="border-b border-gray-800 px-3 py-2 align-top">
-                      <div className="flex max-w-lg flex-wrap gap-1.5">
-                        {node.ttps.map(id => (
-                          <button
-                            key={id}
-                            type="button"
-                            onClick={() => onOpenTtp(id)}
-                            className="rounded border border-mitre-accent/50 bg-mitre-accent/10 px-1.5 py-0.5 font-mono text-[10px] text-mitre-accent hover:bg-mitre-accent hover:text-white"
-                          >
-                            {id}
-                          </button>
-                        ))}
-                        {node.iocs.map(value => (
-                          <button
-                            key={value}
-                            type="button"
-                            onClick={() => onInvestigateIoc(value)}
-                            className="max-w-[220px] truncate rounded border border-cyan-700/60 bg-cyan-950/20 px-1.5 py-0.5 font-mono text-[10px] text-cyan-200 hover:border-cyan-400"
-                            title={value}
-                          >
-                            {value}
-                          </button>
-                        ))}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <p className="text-xs text-gray-500">No expected suspicious behavior rows have been added to this investigation yet.</p>
-        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="text-xs text-gray-500">No expected suspicious behavior rows have been added to this investigation yet.</p>
+          )}
+        </div>
       </div>
 
-      <div className="grid gap-3 xl:grid-cols-2">
+      <div className="grid gap-3 xl:grid-cols-[minmax(0,1.1fr)_minmax(340px,0.9fr)]">
         <div className="rounded border border-gray-800 bg-gray-950/40 p-3">
           <div className="mb-2 flex items-center justify-between gap-2">
             <b className="text-xs text-gray-200">TTPs</b>
@@ -880,9 +1183,267 @@ function InvestigationBucket({ title, count, text }: { title: string; count: num
   );
 }
 
+function ReadableMarkdown({ text }: { text: string }) {
+  const blocks = markdownBlocks(text);
+  if (!blocks.length) return <p className="text-sm text-gray-500">No report content yet.</p>;
+  return (
+    <article className="space-y-5 text-sm leading-7 text-gray-300">
+      {blocks.map((block, index) => {
+        if (block.kind === 'heading') {
+          const headingClass = block.level <= 1
+            ? 'text-2xl font-semibold text-white'
+            : block.level === 2
+              ? 'mt-8 border-b border-gray-800 pb-2 text-lg font-semibold text-white'
+              : 'mt-5 text-base font-semibold text-gray-100';
+          const Tag = (`h${Math.min(block.level, 3)}` as 'h1' | 'h2' | 'h3');
+          return <Tag key={index} className={headingClass}>{renderInlineMarkdown(block.text)}</Tag>;
+        }
+        if (block.kind === 'paragraph') {
+          return <p key={index} className="max-w-none text-gray-300">{renderInlineMarkdown(block.text)}</p>;
+        }
+        if (block.kind === 'bullet') {
+          return (
+            <ul key={index} className="space-y-2 rounded border border-gray-800 bg-gray-950/35 p-4 pl-7 text-gray-300">
+              {block.items.map((item, itemIndex) => <li key={itemIndex} className="list-disc">{renderInlineMarkdown(item)}</li>)}
+            </ul>
+          );
+        }
+        if (block.kind === 'numbered') {
+          return (
+            <ol key={index} className="space-y-2 rounded border border-gray-800 bg-gray-950/35 p-4 pl-7 text-gray-300">
+              {block.items.map((item, itemIndex) => <li key={itemIndex} className="list-decimal">{renderInlineMarkdown(item)}</li>)}
+            </ol>
+          );
+        }
+        if (block.kind === 'code') {
+          return (
+            <pre key={index} className="overflow-auto rounded border border-gray-800 bg-gray-950 p-4 font-mono text-xs leading-6 text-cyan-100">
+              <code>{block.text}</code>
+            </pre>
+          );
+        }
+        return null;
+      })}
+    </article>
+  );
+}
+
+function markdownBlocks(text: string) {
+  const normalized = normalizeMarkdownPreview(text);
+  const lines = normalized.split('\n');
+  const blocks: Array<
+    | { kind: 'heading'; level: number; text: string }
+    | { kind: 'paragraph'; text: string }
+    | { kind: 'bullet'; items: string[] }
+    | { kind: 'numbered'; items: string[] }
+    | { kind: 'code'; text: string }
+  > = [];
+  let paragraph: string[] = [];
+  let bullets: string[] = [];
+  let numbered: string[] = [];
+  let code: string[] = [];
+  let inCode = false;
+
+  const flushParagraph = () => {
+    const textValue = paragraph.join(' ').replace(/\s+/g, ' ').trim();
+    if (textValue) blocks.push({ kind: 'paragraph', text: textValue });
+    paragraph = [];
+  };
+  const flushBullets = () => {
+    if (bullets.length) blocks.push({ kind: 'bullet', items: bullets });
+    bullets = [];
+  };
+  const flushNumbered = () => {
+    if (numbered.length) blocks.push({ kind: 'numbered', items: numbered });
+    numbered = [];
+  };
+  const flushListsAndParagraph = () => {
+    flushParagraph();
+    flushBullets();
+    flushNumbered();
+  };
+
+  for (const rawLine of lines) {
+    const line = rawLine.trimEnd();
+    if (line.trim().startsWith('```')) {
+      if (inCode) {
+        blocks.push({ kind: 'code', text: code.join('\n') });
+        code = [];
+        inCode = false;
+      } else {
+        flushListsAndParagraph();
+        inCode = true;
+      }
+      continue;
+    }
+    if (inCode) {
+      code.push(line);
+      continue;
+    }
+    if (!line.trim()) {
+      flushListsAndParagraph();
+      continue;
+    }
+    const heading = line.match(/^(#{1,6})\s+(.+)$/);
+    const bullet = line.match(/^[-*]\s+(.+)$/);
+    const numberedItem = line.match(/^\d+[.)]\s+(.+)$/);
+    if (heading) {
+      flushListsAndParagraph();
+      blocks.push({ kind: 'heading', level: heading[1].length, text: cleanInline(heading[2]) });
+    } else if (bullet) {
+      flushParagraph();
+      flushNumbered();
+      bullets.push(cleanInline(bullet[1]));
+    } else if (numberedItem) {
+      flushParagraph();
+      flushBullets();
+      numbered.push(cleanInline(numberedItem[1]));
+    } else {
+      flushBullets();
+      flushNumbered();
+      paragraph.push(line.trim());
+    }
+  }
+  if (inCode && code.length) blocks.push({ kind: 'code', text: code.join('\n') });
+  flushListsAndParagraph();
+  return blocks;
+}
+
+function normalizeMarkdownPreview(text: string) {
+  return text
+    .replace(/\r/g, '')
+    .replace(/([^\n])(\s+#{1,6}\s+)/g, (_match, before: string, heading: string) => `${before}\n\n${heading.trimStart()}`)
+    .replace(/([^\n])(\s+-\s+)/g, (_match, before: string, bullet: string) => `${before}\n${bullet.trimStart()}`)
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+function renderInlineMarkdown(text: string) {
+  const parts = cleanInline(text).split(/(`[^`]+`|\*\*[^*]+\*\*|\[[^\]]+\]\([^)]+\))/g);
+  return parts.filter(Boolean).map((part, index) => {
+    if (part.startsWith('`') && part.endsWith('`')) {
+      return <code key={index} className="rounded bg-gray-950 px-1.5 py-0.5 font-mono text-xs text-cyan-200">{part.slice(1, -1)}</code>;
+    }
+    if (part.startsWith('**') && part.endsWith('**')) {
+      return <strong key={index} className="font-semibold text-gray-100">{part.slice(2, -2)}</strong>;
+    }
+    const link = part.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
+    if (link) {
+      return <a key={index} href={link[2]} target="_blank" rel="noreferrer" className="text-cyan-300 underline decoration-cyan-900 underline-offset-4 hover:text-cyan-100">{link[1]}</a>;
+    }
+    return <span key={index}>{part}</span>;
+  });
+}
+
+function SummaryViewer({
+  title,
+  text,
+  source,
+  onClose,
+}: {
+  title: string;
+  text: string;
+  source?: string;
+  onClose: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-6">
+      <section className="flex max-h-[88vh] w-full max-w-5xl flex-col overflow-hidden rounded-lg border border-gray-700 bg-gray-950 shadow-2xl">
+        <header className="flex items-start justify-between gap-4 border-b border-gray-800 bg-gray-900 px-5 py-4">
+          <div>
+            <h2 className="text-lg font-semibold text-white">{title}</h2>
+            {source && <p className="mt-1 text-xs text-gray-500">Source: {source}</p>}
+          </div>
+          <div className="flex gap-2">
+            <button type="button" onClick={() => navigator.clipboard.writeText(text)} className="secondary-action">Copy</button>
+            <button type="button" onClick={onClose} className="secondary-action">Close</button>
+          </div>
+        </header>
+        <div className="overflow-auto p-6">
+          <ReadableSummary text={text} />
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function ReadableSummary({ text }: { text: string }) {
+  const blocks = summaryBlocks(text);
+  if (!blocks.length) return <p className="text-sm text-gray-500">No summary text was saved.</p>;
+  return (
+    <article className="space-y-4 text-sm leading-7 text-gray-300">
+      {blocks.map((block, index) => {
+        if (block.kind === 'heading') {
+          return <h3 key={index} className="border-b border-gray-800 pb-2 text-base font-semibold text-white">{block.text}</h3>;
+        }
+        if (block.kind === 'bullet') {
+          return (
+            <ul key={index} className="list-disc space-y-2 pl-5">
+              {block.items.map((item, itemIndex) => <li key={itemIndex}>{inlineSummaryText(item)}</li>)}
+            </ul>
+          );
+        }
+        return <p key={index}>{inlineSummaryText(block.text)}</p>;
+      })}
+    </article>
+  );
+}
+
+function summaryBlocks(text: string) {
+  const lines = text.replace(/\r/g, '').split('\n').map(line => line.trim()).filter(Boolean);
+  const blocks: Array<{ kind: 'heading'; text: string } | { kind: 'paragraph'; text: string } | { kind: 'bullet'; items: string[] }> = [];
+  let paragraph: string[] = [];
+  let bullets: string[] = [];
+  const flushParagraph = () => {
+    if (paragraph.length) {
+      blocks.push({ kind: 'paragraph', text: paragraph.join(' ') });
+      paragraph = [];
+    }
+  };
+  const flushBullets = () => {
+    if (bullets.length) {
+      blocks.push({ kind: 'bullet', items: bullets });
+      bullets = [];
+    }
+  };
+  for (const line of lines) {
+    const heading = line.match(/^#{1,4}\s+(.+)$/) ?? line.match(/^\*\*(.+?)\*\*:?\s*$/);
+    const bullet = line.match(/^[-*]\s+(.+)$/);
+    if (heading) {
+      flushParagraph();
+      flushBullets();
+      blocks.push({ kind: 'heading', text: cleanInline(heading[1]) });
+    } else if (bullet) {
+      flushParagraph();
+      bullets.push(cleanInline(bullet[1]));
+    } else {
+      flushBullets();
+      paragraph.push(cleanInline(line));
+    }
+  }
+  flushParagraph();
+  flushBullets();
+  return blocks;
+}
+
+function inlineSummaryText(text: string) {
+  const parts = cleanInline(text).split(/(`[^`]+`)/g);
+  return parts.map((part, index) => part.startsWith('`') && part.endsWith('`')
+    ? <code key={index} className="rounded bg-gray-900 px-1.5 py-0.5 font-mono text-xs text-cyan-200">{part.slice(1, -1)}</code>
+    : <span key={index}>{part}</span>);
+}
+
+function cleanInline(text: string) {
+  return text
+    .replace(/\*\*(.+?)\*\*/g, '$1')
+    .replace(/^#+\s*/, '')
+    .trim();
+}
+
 function uniqueIocNodes(nodes: Array<Record<string, unknown>>) {
   const merged = new Map<string, { key: string; value: string; type: string; source: string; description: string; sourceRefs: string[] }>();
   nodes
+    .filter(node => isIocEvidenceNode(node))
     .map(node => {
       const rawValue = String(node.value ?? node.indicator ?? node.observable ?? node.label ?? '');
       const value = rawValue.trim();
@@ -909,6 +1470,134 @@ function uniqueIocNodes(nodes: Array<Record<string, unknown>>) {
       return true;
     });
   return Array.from(merged.values()).slice(0, 100);
+}
+
+function buildEvidenceIndex(investigation: Investigation | null): EvidenceIndex {
+  const ttps = new Map<string, SourceTaggedEvidence[]>();
+  const iocs = new Map<string, SourceTaggedEvidence[]>();
+  if (!investigation) return { ttps, iocs };
+  const nodes = investigation.evidence_nodes ?? [];
+  nodes.forEach(node => {
+    const record = node as Record<string, unknown>;
+    const refs = collectNodeSourceRefs(record);
+    const sourceTag = sourceTagFromNode(record);
+    const reference = refs.join(', ') || sourceTag;
+    const evidence = String(record.evidence ?? record.summary ?? record.description ?? record.label ?? '').trim();
+    const confidence = record.confidence as string | number | undefined;
+
+    if (String(record.type ?? '') === 'ttp-evidence') {
+      addEvidence(ttps, String(record.attack_id ?? '').toUpperCase(), { sourceTag, reference, evidence, confidence });
+    }
+
+    stringArray(record.ttps).forEach(id => {
+      addEvidence(ttps, id.toUpperCase(), { sourceTag, reference, evidence, confidence });
+    });
+
+    if (Array.isArray(record.techniques)) {
+      record.techniques.forEach(item => {
+        if (!item || typeof item !== 'object') return;
+        const technique = item as Record<string, unknown>;
+        const attackId = String(technique.attack_id ?? '').toUpperCase();
+        addEvidence(ttps, attackId, {
+          sourceTag,
+          reference,
+          evidence: String(technique.evidence ?? evidence ?? '').trim(),
+          confidence: technique.confidence as string | number | undefined,
+        });
+      });
+    }
+
+    const value = String(record.value ?? record.indicator ?? record.observable ?? '').trim();
+    if (value && isIocEvidenceNode(record)) {
+      addEvidence(iocs, value, { sourceTag, reference, evidence, confidence });
+    }
+
+    if (Array.isArray(record.observables)) {
+      record.observables.forEach(item => {
+        if (!item || typeof item !== 'object') return;
+        const observable = item as Record<string, unknown>;
+        const observableValue = String(observable.value ?? '').trim();
+        addEvidence(iocs, observableValue, {
+          sourceTag,
+          reference,
+          evidence: String(observable.description ?? evidence ?? '').trim(),
+          confidence: observable.confidence as string | number | undefined,
+        });
+      });
+    }
+
+    stringArray(record.iocs).forEach(item => {
+      addEvidence(iocs, item, { sourceTag, reference, evidence, confidence });
+    });
+  });
+  return { ttps, iocs };
+}
+
+function addEvidence(map: Map<string, SourceTaggedEvidence[]>, key: string, evidence: SourceTaggedEvidence) {
+  const normalized = key.trim();
+  if (!normalized) return;
+  const current = map.get(normalized) ?? [];
+  const next = [...current, evidence].filter(item => item.reference || item.evidence);
+  const seen = new Set<string>();
+  map.set(normalized, next.filter(item => {
+    const dedupeKey = `${item.sourceTag}:${item.reference}:${item.evidence}`.toLowerCase();
+    if (seen.has(dedupeKey)) return false;
+    seen.add(dedupeKey);
+    return true;
+  }).slice(0, 8));
+}
+
+function formatSourceReferences(items: SourceTaggedEvidence[]) {
+  return items
+    .map(item => `${item.sourceTag}: ${item.reference || item.evidence}`)
+    .filter(Boolean)
+    .slice(0, 5)
+    .join('; ');
+}
+
+function sourceTagFromNode(node: Record<string, unknown>) {
+  const raw = [
+    String(node.source ?? ''),
+    String(node.source_ref ?? ''),
+    String(node.type ?? ''),
+    ...stringArray(node.source_refs),
+  ].join(' ');
+  return sourceTagFromValue(raw);
+}
+
+function sourceTagFromValue(value: string) {
+  const lowered = value.toLowerCase();
+  if (/pcap|pcapng|zeek|suricata/.test(lowered)) return 'pcap';
+  if (/log|edr|firewall|dns|proxy|windows event|sysmon/.test(lowered)) return 'log';
+  if (/report|cti|article|pdf|docx/.test(lowered)) return 'report';
+  if (/ioc-investigation|virustotal|urlscan|otx|threatfox|malwarebazaar|greynoise|shodan|censys|abuseipdb/.test(lowered)) return lowered.includes('ioc-investigation') ? 'ioc-investigation' : 'feed';
+  if (/manual|navigator|my ttps|selected/.test(lowered)) return 'manual';
+  return value.trim() ? value.trim().slice(0, 32) : 'manual';
+}
+
+function inferIocType(value: string) {
+  if (/^https?:\/\//i.test(value)) return 'url';
+  if (/^[a-f0-9]{32}$/i.test(value)) return 'md5';
+  if (/^[a-f0-9]{40}$/i.test(value)) return 'sha1';
+  if (/^[a-f0-9]{64}$/i.test(value)) return 'sha256';
+  if (/^(?:\d{1,3}\.){3}\d{1,3}$/.test(value)) return 'ip';
+  return 'domain';
+}
+
+function isIocEvidenceNode(node: Record<string, unknown>) {
+  const type = String(node.ioc_type ?? node.indicator_type ?? node.type ?? '').toLowerCase();
+  if (['ai-summary', 'investigation-report', 'actor-comparison', 'suspicious-behavior'].includes(type)) return false;
+  const value = String(node.value ?? node.indicator ?? node.observable ?? '').trim();
+  if (!value) return false;
+  if (/(^|\b)(ioc|indicator|observable|ip|domain|url|hash|sha1|sha256|md5)(\b|$)/i.test(type)) return true;
+  return looksLikeObservable(value);
+}
+
+function looksLikeObservable(value: string) {
+  if (/^https?:\/\/\S+$/i.test(value)) return true;
+  if (/^[a-f0-9]{32}$|^[a-f0-9]{40}$|^[a-f0-9]{64}$/i.test(value)) return true;
+  if (/^(?:\d{1,3}\.){3}\d{1,3}$/.test(value)) return true;
+  return /^[a-z0-9*_.-]+\.[a-z0-9_.-]+$/i.test(value) && !/\s/.test(value);
 }
 
 function uniqueSuspiciousBehaviorNodes(nodes: Array<Record<string, unknown>>) {
@@ -999,6 +1688,7 @@ function buildReportContext({
   relevantIocs,
   sections,
   investigation,
+  evidenceIndex,
 }: {
   domain: string;
   rows: ReportRow[];
@@ -1006,6 +1696,7 @@ function buildReportContext({
   relevantIocs: IOCItem[];
   sections: ReportSections;
   investigation: Investigation | null;
+  evidenceIndex: EvidenceIndex;
 }) {
   const lines = [
     `Domain: ${domain}`,
@@ -1016,6 +1707,7 @@ function buildReportContext({
   if (sections.ttps) {
     lines.push('TTP evidence:');
     rows.slice(0, 45).forEach(row => {
+      const sourceEvidence = evidenceIndex.ttps.get(row.id) ?? [];
       lines.push([
         `${row.id} ${row.name}`,
         `coverage=${row.covered ? 'covered' : 'gap'}`,
@@ -1024,6 +1716,8 @@ function buildReportContext({
         `maturity=${row.assessment.maturity ?? 'none'}`,
         row.assessment.evidence ? `evidence=${truncate(row.assessment.evidence, 120)}` : '',
         row.assessment.source ? `source=${truncate(row.assessment.source, 80)}` : '',
+        sourceEvidence.length ? `source_tags=${sourceEvidence.map(item => item.sourceTag).join(', ')}` : 'source_tags=manual',
+        sourceEvidence.length ? `references=${truncate(formatSourceReferences(sourceEvidence), 180)}` : '',
       ].filter(Boolean).join(' | '));
     });
     if (rows.length > 45) lines.push(`Additional TTPs omitted from AI context: ${rows.length - 45}.`);
@@ -1038,8 +1732,8 @@ function buildReportContext({
   }
   if (sections.iocs) {
     lines.push('Relevant IOC enrichment:');
-    relevantIocs.slice(0, 25).forEach(item => {
-      lines.push(`${item.value} (${item.type}) | source=${item.source || 'unknown'} | malware=${item.malware_family || 'unknown'} | campaign=${item.campaign || 'unknown'} | ttps=${item.technique_ids?.slice(0, 8).join(', ') || 'none'} | confidence=${item.confidence ?? 0}`);
+    buildReportIocItems(relevantIocs, evidenceIndex).slice(0, 35).forEach(item => {
+      lines.push(`${item.value} (${item.type}) | source_tag=${item.sourceTag} | reference=${truncate(item.reference, 160)} | source=${item.source || 'unknown'} | malware=${item.malware_family || 'unknown'} | campaign=${item.campaign || 'unknown'} | ttps=${item.technique_ids?.slice(0, 8).join(', ') || 'none'} | confidence=${item.confidence ?? 0}`);
     });
     if (relevantIocs.length > 25) lines.push(`Additional IOCs omitted from AI context: ${relevantIocs.length - 25}.`);
   }
@@ -1060,6 +1754,60 @@ function buildReportContext({
 
 function truncate(value: string, limit: number) {
   return value.length > limit ? `${value.slice(0, Math.max(0, limit - 3))}...` : value;
+}
+
+function buildSavedReportNode({
+  title,
+  content,
+  provider,
+  format,
+}: {
+  title: string;
+  content: string;
+  provider: string;
+  format: string;
+}): SavedReportNode {
+  const createdAt = new Date().toISOString();
+  return {
+    id: `investigation-report:${Date.now()}`,
+    type: 'investigation-report',
+    label: title || 'AdversaryGraph Investigation Report',
+    summary: truncate(content.replace(/\s+/g, ' ').trim(), 500),
+    content,
+    provider,
+    format,
+    created_at: createdAt,
+  };
+}
+
+function savedReportNodes(investigation: Investigation | null): SavedReportNode[] {
+  if (!investigation) return [];
+  return (investigation.evidence_nodes ?? [])
+    .filter(node => String(node.type ?? '') === 'investigation-report')
+    .map((node, index) => {
+      const record = node as Record<string, unknown>;
+      const label = String(record.label ?? record.title ?? 'Investigation report');
+      const content = String(record.content ?? record.report ?? record.markdown ?? record.body ?? record.summary ?? '');
+      return {
+        id: String(record.id ?? `investigation-report:${index}`),
+        type: 'investigation-report',
+        label,
+        summary: String(record.summary ?? truncate(content.replace(/\s+/g, ' ').trim(), 500)),
+        content,
+        provider: String(record.provider ?? record.source ?? ''),
+        format: String(record.format ?? 'markdown'),
+        created_at: String(record.created_at ?? record.generated_at ?? ''),
+      };
+    })
+    .filter(report => Boolean(report.content.trim()))
+    .sort((a, b) => String(b.created_at ?? b.id).localeCompare(String(a.created_at ?? a.id)));
+}
+
+function formatReportDate(value?: string) {
+  if (!value) return 'saved';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString();
 }
 
 async function readSseText(response: Response) {

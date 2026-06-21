@@ -533,7 +533,7 @@ export const analyzeApi = {
     fetch('/api/analyze/stream', { method: 'POST', body: formData }),
 
   /** Single-turn chat with SSE streaming */
-  chat: (payload: { message: string; provider: string; model?: string; context?: string }): Promise<Response> =>
+  chat: (payload: { message: string; provider: string; model?: string; context?: string; system_prompt?: string }): Promise<Response> =>
     fetch('/api/analyze/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

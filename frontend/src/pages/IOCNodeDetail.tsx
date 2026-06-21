@@ -3,15 +3,17 @@ import type { ReactNode } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Header } from '@/components/Layout/Header';
-import { iocApi } from '@/api/client';
+import { aptApi, attackApi, iocApi } from '@/api/client';
 import { useAppStore } from '@/store';
+import { RelationshipGraph } from './IOCInvestigation';
 
-const OBSERVABLE_TYPES = new Set(['ioc', 'ip', 'domain', 'url', 'hash']);
+const OBSERVABLE_TYPES = new Set(['ioc', 'ip', 'ipv4', 'ipv6', 'domain', 'url', 'hash', 'md5', 'sha1', 'sha256']);
+const SEARCHABLE_OBJECT_TYPES = new Set([...OBSERVABLE_TYPES, 'file', 'report', 'collection']);
 
 export function IOCNodeDetail() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
-  const { addTechniques, replaceTechniques } = useAppStore();
+  const { domain, version, addTechniques, replaceTechniques } = useAppStore();
   const value = params.get('value') ?? '';
   const type = params.get('type') ?? 'unknown';
   const tier = params.get('tier') ?? '';
@@ -19,16 +21,54 @@ export function IOCNodeDetail() {
   const isObservable = OBSERVABLE_TYPES.has(type);
   const isTechnique = /^T\d{4}(?:\.\d{3})?$/i.test(value);
   const isActorId = /^G\d{4}$/i.test(value);
-  const canSearchIocs = Boolean(value.trim()) && (isObservable || ['malware', 'tag', 'report', 'name', 'classification', 'reputation'].includes(type));
+  const canSearchIocs = Boolean(value.trim()) && SEARCHABLE_OBJECT_TYPES.has(type);
   const library = useQuery({
     queryKey: ['ioc-node-library', type, value],
     queryFn: () => iocApi.library({ search: value, limit: 10 }),
     enabled: canSearchIocs,
   });
+  const relationshipInvestigation = useQuery({
+    queryKey: ['ioc-node-relationship-investigation', domain, value],
+    queryFn: () => iocApi.investigate({
+      artifact: value,
+      domain,
+      depth: 2,
+      max_tier_nodes: 35,
+      ai_summarize: false,
+      ai_provider: 'local',
+    }),
+    enabled: isObservable && Boolean(value.trim()),
+    staleTime: 60_000,
+    retry: 1,
+  });
+  const actorSearch = useQuery({
+    queryKey: ['ioc-node-actor-search', domain, version, value],
+    queryFn: () => aptApi.groups({ domain, version: version ?? undefined, search: value }),
+    enabled: (type === 'actor' || isActorId) && Boolean(value.trim()),
+    staleTime: 5 * 60_000,
+  });
+  const selectedActorId = useMemo(() => {
+    if (isActorId) return value.toUpperCase();
+    return actorSearch.data?.[0]?.attack_id ?? '';
+  }, [actorSearch.data, isActorId, value]);
+  const actorDetail = useQuery({
+    queryKey: ['ioc-node-actor-detail', selectedActorId, domain, version],
+    queryFn: () => aptApi.group(selectedActorId, domain, version ?? undefined),
+    enabled: Boolean(selectedActorId),
+    staleTime: 5 * 60_000,
+  });
+  const techniqueDetail = useQuery({
+    queryKey: ['ioc-node-technique-detail', value, domain, version],
+    queryFn: () => attackApi.technique(value.toUpperCase(), domain, version ?? undefined),
+    enabled: isTechnique,
+    staleTime: 5 * 60_000,
+  });
   const matchedTechniqueIds = useMemo(() => {
     const fromItems = library.data?.items.flatMap(item => item.technique_ids ?? []) ?? [];
-    return Array.from(new Set([...(isTechnique ? [value.toUpperCase()] : []), ...fromItems])).sort();
-  }, [isTechnique, library.data?.items, value]);
+    const fromInvestigation = relationshipInvestigation.data?.techniques.map(item => item.attack_id) ?? [];
+    const fromActor = actorDetail.data?.techniques.map(item => item.attack_id) ?? [];
+    return Array.from(new Set([...(isTechnique ? [value.toUpperCase()] : []), ...fromItems, ...fromInvestigation, ...fromActor])).sort();
+  }, [actorDetail.data?.techniques, isTechnique, library.data?.items, relationshipInvestigation.data?.techniques, value]);
 
   const showOnMatrix = () => {
     replaceTechniques(matchedTechniqueIds);
@@ -56,10 +96,57 @@ export function IOCNodeDetail() {
                 {canSearchIocs && <button onClick={() => navigate(`/ioc-library?search=${encodeURIComponent(value)}`)} className="secondary-action">Search IOC Library</button>}
                 {isObservable && <button onClick={() => navigate(`/virustotal?indicator=${encodeURIComponent(value)}`)} className="secondary-action">VirusTotal Lookup</button>}
                 {isTechnique && <button onClick={() => navigate(`/navigator?technique=${value.toUpperCase()}`)} className="secondary-action">Open Technique</button>}
-                {isActorId && <button onClick={() => navigate(`/apt?group=${value.toUpperCase()}`)} className="secondary-action">Open Actor</button>}
-                {type === 'actor' && !isActorId && <button onClick={() => navigate(`/apt?search=${encodeURIComponent(value)}`)} className="secondary-action">Search Actor Library</button>}
+                {selectedActorId && <button onClick={() => navigate(`/apt?group=${selectedActorId}`)} className="secondary-action">Open Actor</button>}
+                {type === 'actor' && !selectedActorId && <button onClick={() => navigate(`/apt?search=${encodeURIComponent(value)}`)} className="secondary-action">Search Actor Library</button>}
               </div>
             </div>
+          </section>
+
+          <section className="grid gap-4 xl:grid-cols-3">
+            <ContextCard title="Relationship context" loading={relationshipInvestigation.isLoading} error={relationshipInvestigation.error}>
+              {relationshipInvestigation.data ? (
+                <div className="space-y-2 text-xs text-gray-400">
+                  <Metric label="Verdict" value={`${relationshipInvestigation.data.verdict} (${relationshipInvestigation.data.suspicion_score}/100)`} />
+                  <Metric label="Nodes" value={relationshipInvestigation.data.relationships.nodes.length} />
+                  <Metric label="Edges" value={relationshipInvestigation.data.relationships.edges.length} />
+                  <p className="line-clamp-4 leading-5">{relationshipInvestigation.data.summary}</p>
+                </div>
+              ) : <Empty text={isObservable ? 'Relationship context will load automatically.' : 'Relationship investigation is available for IOC, IP, domain, URL, and hash nodes.'} />}
+            </ContextCard>
+            <ContextCard title="Actor context" loading={actorSearch.isLoading || actorDetail.isLoading} error={actorSearch.error || actorDetail.error}>
+              {actorDetail.data ? (
+                <div className="space-y-2 text-xs text-gray-400">
+                  <Metric label="Actor" value={`${actorDetail.data.name} (${actorDetail.data.attack_id})`} />
+                  <Metric label="Techniques" value={actorDetail.data.techniques.length} />
+                  <Metric label="Campaigns" value={actorDetail.data.campaign_count} />
+                  <p className="line-clamp-4 leading-5">{actorDetail.data.description || 'No ATT&CK description available.'}</p>
+                </div>
+              ) : actorSearch.data?.length ? (
+                <div className="space-y-2">
+                  {actorSearch.data.slice(0, 5).map(actor => (
+                    <button key={actor.attack_id} type="button" onClick={() => navigate(`/apt?group=${actor.attack_id}`)} className="block w-full rounded border border-gray-800 bg-gray-950/50 p-2 text-left hover:border-mitre-accent">
+                      <b className="text-xs text-gray-100">{actor.name}</b>
+                      <p className="text-[10px] text-gray-500">{actor.attack_id} · {actor.technique_count} techniques</p>
+                    </button>
+                  ))}
+                </div>
+              ) : <Empty text="No actor profile found for this node." />}
+            </ContextCard>
+            <ContextCard title="Technique context" loading={techniqueDetail.isLoading} error={techniqueDetail.error}>
+              {techniqueDetail.data ? (
+                <div className="space-y-2 text-xs text-gray-400">
+                  <Metric label="Technique" value={`${techniqueDetail.data.attack_id} ${techniqueDetail.data.name}`} />
+                  <Metric label="Tactic" value={techniqueDetail.data.tactics.join(', ') || 'unknown'} />
+                  <p className="line-clamp-5 leading-5">{techniqueDetail.data.description || 'No ATT&CK description available.'}</p>
+                </div>
+              ) : matchedTechniqueIds.length ? (
+                <div className="flex flex-wrap gap-1.5">
+                  {matchedTechniqueIds.slice(0, 20).map(id => (
+                    <button key={id} type="button" onClick={() => navigate(`/navigator?technique=${id}`)} className="rounded border border-mitre-accent/50 bg-mitre-accent/10 px-2 py-1 font-mono text-[10px] text-mitre-accent hover:bg-mitre-accent hover:text-white">{id}</button>
+                  ))}
+                </div>
+              ) : <Empty text="No direct technique mapping was found." />}
+            </ContextCard>
           </section>
 
           <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_420px]">
@@ -117,6 +204,17 @@ export function IOCNodeDetail() {
               </div>
             </Panel>
           )}
+
+          {relationshipInvestigation.data && (
+            <RelationshipGraph
+              result={relationshipInvestigation.data}
+              onPivotNode={node => {
+                if (OBSERVABLE_TYPES.has(node.type)) {
+                  navigate(`/ioc-node?type=${encodeURIComponent(node.type)}&value=${encodeURIComponent(node.value)}&tier=${node.tier}&sources=${encodeURIComponent(node.sources.join(','))}`);
+                }
+              }}
+            />
+          )}
         </div>
       </div>
     </div>
@@ -126,6 +224,8 @@ export function IOCNodeDetail() {
 function nodeSummary(type: string, value: string) {
   if (!value) return 'This page was opened without a node value.';
   if (OBSERVABLE_TYPES.has(type)) return 'Observable node. Use this page to pivot into IOC Library records, enrichment, VirusTotal lookup, and a deeper IOC investigation.';
+  if (type === 'file') return 'File artifact node. Use this page to search local IOC records and pivot to hashes or report evidence when available.';
+  if (type === 'report' || type === 'collection') return 'Collection or report node. Use it as source context for the related observables and evidence, not as direct attribution.';
   if (type === 'actor') return 'Actor lead node. It can help pivot into ATT&CK group context, but it should not be treated as attribution without source-backed evidence.';
   if (type === 'suspicious-pattern') return 'Behavior pattern node from investigation enrichment. Use it as a clue for TTP mapping and maliciousness assessment.';
   if (type === 'tag' || type === 'classification' || type === 'reputation') return 'Context node from an enrichment source. It can support triage but usually needs another source before a firm conclusion.';
@@ -182,6 +282,26 @@ function ErrorBox({ error }: { error: unknown }) {
   return (
     <div className="rounded border border-red-500/50 bg-red-950/30 p-3 text-sm text-red-100">
       {error instanceof Error ? error.message : String(error)}
+    </div>
+  );
+}
+
+function ContextCard({ title, loading, error, children }: { title: string; loading?: boolean; error?: unknown; children: ReactNode }) {
+  return (
+    <section className="rounded-lg border border-gray-800 bg-gray-900/60 p-4">
+      <h3 className="text-sm font-semibold text-white">{title}</h3>
+      <div className="mt-3">
+        {loading ? <Empty text="Loading..." /> : error ? <ErrorBox error={error} /> : children}
+      </div>
+    </section>
+  );
+}
+
+function Metric({ label, value }: { label: string; value: ReactNode }) {
+  return (
+    <div className="flex items-center justify-between gap-3 rounded border border-gray-800 bg-gray-950/60 px-2 py-1.5">
+      <span className="text-[10px] uppercase tracking-wide text-gray-600">{label}</span>
+      <span className="break-all text-right text-xs text-gray-200">{value}</span>
     </div>
   );
 }

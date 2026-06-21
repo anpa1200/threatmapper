@@ -26,8 +26,8 @@ export function IOCInvestigation() {
     staleTime: 15_000,
   });
   const mutation = useMutation({
-    mutationFn: () => iocApi.investigate({
-      artifact: artifact.trim(),
+    mutationFn: (nextArtifact?: string) => iocApi.investigate({
+      artifact: (nextArtifact ?? artifact).trim(),
       domain,
       depth,
       max_tier_nodes: 25,
@@ -37,7 +37,8 @@ export function IOCInvestigation() {
     onMutate: () => {
       setLoadedResult(null);
     },
-    onSuccess: data => {
+    onSuccess: (data, requestedArtifact) => {
+      if (requestedArtifact) setArtifact(requestedArtifact);
       if (data.session_id) {
         setDeletedSessionIds(previous => {
           const next = new Set(previous);
@@ -110,7 +111,7 @@ export function IOCInvestigation() {
                     value={artifact}
                     onChange={event => setArtifact(event.target.value)}
                     onKeyDown={event => {
-                      if (event.key === 'Enter' && artifact.trim()) mutation.mutate();
+                      if (event.key === 'Enter' && artifact.trim()) mutation.mutate(undefined);
                     }}
                     placeholder="IP, domain, URL, MD5, SHA1, SHA256, or artifact..."
                     className="min-w-[360px] flex-1 rounded border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-gray-200 outline-none focus:border-mitre-accent"
@@ -134,7 +135,7 @@ export function IOCInvestigation() {
                   <button
                     type="button"
                     disabled={!artifact.trim() || mutation.isPending}
-                    onClick={() => mutation.mutate()}
+                    onClick={() => mutation.mutate(undefined)}
                     className="rounded bg-mitre-accent px-4 py-2 text-sm font-semibold text-white hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {mutation.isPending ? 'Investigating...' : 'Investigate'}
@@ -177,7 +178,13 @@ export function IOCInvestigation() {
               <div className="grid gap-5 xl:grid-cols-[1fr_420px]">
                 <section className="space-y-5">
                   <SourceResults result={result} />
-                  <RelationshipGraph result={result} />
+                  <RelationshipGraph
+                    result={result}
+                    onPivotNode={node => {
+                      setLoadedResult(null);
+                      mutation.mutate(node.value);
+                    }}
+                  />
                 </section>
                 <aside className="space-y-5">
                   <Actions
@@ -335,12 +342,37 @@ function Actions({ result, techniqueIds, onShowMatrix, onAddTtps }: { result: IO
                 id: `ioc-investigation:${result.session_id || result.artifact}`,
                 type: 'ioc-investigation',
                 value: result.artifact,
+                label: result.artifact,
                 artifact_type: result.artifact_type,
                 verdict: result.verdict,
                 suspicion_score: result.suspicion_score,
                 summary: result.summary,
+                source: 'ioc-investigation',
+                source_ref: `ioc-investigation:${result.session_id || result.artifact}`,
                 sources: result.sources.map(source => ({ source: source.source, status: source.status, summary: source.summary })),
               },
+              {
+                id: `ioc:${result.artifact}`,
+                type: 'ioc',
+                value: result.artifact,
+                ioc_type: result.artifact_type,
+                source: 'ioc-investigation',
+                source_ref: `ioc-investigation:${result.session_id || result.artifact}`,
+                description: result.summary,
+                verdict: result.verdict,
+                suspicion_score: result.suspicion_score,
+              },
+              ...result.techniques.slice(0, 120).map(item => ({
+                id: `ttp-evidence:${result.session_id || result.artifact}:${item.attack_id}`,
+                type: 'ttp-evidence',
+                attack_id: item.attack_id,
+                label: `${item.attack_id} ${item.name || 'Technique lead'}`,
+                source: 'ioc-investigation',
+                source_ref: `ioc-investigation:${result.session_id || result.artifact}`,
+                tactic: item.tactics.join(', '),
+                evidence: item.evidence_sources?.join('; ') || result.summary,
+                references: item.evidence_sources ?? [],
+              })),
               ...result.relationships.nodes.slice(0, 120).map(node => ({
                 ...node,
                 id: `ioc-node:${node.id}`,
@@ -689,25 +721,55 @@ function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, Math.round(value)));
 }
 
-function RelationshipGraph({ result }: { result: IOCInvestigationResult }) {
+export function RelationshipGraph({
+  result,
+  onPivotNode,
+}: {
+  result: IOCInvestigationResult;
+  onPivotNode: (node: GraphNode) => void;
+}) {
   const navigate = useNavigate();
+  const { domain } = useAppStore();
   const svgRef = useRef<SVGSVGElement | null>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(result.relationships.nodes[0]?.id ?? null);
   const [selectedEdgeIndex, setSelectedEdgeIndex] = useState<number | null>(null);
   const [tierFilter, setTierFilter] = useState<'all' | '0' | '1' | '2' | '3'>('all');
   const [typeFilter, setTypeFilter] = useState('actionable');
   const [focusNodeId, setFocusNodeId] = useState<string | null>(null);
+  const [expandedResults, setExpandedResults] = useState<Record<string, IOCInvestigationResult>>({});
+  const expandNode = useMutation({
+    mutationFn: (node: GraphNode) => iocApi.investigate({
+      artifact: node.value,
+      domain,
+      depth: 2,
+      max_tier_nodes: 35,
+      ai_summarize: false,
+      ai_provider: 'local',
+    }),
+    onSuccess: (data, node) => {
+      setExpandedResults(previous => ({ ...previous, [node.id]: data }));
+    },
+  });
+  const expandedList = useMemo(() => Object.values(expandedResults), [expandedResults]);
+  const graphResult = useMemo(() => mergeInvestigationGraphs(result, expandedList), [expandedList, result]);
+  const scoredNodes = useMemo(
+    () => graphResult.relationships.nodes.map(node => ({
+      ...node,
+      suspicious: effectiveNodeRisk(node, graphResult, graphResult.relationships.edges),
+    })),
+    [graphResult]
+  );
   const baseNodes = useMemo(() => {
-    const filtered = result.relationships.nodes.filter(node => tierFilter === 'all' || String(node.tier) === tierFilter);
+    const filtered = scoredNodes.filter(node => tierFilter === 'all' || String(node.tier) === tierFilter);
     if (typeFilter === 'all') return filtered;
     if (typeFilter === 'actionable') return filtered.filter(isActionableGraphNode);
     return filtered.filter(node => node.type === typeFilter);
-  }, [result.relationships.nodes, tierFilter, typeFilter]);
+  }, [scoredNodes, tierFilter, typeFilter]);
   const baseNodeKeys = useMemo(() => new Set(baseNodes.flatMap(node => [node.id, node.value.toLowerCase()])), [baseNodes]);
-  const baseEdges = useMemo(() => result.relationships.edges.filter(edge => {
+  const baseEdges = useMemo(() => graphResult.relationships.edges.filter(edge => {
     const targetId = graphNodeId(edge.type, edge.target);
     return baseNodeKeys.has(edge.source.toLowerCase()) && (baseNodeKeys.has(targetId) || baseNodeKeys.has(edge.target.toLowerCase()));
-  }), [baseNodeKeys, result.relationships.edges]);
+  }), [baseNodeKeys, graphResult.relationships.edges]);
   const nodes = useMemo(() => {
     if (!focusNodeId) return baseNodes;
     const focused = baseNodes.find(node => node.id === focusNodeId);
@@ -728,8 +790,8 @@ function RelationshipGraph({ result }: { result: IOCInvestigationResult }) {
     const targetId = graphNodeId(edge.type, edge.target);
     return nodeKeys.has(edge.source.toLowerCase()) && (nodeKeys.has(targetId) || nodeKeys.has(edge.target.toLowerCase()));
   }), [baseEdges, nodeKeys]);
-  const typeOptions = useMemo(() => Array.from(new Set(result.relationships.nodes.map(node => node.type))).sort(), [result.relationships.nodes]);
-  const hiddenContextCount = useMemo(() => result.relationships.nodes.filter(node => !isActionableGraphNode(node)).length, [result.relationships.nodes]);
+  const typeOptions = useMemo(() => Array.from(new Set(scoredNodes.map(node => node.type))).sort(), [scoredNodes]);
+  const hiddenContextCount = useMemo(() => scoredNodes.filter(node => !isActionableGraphNode(node)).length, [scoredNodes]);
   const selectedNode = nodes.find(node => node.id === selectedNodeId) ?? nodes[0] ?? null;
   const selectedEdge = selectedEdgeIndex == null ? null : edges[selectedEdgeIndex] ?? null;
   const selectedNodeEdges = useMemo(() => {
@@ -748,6 +810,7 @@ function RelationshipGraph({ result }: { result: IOCInvestigationResult }) {
     setSelectedNodeId(result.relationships.nodes[0]?.id ?? null);
     setSelectedEdgeIndex(null);
     setFocusNodeId(null);
+    setExpandedResults({});
   }, [result.artifact, result.relationships.nodes]);
 
   useEffect(() => {
@@ -824,10 +887,9 @@ function RelationshipGraph({ result }: { result: IOCInvestigationResult }) {
         setSelectedNodeId(graphNode.id);
         setSelectedEdgeIndex(null);
         setFocusNodeId(graphNode.id);
-      })
-      .on('dblclick', (event, graphNode) => {
-        event.stopPropagation();
-        navigate(nodeDetailUrl(graphNode));
+        if (isInvestigableNode(graphNode) && !expandedResults[graphNode.id]) {
+          expandNode.mutate(graphNode);
+        }
       })
       .call(
         d3.drag<SVGGElement, GraphNode>()
@@ -888,7 +950,7 @@ function RelationshipGraph({ result }: { result: IOCInvestigationResult }) {
     return () => {
       simulation.stop();
     };
-  }, [edges, navigate, nodes, selectedNodeId]);
+  }, [edges, expandNode, expandedResults, navigate, nodes, selectedNodeId]);
 
   return (
     <section className="rounded-lg border border-gray-800 bg-gray-900/60">
@@ -903,6 +965,8 @@ function RelationshipGraph({ result }: { result: IOCInvestigationResult }) {
             <span>{edges.length} visible edges</span>
             {typeFilter === 'actionable' && hiddenContextCount > 0 && <span>{hiddenContextCount} context nodes hidden</span>}
             {focusNodeId && <span className="text-mitre-accent">focused on selected node</span>}
+            {expandNode.isPending && <span className="text-mitre-accent">loading selected-node relationships</span>}
+            {expandedList.length > 0 && <span>{expandedList.length} expanded pivot graph{expandedList.length === 1 ? '' : 's'}</span>}
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -930,12 +994,11 @@ function RelationshipGraph({ result }: { result: IOCInvestigationResult }) {
         </div>
       </div>
       <div className="flex flex-wrap items-center gap-3 border-b border-gray-800 px-4 py-2 text-[10px] text-gray-500">
-        <LegendDot color="#f43f5e" label="Root IOC" />
-        <LegendDot color="#22c55e" label="URL/domain" />
-        <LegendDot color="#06b6d4" label="IP/IOC" />
-        <LegendDot color="#a855f7" label="Actor lead" />
-        <LegendDot color="#f97316" label="Malware" />
-        <LegendDot color="#94a3b8" label="Context" />
+        <LegendDot color="#38bdf8" label="No reputation" />
+        <LegendDot color="#22c55e" label="Low / benign" />
+        <LegendDot color="#facc15" label="Needs review" />
+        <LegendDot color="#fb923c" label="Suspicious" />
+        <LegendDot color="#ef4444" label="High risk" />
       </div>
       <div className="grid gap-4 p-4 xl:grid-cols-[1fr_300px]">
         <div className="min-h-[540px] overflow-hidden rounded border border-gray-800 bg-[radial-gradient(circle_at_center,#111827_0,#020617_75%)]">
@@ -946,13 +1009,22 @@ function RelationshipGraph({ result }: { result: IOCInvestigationResult }) {
           )}
         </div>
         <GraphInspector
-          result={result}
+          result={graphResult}
           node={selectedNode}
           edge={selectedEdge}
           connectedEdges={selectedNodeEdges}
           onOpenNode={node => navigate(nodeDetailUrl(node))}
-          onFocusNode={node => setFocusNodeId(node.id)}
-          onInvestigateNode={node => navigate(`/ioc-investigation?indicator=${encodeURIComponent(node.value)}`)}
+          onFocusNode={node => {
+            setTypeFilter('all');
+            setTierFilter('all');
+            setSelectedNodeId(node.id);
+            setSelectedEdgeIndex(null);
+            setFocusNodeId(node.id);
+            if (isInvestigableNode(node) && !expandedResults[node.id]) {
+              expandNode.mutate(node);
+            }
+          }}
+          onInvestigateNode={onPivotNode}
         />
       </div>
       <div className="grid gap-4 border-t border-gray-800 p-4 lg:grid-cols-2">
@@ -971,6 +1043,9 @@ function RelationshipGraph({ result }: { result: IOCInvestigationResult }) {
                     setSelectedNodeId(node.id);
                     setSelectedEdgeIndex(null);
                     setFocusNodeId(node.id);
+                    if (isInvestigableNode(node) && !expandedResults[node.id]) {
+                      expandNode.mutate(node);
+                    }
                   }}
                   className="block w-full text-left"
                 >
@@ -984,7 +1059,7 @@ function RelationshipGraph({ result }: { result: IOCInvestigationResult }) {
                 <div className="mt-2 flex flex-wrap gap-1">
                   <button type="button" onClick={() => navigate(nodeDetailUrl(node))} className="rounded border border-gray-700 px-2 py-1 text-[10px] text-gray-300 hover:border-mitre-accent">Open</button>
                   {isInvestigableNode(node) && (
-                    <button type="button" onClick={() => navigate(`/ioc-investigation?indicator=${encodeURIComponent(node.value)}`)} className="rounded border border-gray-700 px-2 py-1 text-[10px] text-gray-300 hover:border-mitre-accent">Investigate</button>
+                    <button type="button" onClick={() => onPivotNode(node)} className="rounded border border-gray-700 px-2 py-1 text-[10px] text-gray-300 hover:border-mitre-accent">Investigate</button>
                   )}
                 </div>
               </div>
@@ -1069,6 +1144,7 @@ function GraphInspector({
         <span className="h-3 w-3 rounded-full" style={{ backgroundColor: nodeColor(node) }} />
         <span className="rounded bg-gray-800 px-2 py-0.5 text-[10px] text-gray-300">T{node.tier}</span>
         <span className="rounded bg-gray-800 px-2 py-0.5 text-[10px] text-gray-300">{node.type}</span>
+        <span className="rounded bg-gray-800 px-2 py-0.5 text-[10px] text-gray-300">{nodeRiskLabel(node)}</span>
       </div>
       <div className="mt-3 break-all font-mono text-sm text-white">{node.value}</div>
       <div className="mt-3 text-xs text-gray-500">Sources</div>
@@ -1292,27 +1368,68 @@ function graphNodeId(type: string, value: string) {
   return `${type}:${value}`.toLowerCase();
 }
 
+function mergeInvestigationGraphs(base: IOCInvestigationResult, expansions: IOCInvestigationResult[]): IOCInvestigationResult {
+  if (!expansions.length) return base;
+  const nodes = new Map<string, IOCInvestigationResult['relationships']['nodes'][number]>();
+  const edges = new Map<string, IOCInvestigationResult['relationships']['edges'][number]>();
+  const sources = new Map<string, IOCInvestigationResult['sources'][number]>();
+  const techniques = new Map<string, IOCInvestigationResult['techniques'][number]>();
+  const actors = new Map<string, IOCInvestigationResult['actors'][number]>();
+  const addNode = (node: IOCInvestigationResult['relationships']['nodes'][number]) => {
+    const existing = nodes.get(node.id);
+    if (!existing) {
+      nodes.set(node.id, { ...node, sources: [...node.sources] });
+      return;
+    }
+    existing.tier = Math.min(existing.tier, node.tier);
+    existing.sources = Array.from(new Set([...existing.sources, ...node.sources]));
+    existing.suspicious = Math.max(existing.suspicious ?? -1, node.suspicious ?? -1);
+  };
+  const addEdge = (edge: IOCInvestigationResult['relationships']['edges'][number]) => {
+    edges.set(`${edge.source}|${edge.target}|${edge.type}|${edge.evidence_source}|${edge.tier}`, edge);
+  };
+  const addResult = (item: IOCInvestigationResult) => {
+    item.relationships.nodes.forEach(addNode);
+    item.relationships.edges.forEach(addEdge);
+    item.sources.forEach(source => sources.set(`${source.source}:${source.summary}`, source));
+    item.techniques.forEach(technique => techniques.set(technique.attack_id, technique));
+    item.actors.forEach(actor => actors.set(`${actor.attack_id}:${actor.name}:${actor.source}`, actor));
+  };
+  addResult(base);
+  expansions.forEach(addResult);
+  const maxScore = Math.max(base.suspicion_score, ...expansions.map(item => item.suspicion_score));
+  return {
+    ...base,
+    suspicion_score: maxScore,
+    verdict: verdictFromScore(maxScore),
+    sources: Array.from(sources.values()),
+    techniques: Array.from(techniques.values()),
+    actors: Array.from(actors.values()),
+    relationships: {
+      nodes: Array.from(nodes.values()).sort((a, b) => a.tier - b.tier || a.type.localeCompare(b.type) || a.value.localeCompare(b.value)),
+      edges: Array.from(edges.values()),
+    },
+  };
+}
+
+function verdictFromScore(score: number) {
+  if (score >= 75) return 'highly suspicious';
+  if (score >= 45) return 'suspicious';
+  if (score >= 20) return 'needs review';
+  return 'low signal';
+}
+
+const GRAPH_OBJECT_NODE_TYPES = new Set(['ioc', 'ip', 'ipv4', 'ipv6', 'domain', 'url', 'hash', 'md5', 'sha1', 'sha256', 'file', 'report', 'collection']);
+const INVESTIGABLE_NODE_TYPES = new Set(['ioc', 'ip', 'ipv4', 'ipv6', 'domain', 'url', 'hash', 'md5', 'sha1', 'sha256']);
+
 function isActionableGraphNode(node: Pick<GraphNode, 'type' | 'tier' | 'value'>) {
   if (node.tier === 0) return true;
-  if (/^T\d{4}(?:\.\d{3})?$/i.test(node.value) || /^G\d{4}$/i.test(node.value)) return true;
-  return [
-    'ioc',
-    'ip',
-    'domain',
-    'url',
-    'hash',
-    'actor',
-    'malware',
-    'report',
-    'suspicious-pattern',
-    'vulnerability',
-    'service-port',
-  ].includes(node.type);
+  return GRAPH_OBJECT_NODE_TYPES.has(node.type);
 }
 
 function isInvestigableNode(node: Pick<GraphNode, 'type' | 'value'>) {
   if (!node.value) return false;
-  return ['ioc', 'ip', 'domain', 'url', 'hash'].includes(node.type);
+  return INVESTIGABLE_NODE_TYPES.has(node.type);
 }
 
 function nodeDetailUrl(node: Pick<GraphNode, 'type' | 'value' | 'tier' | 'sources'>) {
@@ -1325,17 +1442,121 @@ function nodeDetailUrl(node: Pick<GraphNode, 'type' | 'value' | 'tier' | 'source
   return `/ioc-node?${params.toString()}`;
 }
 
-function nodeColor(node: Pick<GraphNode, 'type' | 'tier' | 'kind'>) {
-  if (node.tier === 0) return '#f43f5e';
-  if (node.type === 'actor') return '#a855f7';
-  if (node.type === 'malware') return '#f97316';
-  if (node.type === 'report') return '#38bdf8';
-  if (node.type === 'tag' || node.type === 'classification' || node.type === 'reputation') return '#facc15';
-  if (node.type === 'domain' || node.type === 'url') return '#22c55e';
-  if (node.type === 'ip' || node.type === 'ioc') return '#06b6d4';
-  if (node.type === 'hash') return '#60a5fa';
-  if (node.type.includes('port') || node.type === 'vulnerability') return '#fb7185';
-  return node.kind === 'artifact' ? '#14b8a6' : '#94a3b8';
+function effectiveNodeRisk(node: GraphNode, result: IOCInvestigationResult, allEdges: RelationshipEdge[]) {
+  let risk = typeof node.suspicious === 'number' && node.suspicious > 0 ? node.suspicious : -1;
+  const nodeValue = node.value.toLowerCase();
+  const nodeId = node.id.toLowerCase();
+  if (node.tier === 0 || nodeValue === result.artifact.toLowerCase()) {
+    risk = Math.max(risk, result.suspicion_score);
+  }
+  const connectedEdges = allEdges.filter(edge => {
+    const targetId = graphNodeId(edge.type, edge.target);
+    return edge.source.toLowerCase() === nodeValue
+      || edge.target.toLowerCase() === nodeValue
+      || edge.source.toLowerCase() === nodeId
+      || targetId === nodeId;
+  });
+  const sourceNames = new Set([
+    ...node.sources.map(source => source.toLowerCase()),
+    ...connectedEdges.map(edge => edge.evidence_source.toLowerCase()),
+  ]);
+  for (const source of result.sources) {
+    if (!sourceNames.has(source.source.toLowerCase())) continue;
+    risk = Math.max(risk, sourceRisk(source));
+  }
+  const evidenceText = [
+    node.value,
+    node.type,
+    ...node.sources,
+    ...connectedEdges.flatMap(edge => [edge.type, edge.evidence_source, edge.evidence, edge.source, edge.target]),
+  ].join(' ').toLowerCase();
+  if (/highly suspicious|malicious|ransom|phish|c2|command.?and.?control|botnet|trojan|stealer|backdoor|abuse|exploit|payload/i.test(evidenceText)) {
+    risk = Math.max(risk, 70);
+  } else if (/suspicious|needs review|threat|attack|apt|malware|ioc|indicator/i.test(evidenceText)) {
+    risk = Math.max(risk, 45);
+  }
+  if (result.techniques.length && connectedEdges.length) risk = Math.max(risk, node.tier === 0 ? result.suspicion_score : 35);
+  if (result.actors.length && connectedEdges.some(edge => /otx|opencti|local|report|censys|urlscan/i.test(edge.evidence_source))) {
+    risk = Math.max(risk, node.tier === 0 ? result.suspicion_score : 45);
+  }
+  if (risk < 0 && /benign|harmless|clean|known good/i.test(evidenceText)) return 10;
+  return risk > 0 ? clamp(risk, 0, 100) : -1;
+}
+
+function sourceRisk(source: IOCInvestigationResult['sources'][number]) {
+  if (source.status !== 'ok') return -1;
+  let risk = -1;
+  const raw = source.raw ?? {};
+  const text = JSON.stringify({ summary: source.summary, raw, technique_ids: source.technique_ids, actors: source.actors }).toLowerCase();
+  const vtStats = findNestedStats(raw, 'last_analysis_stats');
+  if (vtStats) {
+    const malicious = Number(vtStats.malicious ?? 0);
+    const suspicious = Number(vtStats.suspicious ?? 0);
+    const harmless = Number(vtStats.harmless ?? 0);
+    if (malicious || suspicious) risk = Math.max(risk, Math.min(100, malicious * 8 + suspicious * 5));
+    else if (harmless > 0) risk = Math.max(risk, 10);
+  }
+  const abuseScore = findNestedNumber(raw, 'abuseConfidenceScore');
+  if (abuseScore != null) risk = Math.max(risk, abuseScore);
+  const activity = typeof raw.activity_analysis === 'object' && raw.activity_analysis ? raw.activity_analysis as { findings?: Array<{ severity?: string }> } : null;
+  for (const finding of activity?.findings ?? []) {
+    const severity = String(finding.severity ?? '').toLowerCase();
+    if (severity === 'high') risk = Math.max(risk, 85);
+    else if (severity === 'medium') risk = Math.max(risk, 60);
+    else if (severity) risk = Math.max(risk, 30);
+  }
+  if (source.technique_ids.length) risk = Math.max(risk, 45);
+  if (source.actors.length) risk = Math.max(risk, 45);
+  if (/highly suspicious|malicious|ransom|phish|c2|command.?and.?control|botnet|trojan|stealer|backdoor|abuse|exploit|payload/i.test(text)) {
+    risk = Math.max(risk, 70);
+  } else if (/suspicious|threat|attack|apt|malware|indicator/i.test(text)) {
+    risk = Math.max(risk, 45);
+  }
+  if (risk < 0 && /benign|harmless|clean|known good/i.test(text)) return 10;
+  return risk;
+}
+
+function findNestedStats(value: unknown, key: string): Record<string, unknown> | null {
+  if (!value || typeof value !== 'object') return null;
+  const record = value as Record<string, unknown>;
+  const direct = record[key];
+  if (direct && typeof direct === 'object' && !Array.isArray(direct)) return direct as Record<string, unknown>;
+  for (const item of Object.values(record)) {
+    const nested = findNestedStats(item, key);
+    if (nested) return nested;
+  }
+  return null;
+}
+
+function findNestedNumber(value: unknown, key: string): number | null {
+  if (!value || typeof value !== 'object') return null;
+  const record = value as Record<string, unknown>;
+  const direct = record[key];
+  if (typeof direct === 'number') return direct;
+  if (typeof direct === 'string' && direct.trim() && !Number.isNaN(Number(direct))) return Number(direct);
+  for (const item of Object.values(record)) {
+    const nested = findNestedNumber(item, key);
+    if (nested != null) return nested;
+  }
+  return null;
+}
+
+function nodeColor(node: Pick<GraphNode, 'suspicious'>) {
+  const risk = typeof node.suspicious === 'number' ? node.suspicious : -1;
+  if (risk < 0) return '#38bdf8';
+  if (risk < 20) return '#22c55e';
+  if (risk < 45) return '#facc15';
+  if (risk < 75) return '#fb923c';
+  return '#ef4444';
+}
+
+function nodeRiskLabel(node: Pick<GraphNode, 'suspicious'>) {
+  const risk = typeof node.suspicious === 'number' ? node.suspicious : -1;
+  if (risk < 0) return 'no reputation';
+  if (risk < 20) return `low ${risk}/100`;
+  if (risk < 45) return `review ${risk}/100`;
+  if (risk < 75) return `suspicious ${risk}/100`;
+  return `high risk ${risk}/100`;
 }
 
 function nodeRadius(node: Pick<GraphNode, 'tier' | 'sources'>) {
@@ -1345,7 +1566,7 @@ function nodeRadius(node: Pick<GraphNode, 'tier' | 'sources'>) {
 }
 
 function nodeLabel(node: GraphNode, visibleNodeCount: number) {
-  if (visibleNodeCount > 45 && node.tier > 1 && !['actor', 'malware', 'suspicious-pattern'].includes(node.type)) return '';
+  if (visibleNodeCount > 45 && node.tier > 1 && !GRAPH_OBJECT_NODE_TYPES.has(node.type)) return '';
   const limit = node.tier === 0 ? 30 : visibleNodeCount > 35 ? 16 : 24;
   return shortLabel(node.value, limit);
 }
