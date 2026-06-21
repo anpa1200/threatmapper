@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import attack, apt, analyze, sync, export, ioc, layers, operations, pipeline, sector, system
+from app.api.routes import attack, apt, analyze, sync, export, ioc, layers, malwaregraph, operations, pipeline, sector, system
 from app.core.config import settings
 from app.core.database import async_session_factory, create_tables
 from app.core.version import APP_VERSION
@@ -74,6 +74,7 @@ app.include_router(sync.router,    prefix="/api")
 app.include_router(export.router,  prefix="/api")
 app.include_router(ioc.router, prefix="/api")
 app.include_router(layers.router,  prefix="/api")
+app.include_router(malwaregraph.router, prefix="/api")
 app.include_router(operations.router, prefix="/api")
 app.include_router(pipeline.router, prefix="/api")
 app.include_router(sector.router, prefix="/api")

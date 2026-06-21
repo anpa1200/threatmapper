@@ -79,6 +79,47 @@ services:
       timeout: 3s
       retries: 10
 
+  malwaregraph:
+    build:
+      context: ../malwaregraph
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      MALWAREGRAPH_STORAGE_DIR: /app/storage
+      MALWAREGRAPH_API_KEY: ${MALWAREGRAPH_API_KEY:-}
+      MALWAREGRAPH_RETENTION_DAYS: ${MALWAREGRAPH_RETENTION_DAYS:-7}
+      MALWAREGRAPH_ENABLE_DYNAMIC_DEBUG: ${MALWAREGRAPH_ENABLE_DYNAMIC_DEBUG:-false}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4.1}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      LOCAL_LLM_BASE_URL: ${LOCAL_LLM_BASE_URL:-http://host.docker.internal:11434/v1}
+      LOCAL_LLM_API_KEY: ${LOCAL_LLM_API_KEY:-local}
+      LOCAL_LLM_MODEL: ${LOCAL_LLM_MODEL:-llama3.1:8b}
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 256
+    mem_limit: 1g
+    cpus: 1.5
+    tmpfs:
+      - /tmp:size=256m,noexec,nosuid,nodev
+    volumes:
+      - malwaregraph_storage:/app/storage
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8100/api/health', timeout=3).read()",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
   api:
     build:
       context: ./backend
@@ -129,12 +170,16 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-info}
       AUTH_ENABLED: ${AUTH_ENABLED:-false}
       AUTH_DEFAULT_ROLE: ${AUTH_DEFAULT_ROLE:-admin}
+      MALWAREGRAPH_URL: http://malwaregraph:8100
+      MALWAREGRAPH_API_KEY: ${MALWAREGRAPH_API_KEY:-}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
       postgres:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      malwaregraph:
         condition: service_healthy
     ports:
       - "8000:8000"
@@ -274,3 +319,4 @@ volumes:
   pg_socket:
   attck_data:
   atlas_site:
+  malwaregraph_storage:

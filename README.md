@@ -50,6 +50,7 @@ AdversaryGraph AI is a self-hosted CTI-to-detection workbench for mapping threat
 - [Screenshots And Visual Evidence](#screenshots-and-visual-evidence)
 - [Features](#features)
 - [Architecture](#architecture)
+- [Malware Analysis Architecture](docs/malware-analysis-architecture.md)
 - [Quick Start](#quick-start)
 - [Usage Guide](#usage-guide)
 - [Two-Database Architecture](#two-database-architecture)
@@ -236,6 +237,7 @@ also available at [`docs/demo-videos/dfir-report-ai-analysis-compare.gif`](docs/
 | **Intelligence Pipeline** | Scheduled reviewed RSS intake, STIX/TAXII, MISP and ATLAS imports, normalized observables, public enrichment, team audit trail |
 | **Detection Studio** | Versioned Sigma, YARA, YARA-L, KQL, SPL and EQL skeleton or AI-assisted rule generation with structural validation and explicit analyst-review placeholders |
 | **Operations** | Investigations, evidence graphs, report intake, tracked actor changes, and detection engineering lifecycle |
+| **Malware Analysis** | Fully integrated MalwareGraph dashboard backed by an isolated analysis service in the same Docker Compose stack. Password-protected ZIP intake, static analysis, unpack detection, Android APK fallback analysis, workflow graph, step-debug plans, IOC/TTP extraction, AI provider status, and clickable links from every hash/IP/domain/URL/TTP/behavior/detection into AdversaryGraph data. See [Malware Analysis Architecture](docs/malware-analysis-architecture.md). |
 
 ---
 
@@ -248,6 +250,17 @@ also available at [`docs/demo-videos/dfir-report-ai-analysis-compare.gif`](docs/
 **AdversaryGraph Docker** is the full self-hosted platform for provider-configured AI extraction, private PostgreSQL-backed analyses, campaigns, APIs, PDF reports, detection-rule workflows, and scheduled ATT&CK synchronization.
 
 AdversaryGraph is self-hosted. In Docker mode, report content is sent only to the LLM provider configured by the operator. For fully private analysis, use a local or private LLM gateway. The public Web workspace does not perform LLM report extraction or backend report storage.
+
+The malware-analysis capability uses a separate isolated MalwareGraph analysis
+service in the same Docker Compose stack, but the analyst experience is a native AdversaryGraph dashboard. Every
+extracted hash, IP, domain, URL, behavior, TTP, detection, malware-family lead,
+and actor-similarity lead becomes clickable graph-linked data that pivots into
+IOC Intelligence, ATT&CK Navigator, Compare Groups, Detection Studio, evidence
+views, and exports. Malware archives and extracted samples stay out of the main
+application containers, and the default workflow is static-only. Any execution,
+debugging, or dynamic unpacking must run in a disposable sandbox boundary with
+fake-internet or restricted network controls. See [Malware Analysis
+Architecture](docs/malware-analysis-architecture.md).
 
 The Docker deployment gives the operator control over storage, networking, and provider configuration. Trusted-header authentication and roles are available when configured, but internet-facing deployments still require TLS, an authenticating reverse proxy, restricted network exposure, backups, retention controls, and secrets management.
 

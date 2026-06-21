@@ -881,3 +881,133 @@ export const sectorApi = {
       return http.get(`/sector/relevance?${query.toString()}`).then(r => r.data);
     },
 };
+
+// ── MalwareGraph Integrated Malware Analysis ────────────────────────────────
+
+export interface MalwareGraphJob {
+  job_id: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+  case_id: string | null;
+  archive_name: string | null;
+  error: string | null;
+}
+
+export interface MalwareGraphEntity {
+  entity_id: string;
+  type: string;
+  value: string;
+  normalized_value: string;
+  source_stage: string;
+  confidence: number;
+  evidence_refs: string[];
+  adversarygraph_route: string | null;
+  ai_suggested: boolean;
+  metadata: Record<string, unknown>;
+}
+
+export interface MalwareGraphRelationship {
+  relationship_id: string;
+  source_ref: string;
+  relationship_type: string;
+  target_ref: string;
+  evidence_refs: string[];
+  confidence: number;
+}
+
+export interface MalwareGraphAnalysis {
+  schema_version: string;
+  case_id: string | null;
+  job_id: string;
+  sample: {
+    names: string[];
+    hashes: Record<string, string>;
+    file_type: string;
+    size_bytes: number;
+    extracted_files: Array<{
+      name: string;
+      size_bytes: number;
+      file_type: string;
+      hashes: Record<string, string>;
+    }>;
+  };
+  iocs: MalwareGraphEntity[];
+  entities: MalwareGraphEntity[];
+  relationships: MalwareGraphRelationship[];
+  artifacts: Array<Record<string, unknown>>;
+  evidence: Array<Record<string, unknown>>;
+  ai_assistance: Array<Record<string, unknown>>;
+  safety: {
+    executed: boolean;
+    network_mode: string;
+    sandbox_profile: string;
+    third_party_binary_submission: boolean;
+  };
+}
+
+export interface MalwareGraphWorkflow {
+  job_id: string;
+  layout: string;
+  nodes: Array<{
+    id: string;
+    label: string;
+    type: string;
+    stage: string;
+    route: string | null;
+    confidence: number;
+    metadata: Record<string, unknown>;
+  }>;
+  edges: Array<{
+    id: string;
+    source: string;
+    target: string;
+    relationship: string;
+    confidence: number;
+  }>;
+}
+
+export interface MalwareGraphDebugSession {
+  session_id: string;
+  job_id: string;
+  sample_ref: string;
+  mode: string;
+  dynamic_enabled: boolean;
+  warning: string | null;
+  steps: Array<{
+    step_id: string;
+    action: string;
+    status: string;
+    target: string | null;
+    notes: string;
+    snapshot: Record<string, unknown>;
+  }>;
+}
+
+export interface MalwareGraphProvider {
+  provider: string;
+  configured: boolean;
+  model: string;
+  env_var: string;
+}
+
+export const malwareGraphApi = {
+  health: (): Promise<Record<string, unknown>> => http.get('/malwaregraph/health').then(r => r.data),
+  providers: (): Promise<MalwareGraphProvider[]> => http.get('/malwaregraph/llm/providers').then(r => r.data),
+  jobs: (): Promise<MalwareGraphJob[]> => http.get('/malwaregraph/analyses').then(r => r.data),
+  submit: (body: { file: File; password?: string; case_id?: string }): Promise<MalwareGraphAnalysis> => {
+    const form = new FormData();
+    form.append('file', body.file);
+    if (body.password) form.append('password', body.password);
+    if (body.case_id) form.append('case_id', body.case_id);
+    return http.post('/malwaregraph/analyses', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }).then(r => r.data);
+  },
+  analysis: (jobId: string): Promise<MalwareGraphAnalysis> =>
+    http.get(`/malwaregraph/analyses/${jobId}`).then(r => r.data),
+  workflow: (jobId: string): Promise<MalwareGraphWorkflow> =>
+    http.get(`/malwaregraph/analyses/${jobId}/workflow-graph`).then(r => r.data),
+  debugSession: (jobId: string, sampleRef = 'archive--file--0001'): Promise<MalwareGraphDebugSession> =>
+    http.post(`/malwaregraph/analyses/${jobId}/debug-sessions`, null, { params: { sample_ref: sampleRef } }).then(r => r.data),
+};

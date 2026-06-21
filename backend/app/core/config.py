@@ -27,6 +27,10 @@ class Settings(BaseSettings):
     local_llm_api_key: str = "local"
     local_llm_model: str = "llama3.1:8b"
 
+    # MalwareGraph integration
+    malwaregraph_url: str = "http://malwaregraph:8100"
+    malwaregraph_api_key: str = ""
+
     # ATT&CK ingestion
     attck_domains: str = "enterprise-attack,mobile-attack,ics-attack,atlas"
     attck_data_dir: str = "/app/data/attck"

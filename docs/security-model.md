@@ -12,13 +12,17 @@ AdversaryGraph is a self-hosted analyst workbench, not a managed SaaS.
 | API/worker to LLM provider | Operator controls provider choice and accepts provider data terms |
 | API to MITRE/GitHub | Public ATT&CK STIX bundles are downloaded for sync |
 | API to IOC feeds | Operator controls ThreatFox, OTX, and custom feed credentials/URLs |
+| AdversaryGraph to malware-analysis service | Malware samples remain outside the main application containers; only validated result artifacts are imported |
+| Malware-analysis service to sandbox | Dynamic execution is allowed only in disposable isolated sandbox profiles, not in normal application containers |
 
 ## Sensitive Data
 
 Potentially sensitive data includes:
 
 - Uploaded reports.
+- Uploaded malware archives and extracted samples, if the optional malware-analysis service is enabled.
 - Extracted text from reports.
+- Malware-analysis artifacts such as strings, PCAPs, memory metadata, debugger notes, and unpacked payloads.
 - LLM raw responses.
 - Analyst notes.
 - Campaign or customer names.
@@ -59,6 +63,34 @@ LLM output is treated as untrusted:
 ## File Parsing
 
 AdversaryGraph supports text, PDF, and DOCX extraction. Operators should treat uploaded documents as untrusted and run the platform in a controlled environment.
+
+## Malware Analysis
+
+The integrated MalwareGraph malware-analysis capability has a separate architecture because
+malware samples are more dangerous than ordinary report uploads. The main
+AdversaryGraph containers should not receive, extract, execute, or debug malware
+directly.
+
+Required security posture:
+
+- keep malware archives, extracted payloads, memory dumps, and packet captures in
+  a dedicated malware-analysis service and artifact store;
+- default to static-only analysis with no sample execution;
+- use non-root, read-only, capability-dropped containers for intake and static
+  workers;
+- deny outbound network access from analysis workers unless a specific
+  enrichment worker is allowlisted;
+- run dynamic execution, debugging, or memory-unpacking only in disposable VM,
+  microVM, or dedicated sandbox profiles;
+- route dynamic network behavior to fake internet or sinkhole services by
+  default, not to production networks;
+- do not submit binaries to third-party services unless an operator policy and
+  analyst approval explicitly allow it;
+- import only validated `analysis.json` results and derived artifacts into the
+  AdversaryGraph investigation graph.
+
+See [Malware Analysis Architecture](malware-analysis-architecture.md) for the
+full scenario, container model, pipeline stages, and safety controls.
 
 ## IOC Feeds
 

@@ -19,6 +19,7 @@ import { IOCLibrary } from '@/pages/IOCLibrary';
 import { IOCDetail } from '@/pages/IOCDetail';
 import { IOCNodeDetail } from '@/pages/IOCNodeDetail';
 import { FeedsManagement } from '@/pages/FeedsManagement';
+import { MalwareAnalysis } from '@/pages/MalwareAnalysis';
 import { SystemSelfTestPopup } from '@/components/SystemSelfTestPopup';
 import { GlobalErrorPopup } from '@/components/GlobalErrorPopup';
 
@@ -55,6 +56,7 @@ export default function App() {
               <Route path="/ioc-library/:id" element={<IOCDetail />} />
               <Route path="/ioc-node" element={<IOCNodeDetail />} />
               <Route path="/feeds" element={<FeedsManagement />} />
+              <Route path="/malware-analysis" element={<MalwareAnalysis />} />
               <Route path="/troubleshooting" element={<Troubleshooting />} />
               <Route path="/virustotal" element={<VirusTotalLookup />} />
               <Route path="/ioc-investigation" element={<IOCInvestigation />} />
