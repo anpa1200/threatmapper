@@ -946,6 +946,22 @@ export interface MalwareGraphAnalysis {
   };
 }
 
+export interface MalwareGraphFirstAnalysis {
+  artifact_id: string;
+  type: 'first-analysis';
+  target_entity_id: string;
+  target_name: string;
+  file_type: string;
+  magic_bytes: string;
+  entropy: number;
+  packed: boolean;
+  packer: string | null;
+  obfuscated: boolean;
+  obfuscation_signals: string[];
+  hashes: Record<string, string>;
+  size_bytes: number;
+}
+
 export interface MalwareGraphWorkflow {
   job_id: string;
   layout: string;
@@ -1012,6 +1028,41 @@ export interface MalwareGraphStringsAnalysis {
   ai_status: string;
 }
 
+export interface MalwareGraphUnpackPlan {
+  job_id: string;
+  sample_ref: string;
+  target_name: string;
+  target_entity_id: string;
+  packed: boolean;
+  packer: string | null;
+  entropy: number | null;
+  status: string;
+  safety: Record<string, unknown>;
+  steps: Array<{
+    step_id: string;
+    action: string;
+    status: string;
+    notes: string;
+  }>;
+}
+
+export interface MalwareGraphObfuscationAnalysis {
+  job_id: string;
+  sample_ref: string;
+  target_name: string;
+  target_entity_id: string;
+  ai_provider: string;
+  ai_status: string;
+  obfuscated: boolean;
+  signals: string[];
+  techniques: Array<{
+    technique: string;
+    confidence: number;
+    evidence: string;
+  }>;
+  summary: string;
+}
+
 export interface MalwareGraphProvider {
   provider: string;
   configured: boolean;
@@ -1044,4 +1095,8 @@ export const malwareGraphApi = {
     http.post(`/malwaregraph/runtime-debug-sessions/${sessionId}/step`).then(r => r.data),
   strings: (jobId: string, sampleRef = 'archive--file--0001', ai = false, aiProvider = 'local'): Promise<MalwareGraphStringsAnalysis> =>
     http.get(`/malwaregraph/analyses/${jobId}/strings`, { params: { sample_ref: sampleRef, ai, ai_provider: aiProvider } }).then(r => r.data),
+  unpack: (jobId: string, sampleRef = 'archive--file--0001'): Promise<MalwareGraphUnpackPlan> =>
+    http.post(`/malwaregraph/analyses/${jobId}/unpack`, null, { params: { sample_ref: sampleRef } }).then(r => r.data),
+  obfuscationAnalysis: (jobId: string, sampleRef = 'archive--file--0001', aiProvider = 'local'): Promise<MalwareGraphObfuscationAnalysis> =>
+    http.post(`/malwaregraph/analyses/${jobId}/obfuscation-analysis`, null, { params: { sample_ref: sampleRef, ai_provider: aiProvider } }).then(r => r.data),
 };
