@@ -20,6 +20,7 @@ import { IOCDetail } from '@/pages/IOCDetail';
 import { IOCNodeDetail } from '@/pages/IOCNodeDetail';
 import { FeedsManagement } from '@/pages/FeedsManagement';
 import { MalwareAnalysis } from '@/pages/MalwareAnalysis';
+import { StringAnalyzer } from '@/pages/StringAnalyzer';
 import { SystemSelfTestPopup } from '@/components/SystemSelfTestPopup';
 import { GlobalErrorPopup } from '@/components/GlobalErrorPopup';
 
@@ -57,6 +58,7 @@ export default function App() {
               <Route path="/ioc-node" element={<IOCNodeDetail />} />
               <Route path="/feeds" element={<FeedsManagement />} />
               <Route path="/malware-analysis" element={<MalwareAnalysis />} />
+              <Route path="/string-analyzer" element={<StringAnalyzer />} />
               <Route path="/troubleshooting" element={<Troubleshooting />} />
               <Route path="/virustotal" element={<VirusTotalLookup />} />
               <Route path="/ioc-investigation" element={<IOCInvestigation />} />

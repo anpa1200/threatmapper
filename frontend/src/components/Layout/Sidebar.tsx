@@ -20,6 +20,7 @@ const nav = [
   { to: '/ioc-investigation', label: 'IOC Investigation', icon: '⌬' },
   { to: '/feeds',         label: 'Feeds Management', icon: '≋' },
   { to: '/malware-analysis', label: 'Malware Analysis', icon: '▧' },
+  { to: '/string-analyzer', label: 'String Analyzer', icon: '≡' },
   { to: '/virustotal',    label: 'VirusTotal Lookup', icon: '◇' },
   { to: '/report',        label: 'Investigation', icon: '▤' },
   { to: '/operations',    label: 'Operations', icon: '◆' },

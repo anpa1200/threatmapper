@@ -1022,6 +1022,20 @@ export interface MalwareGraphStringsAnalysis {
     severity: 'info' | 'low' | 'medium' | 'high';
     adversarygraph_route: string | null;
   }>;
+  ioc_leads: Array<{
+    type: string;
+    value: string;
+    category: string;
+    confidence: number;
+    adversarygraph_route: string | null;
+  }>;
+  ttp_leads: Array<{
+    attack_id: string;
+    name: string;
+    confidence: number;
+    evidence: string;
+    navigator_route: string;
+  }>;
   ai_prompt: string | null;
   ai_analysis: string | null;
   ai_provider: string | null;
