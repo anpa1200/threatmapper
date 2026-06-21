@@ -4,7 +4,7 @@
 
 ### Import A Navigator Layer: AdversaryGraph Use Case
 
-**Version focus:** AdversaryGraph v3.0.0
+**Version focus:** AdversaryGraph v3.1.0
 **Level:** Simple, 1-2 steps
 **Workflow group:** Simple Usecases
 

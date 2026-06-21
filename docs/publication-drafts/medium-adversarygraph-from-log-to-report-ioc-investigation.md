@@ -1,5 +1,7 @@
 # From Log to Report: Using AdversaryGraph to Turn Firewall and EDR Noise Into a CTI Investigation
 
+![AdversaryGraph platform overview for the From Log to Report workflow](assets/from-log-to-report/01-hero-platform-overview.png)
+
 Most security tools can show alerts.
 
 The harder problem is turning scattered technical evidence into a defensible investigation:
@@ -29,6 +31,8 @@ raw evidence -> IOC extraction -> enrichment -> relationship graph -> ATT&CK map
 ```
 
 The platform is designed for:
+
+![AdversaryGraph audience and workflow infographic](assets/from-log-to-report/02-platform-audience-infographic.png)
 
 - CTI analysts who need to turn reports, feeds, and observables into structured intelligence
 - SOC analysts who need to triage logs, IOCs, and suspicious infrastructure
@@ -78,6 +82,8 @@ AdversaryGraph does not replace analyst judgment. It is a workbench for building
 ## 1. The Investigation Goal
 
 The objective is to simulate what an analyst often receives during an investigation:
+
+![Investigation goal infographic showing logs, IOCs, ATT&CK, enrichment, and reporting](assets/from-log-to-report/03-investigation-goal-infographic.png)
 
 - a firewall log showing suspicious outbound C2-like traffic
 - EDR telemetry showing suspicious PowerShell, `rundll32`, remote execution, and discovery behavior
@@ -176,6 +182,12 @@ This is exactly where AdversaryGraph becomes useful.
 
 ---
 
+## Full Flow Presentation
+
+![Animated full From Log to Report workflow in AdversaryGraph](assets/from-log-to-report/04-full-flow-presentation.gif)
+
+---
+
 ## 4. Step 1: Create a New Investigation
 
 Start from the case workspace, not from raw analysis.
@@ -187,6 +199,8 @@ Investigation
 ```
 
 Create a new investigation before running analysis. This gives every later result a destination:
+
+![Create a new investigation workspace before adding analysis results](assets/from-log-to-report/05-create-new-investigation.png)
 
 - firewall log analysis
 - EDR log analysis
@@ -213,6 +227,8 @@ Select:
 ```text
 Log / PCAP
 ```
+
+![Animated firewall log analysis in AdversaryGraph Log / PCAP mode](assets/from-log-to-report/06-analyze-firewall-logs.gif)
 
 Paste or upload only the firewall logs first.
 
@@ -251,6 +267,8 @@ Return to:
 AI Analysis -> Log / PCAP
 ```
 
+![Animated EDR log analysis in AdversaryGraph Log / PCAP mode](assets/from-log-to-report/07-analyze-edr-logs.gif)
+
 Paste or upload the EDR logs as a separate analysis.
 
 Do not combine firewall and EDR logs in one run unless you intentionally want one mixed result. The cleaner workflow is one source per run:
@@ -286,6 +304,10 @@ The AI analyst results should extract structured evidence from each log source.
 
 Expected IOC extraction:
 
+![Extracted firewall IOCs in AdversaryGraph](assets/from-log-to-report/08-extracted-iocs-firewall.png)
+
+![Extracted EDR IOCs in AdversaryGraph](assets/from-log-to-report/09-extracted-iocs-edr.png)
+
 | Type | Indicator |
 |---|---|
 | IP | `103.119.47.104` |
@@ -310,6 +332,8 @@ Expected IOC extraction:
 
 Expected suspicious behaviors:
 
+![Suspicious behavior table with evidence and mapped context](assets/from-log-to-report/10-suspicious-behaviors.png)
+
 | Evidence | Why It Matters |
 |---|---|
 | `WINWORD.EXE` spawning `powershell.exe` | Office-to-script execution chain |
@@ -324,6 +348,8 @@ Expected suspicious behaviors:
 | Run key persistence | User-level persistence |
 
 Expected ATT&CK technique leads:
+
+![ATT&CK technique leads extracted from firewall and EDR evidence](assets/from-log-to-report/11-attack-technique-leads.png)
 
 | Technique | Name | Evidence |
 |---|---|---|
@@ -361,6 +387,8 @@ Start with:
 103.119.47.104
 ```
 
+![IOC Investigation input for the strongest extracted indicator](assets/from-log-to-report/12-ioc-investigation-input.png)
+
 Then investigate:
 
 ```text
@@ -377,6 +405,8 @@ Tier 1 + Tier 2 + Tier 3
 ```
 
 Enable AI summary if you want a report-ready paragraph.
+
+![IOC Investigation summary with verdict, source coverage, and evidence](assets/from-log-to-report/13-ioc-investigation-summary.png)
 
 AdversaryGraph will query configured sources such as:
 
@@ -409,6 +439,8 @@ Again: this is not attribution. It is source-backed clustering and lead generati
 ## 11. Step 8: Review the Relationship Graph
 
 In the IOC Investigation result, open the relationship graph.
+
+![IOC Investigation relationship graph with connected source-backed pivots](assets/from-log-to-report/14-ioc-investigation-graph.png)
 
 The graph should help answer:
 
@@ -458,6 +490,8 @@ This is useful because the analyst can distinguish:
 
 After reviewing IOC Investigation output, add the useful result to the same investigation:
 
+![Add IOC Investigation result back into the active investigation workspace](assets/from-log-to-report/15-add-ioc-result-to-investigation.png)
+
 - AI log analysis result
 - extracted IOC list
 - IOC Investigation result
@@ -467,6 +501,8 @@ After reviewing IOC Investigation output, add the useful result to the same inve
 - source conflicts and timeline notes
 
 The investigation workspace should now keep the case organized into practical sections:
+
+![Investigation workspace with log analysis results, suspicious behaviors, TTPs, and IOCs](assets/from-log-to-report/16-investigation-workspace.png)
 
 - Logs - result analysis
 - Report analysis
@@ -488,6 +524,8 @@ Put TTPs on matrix
 ```
 
 This creates a Navigator-like layer from all TTPs saved in the active investigation, not only the current screen.
+
+![Investigation TTP layer displayed on the ATT&CK matrix](assets/from-log-to-report/17-ttp-layer-on-matrix.png)
 
 Then add or keep the relevant techniques in:
 
@@ -534,6 +572,8 @@ Compare + save result
 
 AdversaryGraph compares the investigation TTP layer against actor profiles and saves the top overlap leads back into the investigation as structured evidence.
 
+![Actor comparison result for investigation TTP overlap](assets/from-log-to-report/18-actor-comparison.png)
+
 The saved comparison includes:
 
 - compared TTP count
@@ -557,6 +597,8 @@ Complete AI analysis
 
 The AI summary uses the active Investigation workspace as context. It should summarize:
 
+![AI investigation summary saved back into the investigation](assets/from-log-to-report/19-ai-investigation-summary.png)
+
 - current assessment
 - strongest evidence
 - IOC findings
@@ -576,6 +618,8 @@ Open:
 ```text
 Investigation
 ```
+
+![Final report preview generated from the active investigation](assets/from-log-to-report/20-final-report-preview.png)
 
 Select the sections to include:
 
@@ -614,6 +658,8 @@ Export as:
 - PDF
 - Markdown
 - TXT
+
+![Animated report generation workflow from investigation evidence](assets/from-log-to-report/21-report-generation-workflow.gif)
 
 ---
 

@@ -2,9 +2,11 @@
 
 ## Central Usecase Page
 
-This page is the navigation hub for AdversaryGraph v3.0.0 use-case article drafts.
+This page is the navigation hub for AdversaryGraph v3.1.0 use-case article drafts.
 
 For a single article version, use: [30 Practical AdversaryGraph Use Cases](../adversarygraph-30-use-cases.md).
+
+Published end-to-end investigation walkthrough: [From Log to Report: Using AdversaryGraph](https://medium.com/@1200km/from-log-to-report-using-adversarygraph-eff2e1d8f2cd).
 
 The collection is organized into:
 
@@ -41,7 +43,7 @@ The collection is organized into:
 
 ## Complex Investigation Usecases
 
-21. [Usecase number "21" - Investigation: Ransomware Intrusion Triage](./21-investigation-ransomware-intrusion.md)
+21. [Usecase number "21" - Investigation: From Log To Report](./21-investigation-ransomware-intrusion.md)
 22. [Usecase number "22" - Investigation: Cloud And Kubernetes Incident](./22-investigation-cloud-incident.md)
 23. [Usecase number "23" - Investigation: Cluster Multiple APT Reports](./23-investigation-apt-campaign-cluster.md)
 24. [Usecase number "24" - Investigation: Malware Family Behavior Mapping](./24-investigation-malware-family.md)

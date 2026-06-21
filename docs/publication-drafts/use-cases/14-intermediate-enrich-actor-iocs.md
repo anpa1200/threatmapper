@@ -4,7 +4,7 @@
 
 ### Enrich Actor IOCs: AdversaryGraph Use Case
 
-**Version focus:** AdversaryGraph v3.0.0
+**Version focus:** AdversaryGraph v3.1.0
 **Level:** Intermediate, 3-5 steps
 **Workflow group:** Intermediate Usecases
 

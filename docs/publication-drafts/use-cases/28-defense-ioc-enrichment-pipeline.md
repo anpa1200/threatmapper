@@ -4,7 +4,7 @@
 
 ### Defense: Build IOC Enrichment Pipeline: AdversaryGraph Use Case
 
-**Version focus:** AdversaryGraph v3.0.0
+**Version focus:** AdversaryGraph v3.1.0
 **Level:** Complex defense workflow
 **Workflow group:** Complex Defense Usecases
 

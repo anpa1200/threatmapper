@@ -4,7 +4,7 @@
 
 ### Defense: Create Sector-Based Detection Roadmap: AdversaryGraph Use Case
 
-**Version focus:** AdversaryGraph v3.0.0
+**Version focus:** AdversaryGraph v3.1.0
 **Level:** Complex defense workflow
 **Workflow group:** Complex Defense Usecases
 

@@ -4,6 +4,19 @@
 
 No unreleased changes.
 
+## v3.1.0 - 2026-06-21
+
+- Published the From Log to Report workflow as the v3.1 documentation and
+  use-case refresh.
+- Added the full Medium article media set, including animated GIF workflows,
+  to the official guide, use-case drafts, Docusaurus docs, and 1200km site.
+- Reworked use case 21 from the older ransomware triage placeholder into the
+  end-to-end investigation workflow: create investigation, analyze firewall and
+  EDR logs separately, enrich IOCs, review relationship graph pivots, compare
+  TTPs, summarize with AI, and generate the report.
+- Updated public documentation entry points for AI Analysis, Capabilities,
+  Full Flow, and Use Cases.
+
 ## v3.0.0 - 2026-06-20
 
 - Promoted AdversaryGraph to v3.0.0 with the investigation workflow as the

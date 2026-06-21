@@ -15,6 +15,7 @@ Relevant links:
 - Public project page: https://1200km.com/adversarygraph/
 - 1200km research ecosystem: https://1200km.com/
 - Medium publication: https://medium.com/@1200km
+- Published From Log to Report walkthrough: https://medium.com/@1200km/from-log-to-report-using-adversarygraph-eff2e1d8f2cd
 
 This article is not a generic feature list. It is a practical use-case map for the platform. Each use case starts from a real analyst situation, shows where to begin in AdversaryGraph, and defines the expected output. You can read it from top to bottom, but it is more useful as a workflow menu:
 
@@ -52,7 +53,7 @@ Use this article as a checklist when demonstrating, testing, documenting, or imp
 - [Usecase number "18" - Compare Two Reports](#usecase-number-18---compare-two-reports)
 - [Usecase number "19" - Review One Coverage Gap](#usecase-number-19---review-one-coverage-gap)
 - [Usecase number "20" - Use A Local LLM For Private Reports](#usecase-number-20---use-a-local-llm-for-private-reports)
-- [Usecase number "21" - Investigation: Ransomware Intrusion Triage](#usecase-number-21---investigation-ransomware-intrusion-triage)
+- [Usecase number "21" - Investigation: From Log To Report](#usecase-number-21---investigation-from-log-to-report)
 - [Usecase number "22" - Investigation: Cloud And Kubernetes Incident](#usecase-number-22---investigation-cloud-and-kubernetes-incident)
 - [Usecase number "23" - Investigation: Cluster Multiple APT Reports](#usecase-number-23---investigation-cluster-multiple-apt-reports)
 - [Usecase number "24" - Investigation: Malware Family Behavior Mapping](#usecase-number-24---investigation-malware-family-behavior-mapping)
@@ -258,13 +259,23 @@ Use this article as a checklist when demonstrating, testing, documenting, or imp
 
 ## Complex Investigation Use Cases
 
-### Usecase number "21" - Investigation: Ransomware Intrusion Triage
+### Usecase number "21" - Investigation: From Log To Report
 
-**Scenario:** A company discovers encrypted servers, PowerShell activity, lateral movement, suspicious domains, and possible data theft.
+![Usecase 21 - From Log to Report full workflow](assets/from-log-to-report/04-full-flow-presentation.gif)
 
-**Flow:** Run selftest, create an investigation workspace, upload the incident report, extract TTPs and IOCs, enrich IOCs with VT, OTX, ThreatFox, MalwareBazaar, sandbox, and custom feeds, compare accepted TTPs against actors, show them on Navigator, generate rule drafts, and export a PDF report.
+**Scenario:** A SOC receives firewall logs showing repeated outbound connections from one workstation and EDR logs showing Office-spawned PowerShell, unsigned payloads, discovery commands, `rundll32`, WMI, and possible C2 infrastructure.
 
-**Output:** A full ransomware triage package with evidence-backed TTPs, enriched IOCs, actor hypotheses, matrix layer, and detection backlog.
+![Usecase 21 - Investigation workspace](assets/from-log-to-report/16-investigation-workspace.png)
+
+**Flow:** Create a new investigation, analyze firewall logs, add the result to the case, analyze EDR logs separately, add the result to the same case, review extracted IOCs and suspicious behaviors, investigate high-value IOCs, review relationship graph pivots, build a TTP layer, compare with actor profiles, generate an AI investigation summary, and export the final report.
+
+![Usecase 21 - IOC relationship graph](assets/from-log-to-report/14-ioc-investigation-graph.png)
+
+![Usecase 21 - Final report preview](assets/from-log-to-report/20-final-report-preview.png)
+
+**Output:** A complete log-to-report investigation package with source-tagged IOCs, suspicious behaviors, ATT&CK TTP evidence, IOC enrichment, graph relationships, actor comparison leads, an AI summary, and an exportable client-ready report.
+
+**Full walkthrough:** https://medium.com/@1200km/from-log-to-report-using-adversarygraph-eff2e1d8f2cd
 
 ### Usecase number "22" - Investigation: Cloud And Kubernetes Incident
 

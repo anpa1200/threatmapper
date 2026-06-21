@@ -5,7 +5,7 @@
 **AI-assisted CTI-to-detection workbench for MITRE ATT&CK mapping and detection-gap analysis.**
 
 [![CI](https://github.com/anpa1200/adversarygraph/actions/workflows/ci.yml/badge.svg)](https://github.com/anpa1200/adversarygraph/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/badge/release-v3.0.0-blue)](VERSION)
+[![Release](https://img.shields.io/badge/release-v3.1.0-blue)](VERSION)
 [![License](https://img.shields.io/badge/license-personal%20use%20only-orange)](LICENSE)
 [![Security policy](https://img.shields.io/badge/security-policy-blue)](SECURITY.md)
 [![Roadmap](https://img.shields.io/badge/roadmap-public-blue)](ROADMAP.md)
@@ -14,7 +14,7 @@
 [![Awesome Threat Intelligence](https://img.shields.io/badge/awesome--threat--intelligence-submitted-yellow)](https://github.com/hslatman/awesome-threat-intelligence/pull/385)
 [![Threat Hunting](https://img.shields.io/badge/awesome--threat--hunting-submitted-yellow)](https://github.com/threat-hunting/awesome_Threat-Hunting/pull/5)
 
-**Current release: v3.0.0 · [Release Summary](docs/release-summary-v3.0.0.md) · [Release Article Draft](docs/publication-drafts/adversarygraph-v3-ioc-investigation-ai-log-pcap-analysis.md) · [From Log to Report Workflow](docs/publication-drafts/medium-adversarygraph-from-log-to-report-ioc-investigation.md) · [Live Intelligence Workspace](https://1200km.com/threat-matrix/) · [Documentation & Usage Guide](https://1200km.com/adversarygraph-docs/) · [Capabilities](https://1200km.com/adversarygraph-docs/capabilities/) · [Use Cases](https://1200km.com/adversarygraph/use-cases.html) · [1200km Article](https://1200km.com/articles/adversarygraph-v2-self-hosted-ai-cti-platform.html) · [Published Medium Article](https://medium.com/@1200km/adversarygraph-v2-5-new-name-new-release-full-ai-cti-platform-capability-map-93cd9224127e)**
+**Current release: v3.1.0 · [Release Summary](docs/release-summary-v3.1.0.md) · [Release Article Draft](docs/publication-drafts/adversarygraph-v3-ioc-investigation-ai-log-pcap-analysis.md) · [From Log to Report Workflow](docs/publication-drafts/medium-adversarygraph-from-log-to-report-ioc-investigation.md) · [Live Intelligence Workspace](https://1200km.com/threat-matrix/) · [Documentation & Usage Guide](https://1200km.com/adversarygraph-docs/) · [Capabilities](https://1200km.com/adversarygraph-docs/capabilities/) · [Use Cases](https://1200km.com/adversarygraph/use-cases.html) · [1200km Article](https://1200km.com/articles/adversarygraph-v2-self-hosted-ai-cti-platform.html) · [Published Medium Article](https://medium.com/@1200km/adversarygraph-v2-5-new-name-new-release-full-ai-cti-platform-capability-map-93cd9224127e)**
 
 AdversaryGraph AI is a self-hosted CTI-to-detection workbench for mapping threat reports to MITRE ATT&CK, comparing TTP overlap with known groups and campaigns, identifying detection gaps, and exporting analyst-ready outputs.
 
@@ -144,7 +144,7 @@ On first startup, AdversaryGraph downloads and ingests MITRE ATT&CK / ATLAS refe
 
 ## From Log to Report Workflow
 
-AdversaryGraph v3.0 adds a practical workflow for turning firewall logs, EDR
+AdversaryGraph v3.1 documents the practical workflow for turning firewall logs, EDR
 events, proxy records, PCAP-derived text, suspicious commands, and raw IOC lists
 into a structured CTI investigation:
 
@@ -167,7 +167,7 @@ The complete public walkthrough is mirrored in the 1200km ecosystem:
 
 ## Project Maturity Evidence
 
-AdversaryGraph v3.0.0 publishes the operational evidence expected from a serious self-hosted CTI tool:
+AdversaryGraph v3.1.0 publishes the operational evidence expected from a serious self-hosted CTI tool:
 
 | Area | Evidence |
 |---|---|
@@ -182,7 +182,7 @@ AdversaryGraph v3.0.0 publishes the operational evidence expected from a serious
 
 The current documentation is intended to make external review practical rather than promotional.
 
-For the current release scope, see the [v3.0.0 release summary](docs/release-summary-v3.0.0.md) and [release notes](docs/release-notes/v3.0.0.md).
+For the current release scope, see the [v3.1.0 release summary](docs/release-summary-v3.1.0.md) and [release notes](docs/release-notes/v3.1.0.md).
 
 ## Public Demo Privacy Note
 
