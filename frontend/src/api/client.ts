@@ -947,6 +947,7 @@ export interface MalwareGraphAnalysis {
     decompilation_performed?: boolean;
     runtime_debug_requested?: boolean;
     runtime_debug_enabled?: boolean;
+    runtime_debug_disclaimer_accepted?: boolean;
   };
 }
 
@@ -1134,12 +1135,13 @@ export const malwareGraphApi = {
   health: (): Promise<Record<string, unknown>> => http.get('/malwaregraph/health').then(r => r.data),
   providers: (): Promise<MalwareGraphProvider[]> => http.get('/malwaregraph/llm/providers').then(r => r.data),
   jobs: (): Promise<MalwareGraphJob[]> => http.get('/malwaregraph/analyses').then(r => r.data),
-  submit: (body: { file: File; password?: string; case_id?: string; dynamic_analysis?: boolean }): Promise<MalwareGraphAnalysis> => {
+  submit: (body: { file: File; password?: string; case_id?: string; dynamic_analysis?: boolean; runtime_debug_disclaimer_accepted?: boolean }): Promise<MalwareGraphAnalysis> => {
     const form = new FormData();
     form.append('file', body.file);
     if (body.password) form.append('password', body.password);
     if (body.case_id) form.append('case_id', body.case_id);
     form.append('dynamic_analysis', body.dynamic_analysis ? 'true' : 'false');
+    form.append('runtime_debug_disclaimer_accepted', body.runtime_debug_disclaimer_accepted ? 'true' : 'false');
     return http.post('/malwaregraph/analyses', form, {
       headers: { 'Content-Type': 'multipart/form-data' },
     }).then(r => r.data);
