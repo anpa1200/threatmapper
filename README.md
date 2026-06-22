@@ -1,5 +1,14 @@
 # AdversaryGraph
 
+<p align="center">
+  <img alt="UNDER CONSTRUCTION" src="https://img.shields.io/badge/MALWARE%20ANALYSIS-UNDER%20CONSTRUCTION-red?style=for-the-badge">
+</p>
+
+> **UNDER CONSTRUCTION:** The integrated Malware Analysis module is under active
+> development. Treat malware static analysis, decompilation, runtime-debug, IOC,
+> TTP, and attribution output as experimental analyst-assistance data. Validate
+> every finding before operational, legal, incident-response, or production use.
+
 ![AdversaryGraph AI banner](docs/assets/adversarygraph-ai-banner.png)
 
 **AI-assisted CTI-to-detection workbench for MITRE ATT&CK mapping and detection-gap analysis.**
