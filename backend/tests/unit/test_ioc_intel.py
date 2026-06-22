@@ -1,5 +1,7 @@
 from app.services.ioc_intel import (
     IOCImportItem,
+    _otx_get_json,
+    _otx_subscribed_pulses,
     _item_technique_ids,
     _malpedia_family_to_import_item,
     _mapping_evidence_from_item,
@@ -64,3 +66,70 @@ def test_ioc_ttp_mapping_evidence_preserves_priority():
     assert by_id["T1105"] == "strict-report"
     assert by_id["T1059"] == "enrichment-platform"
     assert by_id["T1566"] == "enrichment-platform"
+
+
+async def test_otx_get_json_retries_transient_timeout(monkeypatch):
+    from app.core.config import settings
+    from app.services import ioc_intel
+
+    calls = []
+
+    class Response:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {"results": [{"id": "pulse-1"}]}
+
+    def fake_get(*args, **kwargs):
+        calls.append((args, kwargs))
+        if len(calls) == 1:
+            raise ioc_intel.requests.ReadTimeout("slow OTX response")
+        return Response()
+
+    monkeypatch.setattr(settings, "otx_api_key", "test-key")
+    monkeypatch.setattr(settings, "otx_connect_timeout_seconds", 3)
+    monkeypatch.setattr(settings, "otx_read_timeout_seconds", 30)
+    monkeypatch.setattr(settings, "otx_retries", 1)
+    monkeypatch.setattr(ioc_intel.requests, "get", fake_get)
+    async def fake_sleep(*_args, **_kwargs):
+        return None
+
+    monkeypatch.setattr(ioc_intel.asyncio, "sleep", fake_sleep)
+
+    payload = await _otx_get_json("https://otx.example.test/api", params={"limit": 1})
+
+    assert payload["results"][0]["id"] == "pulse-1"
+    assert len(calls) == 2
+    assert calls[1][1]["headers"]["X-OTX-API-KEY"] == "test-key"
+    assert calls[1][1]["timeout"] == (3, 30)
+
+
+async def test_otx_subscribed_pulses_clamps_limit_and_uses_configured_timeout(monkeypatch):
+    from app.core.config import settings
+    from app.services import ioc_intel
+
+    calls = []
+
+    class Response:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {"results": [{"id": "pulse-1"}, "skip-me"]}
+
+    def fake_get(*args, **kwargs):
+        calls.append((args, kwargs))
+        return Response()
+
+    monkeypatch.setattr(settings, "otx_api_key", "test-key")
+    monkeypatch.setattr(settings, "otx_connect_timeout_seconds", 4)
+    monkeypatch.setattr(settings, "otx_read_timeout_seconds", 45)
+    monkeypatch.setattr(settings, "otx_retries", 0)
+    monkeypatch.setattr(ioc_intel.requests, "get", fake_get)
+
+    pulses = await _otx_subscribed_pulses(limit=999)
+
+    assert pulses == [{"id": "pulse-1"}]
+    assert calls[0][1]["params"]["limit"] == 500
+    assert calls[0][1]["timeout"] == (4, 45)

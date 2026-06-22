@@ -43,6 +43,9 @@ class Settings(BaseSettings):
     dynamic_db_sync_minute: int = 30
     dynamic_db_ioc_sync_days: int = 7
     otx_api_key: str = ""
+    otx_connect_timeout_seconds: int = 10
+    otx_read_timeout_seconds: int = 90
+    otx_retries: int = 2
     virustotal_api_key: str = ""
     urlscan_api_key: str = ""
     greynoise_api_key: str = ""

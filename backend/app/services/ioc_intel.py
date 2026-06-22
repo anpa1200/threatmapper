@@ -1397,41 +1397,64 @@ def _malpedia_family_to_import_item(family_id: str, family: dict[str, Any]) -> I
 
 
 async def _otx_search_pulses(alias: str, limit: int = 5) -> list[dict[str, Any]]:
-    response = await asyncio.to_thread(
-        requests.get,
+    payload = await _otx_get_json(
         f"{OTX_API_URL}/search/pulses",
         params={"q": alias, "limit": limit},
-        headers={"X-OTX-API-KEY": settings.otx_api_key},
-        timeout=45,
     )
-    response.raise_for_status()
-    payload = response.json()
     return [item for item in payload.get("results", []) if isinstance(item, dict)]
 
 
 async def _otx_subscribed_pulses(limit: int = 100) -> list[dict[str, Any]]:
-    response = await asyncio.to_thread(
-        requests.get,
+    payload = await _otx_get_json(
         f"{OTX_API_URL}/pulses/subscribed",
         params={"limit": max(1, min(limit, 500))},
-        headers={"X-OTX-API-KEY": settings.otx_api_key},
-        timeout=20,
     )
-    response.raise_for_status()
-    payload = response.json()
     return [item for item in payload.get("results", []) if isinstance(item, dict)]
 
 
 async def _otx_pulse_detail(pulse_id: str) -> dict[str, Any]:
-    response = await asyncio.to_thread(
-        requests.get,
+    payload = await _otx_get_json(
         f"{OTX_API_URL}/pulses/{pulse_id}",
-        headers={"X-OTX-API-KEY": settings.otx_api_key},
-        timeout=45,
     )
-    response.raise_for_status()
-    payload = response.json()
     return payload if isinstance(payload, dict) else {}
+
+
+async def _otx_get_json(
+    url: str,
+    *,
+    params: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    attempts = max(1, int(settings.otx_retries) + 1)
+    timeout = (
+        max(1, int(settings.otx_connect_timeout_seconds)),
+        max(5, int(settings.otx_read_timeout_seconds)),
+    )
+    last_error: Exception | None = None
+    for attempt in range(attempts):
+        try:
+            response = await asyncio.to_thread(
+                requests.get,
+                url,
+                params=params,
+                headers={"X-OTX-API-KEY": settings.otx_api_key},
+                timeout=timeout,
+            )
+            response.raise_for_status()
+            payload = response.json()
+            return payload if isinstance(payload, dict) else {}
+        except (requests.Timeout, requests.ConnectionError) as exc:
+            last_error = exc
+            if attempt >= attempts - 1:
+                break
+            await asyncio.sleep(min(8, 2 ** attempt))
+        except requests.HTTPError:
+            raise
+    if last_error is None:
+        raise RuntimeError("OTX request failed without response")
+    raise RuntimeError(
+        f"OTX request failed after {attempts} attempts "
+        f"(connect timeout={timeout[0]}s, read timeout={timeout[1]}s): {last_error}"
+    ) from last_error
 
 
 def _group_search_aliases(group: AptGroup) -> list[str]:
