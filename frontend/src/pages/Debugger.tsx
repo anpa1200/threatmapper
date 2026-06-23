@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import {
   malwareGraphApi,
+  type MalwareGraphDecompilation,
   type MalwareGraphDebuggerWorkspace,
   type MalwareGraphFirstAnalysis,
 } from '@/api/client';
@@ -20,6 +21,7 @@ export function Debugger() {
   const [sampleRef, setSampleRef] = useState(params.get('sample_ref') ?? '');
   const [aiProvider, setAiProvider] = useState(params.get('ai_provider') ?? 'local');
   const [workspace, setWorkspace] = useState<MalwareGraphDebuggerWorkspace | null>(null);
+  const [decompilation, setDecompilation] = useState<MalwareGraphDecompilation | null>(null);
   const [selectedTraceId, setSelectedTraceId] = useState<string>('');
 
   const jobs = useQuery({ queryKey: ['malwaregraph-jobs'], queryFn: malwareGraphApi.jobs, retry: false });
@@ -69,11 +71,18 @@ export function Debugger() {
 
   const createWorkspace = useMutation({
     mutationFn: () => malwareGraphApi.debugWorkspace(jobId, sampleRef, aiProvider),
-    onSuccess: setWorkspace,
+    onSuccess: result => {
+      setWorkspace(result);
+      if (isDecompilation(result.decompilation)) setDecompilation(result.decompilation);
+    },
   });
   const stepWorkspace = useMutation({
     mutationFn: () => malwareGraphApi.stepDebugWorkspace(workspace!.session_id),
     onSuccess: setWorkspace,
+  });
+  const loadDecompilation = useMutation({
+    mutationFn: () => malwareGraphApi.decompilation(jobId, sampleRef),
+    onSuccess: setDecompilation,
   });
 
   const currentTrace = workspace?.function_traces.find(trace => trace.trace_id === workspace.current_trace_id)
@@ -84,18 +93,18 @@ export function Debugger() {
     ?? currentTrace;
 
   return <div className="flex h-full flex-col">
-    <Header title="Debugger" />
+    <Header title="Decompilation & Debug IDE" />
     <div className="flex-1 overflow-y-auto p-6">
       <div className="mx-auto grid max-w-7xl gap-4 xl:grid-cols-[360px_1fr]">
         <div className="space-y-4">
           <Panel title="Source">
             <div className="space-y-3 p-3">
               <label className="block text-[10px] uppercase text-gray-600">Analysis job</label>
-              <select value={jobId} onChange={event => { setJobId(event.target.value); setSampleRef(''); setWorkspace(null); }} className={input}>
+              <select value={jobId} onChange={event => { setJobId(event.target.value); setSampleRef(''); setWorkspace(null); setDecompilation(null); }} className={input}>
                 {(jobs.data ?? []).map(job => <option key={job.job_id} value={job.job_id}>{job.archive_name ?? job.job_id}</option>)}
               </select>
               <label className="block text-[10px] uppercase text-gray-600">Debug target</label>
-              <select value={sampleRef} onChange={event => { setSampleRef(event.target.value); setWorkspace(null); }} className={input}>
+              <select value={sampleRef} onChange={event => { setSampleRef(event.target.value); setWorkspace(null); setDecompilation(null); }} className={input}>
                 {targets.map(target => <option key={target.id} value={target.id}>{target.label}</option>)}
               </select>
               <label className="block text-[10px] uppercase text-gray-600">AI provider</label>
@@ -103,9 +112,11 @@ export function Debugger() {
                 {(providers.data ?? []).map(provider => <option key={provider.provider} value={provider.provider}>{provider.provider} · {provider.configured ? provider.model : provider.env_var}</option>)}
               </select>
               <button className="primary w-full" onClick={() => createWorkspace.mutate()} disabled={!jobId || !sampleRef || createWorkspace.isPending}>{createWorkspace.isPending ? 'Creating...' : 'Create debug workspace'}</button>
+              <button className="secondary-action w-full" onClick={() => loadDecompilation.mutate()} disabled={!jobId || !sampleRef || loadDecompilation.isPending}>{loadDecompilation.isPending ? 'Decompiling...' : 'Load decompilation'}</button>
               <button className="secondary-action w-full" onClick={() => stepWorkspace.mutate()} disabled={!workspace || workspace.completed || stepWorkspace.isPending}>{stepWorkspace.isPending ? 'Stepping...' : workspace?.completed ? 'Session complete' : 'Step function'}</button>
-              <button className="secondary-action w-full" onClick={() => navigate(`/malware-analysis${jobId ? `?job_id=${encodeURIComponent(jobId)}` : ''}`)}>Back to Malware Analysis</button>
-              {(createWorkspace.error || stepWorkspace.error) && <p className="text-xs text-red-300">{String(createWorkspace.error ?? stepWorkspace.error)}</p>}
+              <button className="secondary-action w-full" onClick={() => navigate(`/dynamic-analysis?job_id=${encodeURIComponent(jobId)}&sample_ref=${encodeURIComponent(sampleRef)}`)}>Dynamic analysis</button>
+              <button className="secondary-action w-full" onClick={() => navigate(`/malware-analysis?job_id=${encodeURIComponent(jobId)}&sample_ref=${encodeURIComponent(sampleRef)}`)}>Back to Malware Analysis</button>
+              {(createWorkspace.error || stepWorkspace.error || loadDecompilation.error) && <p className="text-xs text-red-300">{String(createWorkspace.error ?? stepWorkspace.error ?? loadDecompilation.error)}</p>}
             </div>
           </Panel>
           <Panel title="Controls">
@@ -139,6 +150,9 @@ export function Debugger() {
               <Metric label="API hooks" value={workspace.api_hooks.length} />
               <Metric label="Step" value={`${workspace.step_count}/${Math.max(0, workspace.function_traces.length - 1)}`} />
             </div>
+            <Panel title="Decompilation">
+              {decompilation ? <DecompilationPane result={decompilation} /> : <Empty text="Load decompilation to view pseudocode, recovered APIs, and interesting strings." />}
+            </Panel>
             <Panel title="AIDebug Function Graph">
               <DebuggerGraph workspace={workspace} selectedTrace={selectedTrace} onTrace={setSelectedTraceId} />
             </Panel>
@@ -172,7 +186,9 @@ export function Debugger() {
                 <pre className="max-h-96 overflow-auto p-3 text-[10px] leading-relaxed text-gray-500">{JSON.stringify(workspace.export, null, 2)}</pre>
               </Panel>
             </div>
-          </> : <Empty text="Select a MalwareGraph job and target to create a debugger workspace." />}
+          </> : decompilation ? <Panel title="Decompilation">
+            <DecompilationPane result={decompilation} />
+          </Panel> : <Empty text="Select a MalwareGraph job and target to create a debugger workspace or load decompilation." />}
         </div>
       </div>
     </div>
@@ -353,6 +369,36 @@ function Events({ workspace }: { workspace: MalwareGraphDebuggerWorkspace }) {
   </div>;
 }
 
+function DecompilationPane({ result }: { result: MalwareGraphDecompilation }) {
+  return <div className="grid gap-4 p-3 xl:grid-cols-[1fr_360px]">
+    <div>
+      <div className="mb-2 flex flex-wrap items-center gap-2 text-[10px] uppercase text-gray-500">
+        <span>{result.toolchain}</span>
+        <span>{result.mode}</span>
+        <span>{result.executed ? 'executed' : 'static'}</span>
+      </div>
+      <pre className="max-h-[420px] overflow-auto rounded border border-gray-800 bg-gray-950 p-3 font-mono text-[11px] leading-relaxed text-gray-300">{result.pseudocode.join('\n') || 'No pseudocode recovered.'}</pre>
+    </div>
+    <div className="space-y-3">
+      {result.warnings.length > 0 && <div className="rounded border border-amber-500/30 bg-amber-950/20 p-3 text-xs text-amber-100">{result.warnings.join(' ')}</div>}
+      <div className="rounded border border-gray-800 bg-gray-950 p-3">
+        <b className="text-xs text-gray-200">Recovered APIs</b>
+        <div className="mt-2 flex max-h-40 flex-wrap gap-1.5 overflow-y-auto">
+          {result.api_calls.slice(0, 100).map(value => <span key={value} className="rounded border border-gray-700 px-2 py-1 font-mono text-[10px] text-gray-300">{value}</span>)}
+          {!result.api_calls.length && <span className="text-xs text-gray-600">none</span>}
+        </div>
+      </div>
+      <div className="rounded border border-gray-800 bg-gray-950 p-3">
+        <b className="text-xs text-gray-200">Interesting strings</b>
+        <div className="mt-2 max-h-48 overflow-y-auto divide-y divide-gray-900 font-mono text-[10px] text-gray-500">
+          {result.interesting_strings.slice(0, 80).map((value, index) => <div key={`${value}-${index}`} className="break-all py-1">{value}</div>)}
+          {!result.interesting_strings.length && <div className="text-xs text-gray-600">none</div>}
+        </div>
+      </div>
+    </div>
+  </div>;
+}
+
 function isFirstAnalysis(artifact: unknown): artifact is MalwareGraphFirstAnalysis {
   if (!artifact || typeof artifact !== 'object') return false;
   const item = artifact as Record<string, unknown>;
@@ -360,6 +406,15 @@ function isFirstAnalysis(artifact: unknown): artifact is MalwareGraphFirstAnalys
     && typeof item.target_entity_id === 'string'
     && typeof item.target_name === 'string'
     && typeof item.entropy === 'number';
+}
+
+function isDecompilation(value: unknown): value is MalwareGraphDecompilation {
+  if (!value || typeof value !== 'object') return false;
+  const item = value as Record<string, unknown>;
+  return item.type === 'decompilation'
+    && typeof item.target_entity_id === 'string'
+    && Array.isArray(item.pseudocode)
+    && Array.isArray(item.api_calls);
 }
 
 function Panel({ title, children }: { title: string; children: ReactNode }) {

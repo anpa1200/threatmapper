@@ -933,8 +933,13 @@ export interface MalwareGraphAnalysis {
     }>;
   };
   iocs: MalwareGraphEntity[];
+  behaviors: MalwareGraphEntity[];
+  attack_mappings: MalwareGraphEntity[];
   entities: MalwareGraphEntity[];
   relationships: MalwareGraphRelationship[];
+  family_hypotheses: Array<Record<string, unknown>>;
+  actor_similarity_leads: Array<Record<string, unknown>>;
+  detections: Array<Record<string, unknown>>;
   artifacts: Array<Record<string, unknown>>;
   evidence: Array<Record<string, unknown>>;
   ai_assistance: Array<Record<string, unknown>>;

@@ -135,6 +135,7 @@ function StringResults({ result, mode }: { result: MalwareGraphStringsAnalysis; 
     {mode === 'ai' && result.ai_analysis && <Panel title="AI String Analysis">
       <div className="p-3 text-sm leading-relaxed text-gray-300">{result.ai_analysis}</div>
     </Panel>}
+    <CategorySections result={result} />
     {mode === 'all' && <Panel title={`All Extracted Strings (${result.strings.length})`}>
       <div className="max-h-[620px] overflow-y-auto divide-y divide-gray-900 p-3 font-mono text-[10px]">
         {result.strings.map(value => {
@@ -187,6 +188,47 @@ function StringResults({ result, mode }: { result: MalwareGraphStringsAnalysis; 
       </div>
     </Panel>}
   </>;
+}
+
+const CATEGORY_ORDER = [
+  ['URLS', 'URLs'],
+  ['DOMAINS', 'Domains'],
+  ['IPS', 'IP addresses'],
+  ['EMAILS', 'Emails'],
+  ['CMD_COMMANDS', 'Command shell'],
+  ['POWERSHELL_COMMANDS', 'PowerShell'],
+  ['WINDOWS_REGISTRY_KEYS', 'Registry keys'],
+  ['WINDOWS_API_COMMANDS', 'WinAPI / functions'],
+  ['ANDROID_APIS', 'Android APIs'],
+  ['ANDROID_PERMISSIONS', 'Android permissions'],
+  ['FILES', 'Files'],
+  ['DLLS', 'DLLs'],
+  ['DECODED_BASE64', 'Decoded Base64'],
+  ['DECODED_HEX', 'Decoded hex'],
+  ['SUSPICIOUS_KEYWORDS', 'Suspicious keywords'],
+] as const;
+
+function CategorySections({ result }: { result: MalwareGraphStringsAnalysis }) {
+  const populated = CATEGORY_ORDER
+    .map(([key, label]) => ({ key, label, values: result.categories[key] ?? [] }))
+    .filter(item => item.values.length > 0);
+  return <Panel title="Sorted String Categories">
+    <div className="grid gap-3 p-3 xl:grid-cols-2">
+      {populated.map(item => <section key={item.key} className="overflow-hidden rounded border border-gray-800 bg-gray-950">
+        <div className="flex items-center justify-between border-b border-gray-800 px-3 py-2">
+          <b className="text-xs text-gray-200">{item.label}</b>
+          <span className="text-[10px] text-mitre-accent">{item.values.length}</span>
+        </div>
+        <div className="max-h-56 overflow-y-auto divide-y divide-gray-900 font-mono text-[10px]">
+          {item.values.slice(0, 120).map(value => {
+            const route = stringIocRoute(value);
+            return route ? <a key={value} href={route} className="block break-all px-3 py-1.5 text-mitre-accent hover:underline">{value}</a> : <div key={value} className="break-all px-3 py-1.5 text-gray-500">{value}</div>;
+          })}
+        </div>
+      </section>)}
+      {!populated.length && <Empty text="No smart string categories matched the selected filters." />}
+    </div>
+  </Panel>;
 }
 
 function ModeButton({ active, label, onClick }: { active: boolean; label: string; onClick: () => void }) {
