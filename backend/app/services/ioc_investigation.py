@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.config import settings
+from app.core.version import APP_USER_AGENT
 from app.models.attack import AptGroup, Technique
 from app.models.ioc import IOCActorLink, IOCIndicator
 from app.services.ai.factory import get_adapter
@@ -280,7 +281,7 @@ async def _threatfox_enrichment(value: str, artifact_type: str) -> dict[str, Any
     payload = await _post_json(
         "https://threatfox-api.abuse.ch/api/v1/",
         json_body={"query": query, key: value},
-        headers={"Auth-Key": settings.threatfox_auth_key},
+        headers={"Auth-Key": settings.threatfox_auth_key, "Accept": "application/json", "User-Agent": APP_USER_AGENT},
     )
     rows = payload.get("data") or []
     relationships: list[dict[str, Any]] = []
@@ -689,7 +690,7 @@ async def _get_json(url: str, *, params: dict[str, Any] | None = None, headers: 
     async with httpx.AsyncClient(timeout=25, follow_redirects=True) as client:
         response = await client.get(url, params=params, headers=headers or {})
         if response.status_code in {401, 403}:
-            raise RuntimeError(f"API rejected credentials for {urlparse(url).netloc}")
+            raise RuntimeError(_credential_error_detail(url, response))
         if response.status_code == 404:
             return {"query_status": "not_found"}
         response.raise_for_status()
@@ -700,9 +701,26 @@ async def _post_json(url: str, *, json_body: dict[str, Any], headers: dict[str, 
     async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
         response = await client.post(url, json=json_body, headers=headers or {})
         if response.status_code in {401, 403}:
-            raise RuntimeError(f"API rejected credentials for {urlparse(url).netloc}")
+            raise RuntimeError(_credential_error_detail(url, response))
         response.raise_for_status()
         return response.json()
+
+
+def _credential_error_detail(url: str, response: httpx.Response) -> str:
+    host = urlparse(url).netloc
+    try:
+        payload = response.json()
+    except ValueError:
+        payload = {}
+    query_status = str(payload.get("query_status") or "").strip() if isinstance(payload, dict) else ""
+    if host == "threatfox-api.abuse.ch" and query_status in {"unknown_auth_key", "auth_key_required"}:
+        return (
+            f"ThreatFox rejected THREATFOX_AUTH_KEY: {query_status}. "
+            "Generate a new Auth-Key in the abuse.ch authentication portal, update .env, and restart the API container."
+        )
+    if query_status:
+        return f"API rejected credentials for {host}: {query_status}"
+    return f"API rejected credentials for {host}"
 
 
 async def _resolve_techniques(session: AsyncSession, attack_ids: list[str], domain: str) -> list[dict[str, Any]]:

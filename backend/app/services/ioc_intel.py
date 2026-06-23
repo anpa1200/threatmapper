@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.config import settings
+from app.core.version import APP_USER_AGENT
 from app.models.attack import AptGroup, AttackVersion, Technique
 from app.models.ioc import IOCActorLink, IOCIndicator, IOCSource
 from app.services.ai.factory import get_adapter
@@ -57,6 +58,35 @@ HASH_TYPE_ALIASES = {
     "email": "email",
     "malware-family": "malware-family",
 }
+
+
+def _threatfox_headers() -> dict[str, str]:
+    return {
+        "Auth-Key": settings.threatfox_auth_key,
+        "Accept": "application/json",
+        "User-Agent": APP_USER_AGENT,
+    }
+
+
+def _json_or_empty(response: requests.Response) -> dict[str, Any]:
+    try:
+        payload = response.json()
+    except ValueError:
+        return {}
+    return payload if isinstance(payload, dict) else {}
+
+
+def _threatfox_error_message(response: requests.Response, payload: dict[str, Any] | None = None) -> str:
+    payload = payload if payload is not None else _json_or_empty(response)
+    query_status = str(payload.get("query_status") or "").strip()
+    if query_status in {"unknown_auth_key", "auth_key_required"}:
+        return (
+            f"ThreatFox rejected THREATFOX_AUTH_KEY: {query_status}. "
+            "Generate a new Auth-Key in the abuse.ch authentication portal, update .env, and restart the API container."
+        )
+    if query_status:
+        return f"ThreatFox API returned {query_status}."
+    return f"ThreatFox API returned HTTP {response.status_code}: {response.reason or 'request failed'}."
 
 
 @dataclass
@@ -737,17 +767,20 @@ async def sync_threatfox(
             requests.post,
             THREATFOX_API_URL,
             json={"query": "get_iocs", "days": days},
-            headers={"Auth-Key": settings.threatfox_auth_key},
+            headers=_threatfox_headers(),
             timeout=90,
         )
+        payload = _json_or_empty(response)
+        if response.status_code in {401, 403}:
+            raise RuntimeError(_threatfox_error_message(response, payload))
         response.raise_for_status()
-        payload = response.json()
     except Exception as exc:
         await _mark_ioc_source(session, THREATFOX_SOURCE_ID, "error", str(exc))
+        await session.commit()
         raise
 
     if payload.get("query_status") not in {"ok", "no_result"}:
-        error = str(payload.get("query_status") or "unknown ThreatFox response")
+        error = _threatfox_error_message(response, payload)
         await _mark_ioc_source(session, THREATFOX_SOURCE_ID, "error", error)
         raise RuntimeError(error)
 
