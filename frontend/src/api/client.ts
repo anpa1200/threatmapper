@@ -1181,6 +1181,9 @@ export interface MalwareGraphUnpackPlan {
     status: string;
     blocked_by_policy: boolean;
     dynamic_debug_enabled: boolean;
+    dynamic_request_enabled: boolean;
+    global_dynamic_debug_enabled: boolean;
+    runtime_debug_disclaimer_accepted: boolean;
     engine: string;
     engine_available: boolean;
     profile: string;
@@ -1359,8 +1362,19 @@ export const malwareGraphApi = {
     http.get(`/malwaregraph/analyses/${jobId}/strings`, { params: { sample_ref: sampleRef, ai, ai_provider: aiProvider, min_chars: filters?.min_chars ?? 4, max_chars: filters?.max_chars ?? undefined } }).then(r => r.data),
   filePreview: (jobId: string, sampleRef = 'archive--file--0001', mode: 'strings' | 'ascii' | 'hex' = 'strings', limit = 200): Promise<MalwareGraphFilePreview> =>
     http.get(`/malwaregraph/analyses/${jobId}/files/preview`, { params: { sample_ref: sampleRef, mode, limit } }).then(r => r.data),
-  unpack: (jobId: string, sampleRef = 'archive--file--0001'): Promise<MalwareGraphUnpackPlan> =>
-    http.post(`/malwaregraph/analyses/${jobId}/unpack`, null, { params: { sample_ref: sampleRef } }).then(r => r.data),
+  unpack: (
+    jobId: string,
+    sampleRef = 'archive--file--0001',
+    dynamicAnalysis = false,
+    runtimeDebugDisclaimerAccepted = false,
+  ): Promise<MalwareGraphUnpackPlan> =>
+    http.post(`/malwaregraph/analyses/${jobId}/unpack`, null, {
+      params: {
+        sample_ref: sampleRef,
+        dynamic_analysis: dynamicAnalysis,
+        runtime_debug_disclaimer_accepted: runtimeDebugDisclaimerAccepted,
+      },
+    }).then(r => r.data),
   obfuscationAnalysis: (jobId: string, sampleRef = 'archive--file--0001', aiProvider = 'local'): Promise<MalwareGraphObfuscationAnalysis> =>
     http.post(`/malwaregraph/analyses/${jobId}/obfuscation-analysis`, null, { params: { sample_ref: sampleRef, ai_provider: aiProvider } }).then(r => r.data),
 };
