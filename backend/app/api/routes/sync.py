@@ -158,7 +158,12 @@ async def sync_status(session: AsyncSession = Depends(get_session)):
             ioc_sources = await list_ioc_sources(session)
             ioc_source = next((item for item in sources if item.id == "ioc-intelligence"), None)
             if ioc_source:
-                ioc_source.status = "active" if all(item.sync_status != "error" for item in ioc_sources) else "degraded"
+                healthy_statuses = {"ok", "active", "configured"}
+                ioc_source.status = (
+                    "active"
+                    if all(item.sync_status in healthy_statuses for item in ioc_sources)
+                    else "degraded"
+                )
                 ioc_source.content = [
                     *IOC_CONTENT,
                     *[f"{item.label}: {item.sync_status}" for item in ioc_sources],

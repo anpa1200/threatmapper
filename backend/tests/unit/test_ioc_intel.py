@@ -1,3 +1,5 @@
+import pytest
+
 from app.services.ioc_intel import (
     IOCImportItem,
     _otx_get_json,
@@ -103,6 +105,89 @@ async def test_otx_get_json_retries_transient_timeout(monkeypatch):
     assert len(calls) == 2
     assert calls[1][1]["headers"]["X-OTX-API-KEY"] == "test-key"
     assert calls[1][1]["timeout"] == (3, 30)
+
+
+async def test_otx_get_json_retries_transient_http_error(monkeypatch):
+    from app.core.config import settings
+    from app.services import ioc_intel
+
+    calls = []
+
+    class GatewayTimeoutResponse:
+        status_code = 504
+        reason = "Gateway Time-out"
+        url = "https://otx.example.test/api"
+
+        def raise_for_status(self):
+            raise ioc_intel.requests.HTTPError(
+                "504 Server Error: Gateway Time-out for url: https://otx.example.test/api",
+                response=self,
+            )
+
+    class SuccessResponse:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {"results": [{"id": "pulse-2"}]}
+
+    def fake_get(*args, **kwargs):
+        calls.append((args, kwargs))
+        if len(calls) == 1:
+            return GatewayTimeoutResponse()
+        return SuccessResponse()
+
+    monkeypatch.setattr(settings, "otx_api_key", "test-key")
+    monkeypatch.setattr(settings, "otx_connect_timeout_seconds", 3)
+    monkeypatch.setattr(settings, "otx_read_timeout_seconds", 30)
+    monkeypatch.setattr(settings, "otx_retries", 1)
+    monkeypatch.setattr(ioc_intel.requests, "get", fake_get)
+
+    async def fake_sleep(*_args, **_kwargs):
+        return None
+
+    monkeypatch.setattr(ioc_intel.asyncio, "sleep", fake_sleep)
+
+    payload = await _otx_get_json("https://otx.example.test/api", params={"limit": 1})
+
+    assert payload["results"][0]["id"] == "pulse-2"
+    assert len(calls) == 2
+
+
+async def test_otx_get_json_raises_transient_error_after_http_retries(monkeypatch):
+    from app.core.config import settings
+    from app.services import ioc_intel
+
+    class GatewayTimeoutResponse:
+        status_code = 504
+        reason = "Gateway Time-out"
+        url = "https://otx.example.test/api"
+
+        def raise_for_status(self):
+            raise ioc_intel.requests.HTTPError(
+                "504 Server Error: Gateway Time-out for url: https://otx.example.test/api",
+                response=self,
+            )
+
+    def fake_get(*args, **kwargs):
+        return GatewayTimeoutResponse()
+
+    monkeypatch.setattr(settings, "otx_api_key", "test-key")
+    monkeypatch.setattr(settings, "otx_connect_timeout_seconds", 3)
+    monkeypatch.setattr(settings, "otx_read_timeout_seconds", 30)
+    monkeypatch.setattr(settings, "otx_retries", 1)
+    monkeypatch.setattr(ioc_intel.requests, "get", fake_get)
+
+    async def fake_sleep(*_args, **_kwargs):
+        return None
+
+    monkeypatch.setattr(ioc_intel.asyncio, "sleep", fake_sleep)
+
+    with pytest.raises(ioc_intel.TransientOTXError) as exc:
+        await _otx_get_json("https://otx.example.test/api", params={"limit": 1})
+
+    assert "HTTP 504" in str(exc.value)
+    assert "Cached OTX indicators are preserved" in str(exc.value)
 
 
 async def test_otx_subscribed_pulses_clamps_limit_and_uses_configured_timeout(monkeypatch):

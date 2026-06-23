@@ -30,6 +30,7 @@ OTX_SOURCE_ID = "alienvault-otx"
 MALPEDIA_SOURCE_ID = "malpedia"
 MANUAL_SOURCE_ID = "manual-report-import"
 CUSTOM_FEED_KINDS = {"custom-json", "custom-csv", "custom-txt"}
+OTX_TRANSIENT_HTTP_STATUS_CODES = {429, 502, 503, 504}
 ATTACK_ID_RE = re.compile(r"\bT\d{4}(?:\.\d{3})?\b", re.IGNORECASE)
 HASH_TYPE_ALIASES = {
     "sha256_hash": "sha256",
@@ -58,6 +59,10 @@ HASH_TYPE_ALIASES = {
     "email": "email",
     "malware-family": "malware-family",
 }
+
+
+class TransientOTXError(RuntimeError):
+    """Raised when OTX is reachable but temporarily unable to serve a feed request."""
 
 
 def _threatfox_headers() -> dict[str, str]:
@@ -463,7 +468,7 @@ async def sync_all_ioc_sources(
 
     try:
         result = await sync_otx_subscribed_pulses(session, domain=domain, ai_enrich=ai_enrich, ai_provider=ai_provider)
-        results.append({**result, "status": "ok"})
+        results.append({**result, "status": str(result.get("status") or "ok")})
         totals["inserted"] += int(result.get("inserted", 0))
         totals["updated"] += int(result.get("updated", 0))
         totals["actor_links"] += int(result.get("actor_links", 0))
@@ -701,6 +706,21 @@ async def sync_otx_subscribed_pulses(
     groups = await _latest_groups(session, domain)
     try:
         pulses = await _otx_subscribed_pulses(limit=limit)
+    except TransientOTXError as exc:
+        await _mark_ioc_source(session, OTX_SOURCE_ID, "degraded", str(exc))
+        await session.commit()
+        return {
+            "source": OTX_SOURCE_ID,
+            "status": "degraded",
+            "days": None,
+            "inserted": 0,
+            "updated": 0,
+            "actor_links": 0,
+            "pulses": 0,
+            "matched_pulses": 0,
+            "ttp_enriched": 0,
+            "error": str(exc),
+        }
     except Exception as exc:
         await _mark_ioc_source(session, OTX_SOURCE_ID, "error", str(exc))
         await session.commit()
@@ -1469,7 +1489,11 @@ async def _otx_get_json(
                 requests.get,
                 url,
                 params=params,
-                headers={"X-OTX-API-KEY": settings.otx_api_key},
+                headers={
+                    "Accept": "application/json",
+                    "User-Agent": APP_USER_AGENT,
+                    "X-OTX-API-KEY": settings.otx_api_key,
+                },
                 timeout=timeout,
             )
             response.raise_for_status()
@@ -1478,16 +1502,56 @@ async def _otx_get_json(
         except (requests.Timeout, requests.ConnectionError) as exc:
             last_error = exc
             if attempt >= attempts - 1:
-                break
+                raise TransientOTXError(
+                    _otx_transient_error_message(
+                        attempts=attempts,
+                        timeout=timeout,
+                        error=exc,
+                    )
+                ) from exc
             await asyncio.sleep(min(8, 2 ** attempt))
-        except requests.HTTPError:
-            raise
+        except requests.HTTPError as exc:
+            if not _is_transient_otx_http_error(exc):
+                raise
+            last_error = exc
+            if attempt >= attempts - 1:
+                raise TransientOTXError(
+                    _otx_transient_error_message(
+                        attempts=attempts,
+                        timeout=timeout,
+                        error=exc,
+                    )
+                ) from exc
+            await asyncio.sleep(min(8, 2 ** attempt))
     if last_error is None:
         raise RuntimeError("OTX request failed without response")
-    raise RuntimeError(
-        f"OTX request failed after {attempts} attempts "
-        f"(connect timeout={timeout[0]}s, read timeout={timeout[1]}s): {last_error}"
+    raise TransientOTXError(
+        _otx_transient_error_message(
+            attempts=attempts,
+            timeout=timeout,
+            error=last_error,
+        )
     ) from last_error
+
+
+def _is_transient_otx_http_error(exc: requests.HTTPError) -> bool:
+    response = exc.response
+    return bool(response is not None and response.status_code in OTX_TRANSIENT_HTTP_STATUS_CODES)
+
+
+def _otx_transient_error_message(
+    *,
+    attempts: int,
+    timeout: tuple[int, int],
+    error: Exception,
+) -> str:
+    response = getattr(error, "response", None)
+    status = f"HTTP {response.status_code}" if response is not None else type(error).__name__
+    return (
+        f"AlienVault OTX upstream transient failure ({status}) after {attempts} attempts "
+        f"(connect timeout={timeout[0]}s, read timeout={timeout[1]}s). "
+        f"Cached OTX indicators are preserved; retry later. Last error: {error}"
+    )
 
 
 def _group_search_aliases(group: AptGroup) -> list[str]:
