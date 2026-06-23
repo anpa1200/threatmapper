@@ -1215,6 +1215,89 @@ export interface MalwareGraphObfuscationAnalysis {
   summary: string;
 }
 
+export interface MalwareGraphReportTag {
+  namespace: string;
+  value: string;
+  route: string | null;
+  count: number;
+}
+
+export interface MalwareGraphHeuristic {
+  heuristic_id: string;
+  name: string;
+  score: number;
+  severity: 'info' | 'low' | 'medium' | 'high' | 'critical';
+  evidence: string;
+  target_entity_id: string | null;
+  tags: string[];
+  attack_ids: string[];
+}
+
+export interface MalwareGraphServiceResult {
+  service_id: string;
+  name: string;
+  stage: string;
+  status: 'completed' | 'blocked' | 'skipped' | 'failed' | 'ready';
+  score: number;
+  summary: string;
+  target_entity_id: string | null;
+  details: Record<string, unknown>;
+  routes: Record<string, string>;
+}
+
+export interface MalwareGraphFileReport {
+  target_entity_id: string;
+  name: string;
+  file_type: string;
+  size_bytes: number;
+  hashes: Record<string, string>;
+  entropy: number | null;
+  packed: boolean;
+  packer: string | null;
+  obfuscated: boolean;
+  tags: string[];
+  service_results: string[];
+  viewer_routes: Record<string, string>;
+}
+
+export interface MalwareGraphSubmissionReport {
+  schema_version: string;
+  job_id: string;
+  case_id: string | null;
+  verdict: 'informational' | 'suspicious' | 'highly-suspicious' | 'malicious';
+  score: number;
+  summary: string;
+  safety: MalwareGraphAnalysis['safety'];
+  tags: MalwareGraphReportTag[];
+  heuristics: MalwareGraphHeuristic[];
+  service_results: MalwareGraphServiceResult[];
+  files: MalwareGraphFileReport[];
+  iocs: MalwareGraphEntity[];
+  ttps: Array<{
+    attack_id: string;
+    name: string;
+    confidence: number;
+    evidence: string;
+    navigator_route: string;
+  }>;
+  artifacts: Array<Record<string, unknown>>;
+  generated_at: string;
+}
+
+export interface MalwareGraphFilePreview {
+  schema_version: string;
+  job_id: string;
+  sample_ref: string;
+  target_entity_id: string;
+  target_name: string;
+  mode: 'strings' | 'ascii' | 'hex';
+  size_bytes: number;
+  limit: number;
+  truncated: boolean;
+  lines: string[];
+  safety: Record<string, unknown>;
+}
+
 export interface MalwareGraphProvider {
   provider: string;
   configured: boolean;
@@ -1239,6 +1322,8 @@ export const malwareGraphApi = {
   },
   analysis: (jobId: string): Promise<MalwareGraphAnalysis> =>
     http.get(`/malwaregraph/analyses/${jobId}`).then(r => r.data),
+  report: (jobId: string): Promise<MalwareGraphSubmissionReport> =>
+    http.get(`/malwaregraph/analyses/${jobId}/report`).then(r => r.data),
   workflow: (jobId: string): Promise<MalwareGraphWorkflow> =>
     http.get(`/malwaregraph/analyses/${jobId}/workflow-graph`).then(r => r.data),
   debugSession: (jobId: string, sampleRef = 'archive--file--0001'): Promise<MalwareGraphDebugSession> =>
@@ -1257,6 +1342,8 @@ export const malwareGraphApi = {
     http.post(`/malwaregraph/runtime-debug-sessions/${sessionId}/step`).then(r => r.data),
   strings: (jobId: string, sampleRef = 'archive--file--0001', ai = false, aiProvider = 'local', filters?: { min_chars?: number; max_chars?: number | null }): Promise<MalwareGraphStringsAnalysis> =>
     http.get(`/malwaregraph/analyses/${jobId}/strings`, { params: { sample_ref: sampleRef, ai, ai_provider: aiProvider, min_chars: filters?.min_chars ?? 4, max_chars: filters?.max_chars ?? undefined } }).then(r => r.data),
+  filePreview: (jobId: string, sampleRef = 'archive--file--0001', mode: 'strings' | 'ascii' | 'hex' = 'strings', limit = 200): Promise<MalwareGraphFilePreview> =>
+    http.get(`/malwaregraph/analyses/${jobId}/files/preview`, { params: { sample_ref: sampleRef, mode, limit } }).then(r => r.data),
   unpack: (jobId: string, sampleRef = 'archive--file--0001'): Promise<MalwareGraphUnpackPlan> =>
     http.post(`/malwaregraph/analyses/${jobId}/unpack`, null, { params: { sample_ref: sampleRef } }).then(r => r.data),
   obfuscationAnalysis: (jobId: string, sampleRef = 'archive--file--0001', aiProvider = 'local'): Promise<MalwareGraphObfuscationAnalysis> =>
