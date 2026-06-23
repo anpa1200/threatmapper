@@ -1194,6 +1194,21 @@ export interface MalwareGraphUnpackPlan {
     next_steps: string[];
     notes: string;
   } | null;
+  runtime_execution?: {
+    started: boolean;
+    status: string;
+    engine: string;
+    profile: string;
+    output: unknown;
+    steps: Array<{
+      step_id: string;
+      action: string;
+      status: string;
+      notes: string;
+    }>;
+    log: string[];
+    notes: string;
+  } | null;
   validation: {
     output_exists: boolean;
     source_size_bytes: number;
@@ -1404,6 +1419,19 @@ export const malwareGraphApi = {
     runtimeDebugDisclaimerAccepted = false,
   ): Promise<MalwareGraphUnpackPlan> =>
     http.post(`/malwaregraph/analyses/${jobId}/unpack`, null, {
+      params: {
+        sample_ref: sampleRef,
+        dynamic_analysis: dynamicAnalysis,
+        runtime_debug_disclaimer_accepted: runtimeDebugDisclaimerAccepted,
+      },
+    }).then(r => r.data),
+  runtimeUnpack: (
+    jobId: string,
+    sampleRef = 'archive--file--0001',
+    dynamicAnalysis = false,
+    runtimeDebugDisclaimerAccepted = false,
+  ): Promise<MalwareGraphUnpackPlan> =>
+    http.post(`/malwaregraph/analyses/${jobId}/unpack/runtime`, null, {
       params: {
         sample_ref: sampleRef,
         dynamic_analysis: dynamicAnalysis,
