@@ -1255,7 +1255,7 @@ export interface MalwareGraphServiceResult {
   service_id: string;
   name: string;
   stage: string;
-  status: 'completed' | 'blocked' | 'skipped' | 'failed' | 'ready';
+  status: 'completed' | 'blocked' | 'skipped' | 'failed' | 'ready' | 'requires-dynamic-checkbox';
   score: number;
   summary: string;
   target_entity_id: string | null;
@@ -1344,12 +1344,47 @@ export const malwareGraphApi = {
     http.get(`/malwaregraph/analyses/${jobId}/report`).then(r => r.data),
   workflow: (jobId: string): Promise<MalwareGraphWorkflow> =>
     http.get(`/malwaregraph/analyses/${jobId}/workflow-graph`).then(r => r.data),
-  debugSession: (jobId: string, sampleRef = 'archive--file--0001'): Promise<MalwareGraphDebugSession> =>
-    http.post(`/malwaregraph/analyses/${jobId}/debug-sessions`, null, { params: { sample_ref: sampleRef } }).then(r => r.data),
-  runtimeDebugSession: (jobId: string, sampleRef = 'archive--file--0001'): Promise<MalwareGraphRuntimeDebugSession> =>
-    http.post(`/malwaregraph/analyses/${jobId}/runtime-debug-sessions`, null, { params: { sample_ref: sampleRef } }).then(r => r.data),
-  debugWorkspace: (jobId: string, sampleRef = 'archive--file--0001', aiProvider = 'local'): Promise<MalwareGraphDebuggerWorkspace> =>
-    http.post(`/malwaregraph/analyses/${jobId}/debug-workspaces`, null, { params: { sample_ref: sampleRef, ai_provider: aiProvider } }).then(r => r.data),
+  debugSession: (
+    jobId: string,
+    sampleRef = 'archive--file--0001',
+    dynamicAnalysis = false,
+    runtimeDebugDisclaimerAccepted = false,
+  ): Promise<MalwareGraphDebugSession> =>
+    http.post(`/malwaregraph/analyses/${jobId}/debug-sessions`, null, {
+      params: {
+        sample_ref: sampleRef,
+        dynamic_analysis: dynamicAnalysis,
+        runtime_debug_disclaimer_accepted: runtimeDebugDisclaimerAccepted,
+      },
+    }).then(r => r.data),
+  runtimeDebugSession: (
+    jobId: string,
+    sampleRef = 'archive--file--0001',
+    dynamicAnalysis = false,
+    runtimeDebugDisclaimerAccepted = false,
+  ): Promise<MalwareGraphRuntimeDebugSession> =>
+    http.post(`/malwaregraph/analyses/${jobId}/runtime-debug-sessions`, null, {
+      params: {
+        sample_ref: sampleRef,
+        dynamic_analysis: dynamicAnalysis,
+        runtime_debug_disclaimer_accepted: runtimeDebugDisclaimerAccepted,
+      },
+    }).then(r => r.data),
+  debugWorkspace: (
+    jobId: string,
+    sampleRef = 'archive--file--0001',
+    aiProvider = 'local',
+    dynamicAnalysis = false,
+    runtimeDebugDisclaimerAccepted = false,
+  ): Promise<MalwareGraphDebuggerWorkspace> =>
+    http.post(`/malwaregraph/analyses/${jobId}/debug-workspaces`, null, {
+      params: {
+        sample_ref: sampleRef,
+        ai_provider: aiProvider,
+        dynamic_analysis: dynamicAnalysis,
+        runtime_debug_disclaimer_accepted: runtimeDebugDisclaimerAccepted,
+      },
+    }).then(r => r.data),
   getDebugWorkspace: (sessionId: string): Promise<MalwareGraphDebuggerWorkspace> =>
     http.get(`/malwaregraph/debug-workspaces/${sessionId}`).then(r => r.data),
   stepDebugWorkspace: (sessionId: string): Promise<MalwareGraphDebuggerWorkspace> =>

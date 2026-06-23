@@ -27,7 +27,7 @@ export function DynamicAnalysis() {
   const [params, setParams] = useSearchParams();
   const [jobId, setJobId] = useState(params.get('job_id') ?? '');
   const [sampleRef, setSampleRef] = useState(params.get('sample_ref') ?? '');
-  const [disclaimerAccepted, setDisclaimerAccepted] = useState(false);
+  const [disclaimerAccepted, setDisclaimerAccepted] = useState(params.get('dynamic') === 'true');
   const [session, setSession] = useState<MalwareGraphRuntimeDebugSession | null>(null);
 
   const jobs = useQuery({ queryKey: ['malwaregraph-jobs'], queryFn: malwareGraphApi.jobs, retry: false });
@@ -52,11 +52,12 @@ export function DynamicAnalysis() {
     const next = new URLSearchParams();
     if (jobId) next.set('job_id', jobId);
     if (sampleRef) next.set('sample_ref', sampleRef);
+    if (disclaimerAccepted) next.set('dynamic', 'true');
     setParams(next, { replace: true });
-  }, [jobId, sampleRef, setParams]);
+  }, [disclaimerAccepted, jobId, sampleRef, setParams]);
 
   const createSession = useMutation({
-    mutationFn: () => malwareGraphApi.runtimeDebugSession(jobId, sampleRef),
+    mutationFn: () => malwareGraphApi.runtimeDebugSession(jobId, sampleRef, disclaimerAccepted, disclaimerAccepted),
     onSuccess: setSession,
   });
 
@@ -107,9 +108,9 @@ export function DynamicAnalysis() {
 
         <main className="space-y-4">
           <div className="rounded border border-amber-500/40 bg-amber-950/30 p-3 text-sm font-semibold text-amber-100">
-            Dynamic analysis is an isolated workflow. MalwareGraph must be started with the disposable dynamic runtime profile before live execution is allowed.
+            Dynamic analysis is an isolated workflow. Check the dynamic box to prepare the runtime profile for this request.
           </div>
-          {session ? <DynamicSession session={session} onOpenDebugger={() => navigate(`/malware-debug?job_id=${encodeURIComponent(jobId)}&sample_ref=${encodeURIComponent(sampleRef)}`)} /> : <Empty text="Accept the disclaimer and prepare an isolated runtime session to see dynamic analysis state." />}
+          {session ? <DynamicSession session={session} onOpenDebugger={() => navigate(`/malware-debug?job_id=${encodeURIComponent(jobId)}&sample_ref=${encodeURIComponent(sampleRef)}${session.dynamic_enabled ? '&dynamic=true' : ''}`)} /> : <Empty text="Accept the disclaimer and prepare an isolated runtime session to see dynamic analysis state." />}
         </main>
       </div>
     </div>

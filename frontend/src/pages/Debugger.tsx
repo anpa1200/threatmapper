@@ -9,6 +9,7 @@ import {
   type MalwareGraphFirstAnalysis,
 } from '@/api/client';
 import { Header } from '@/components/Layout/Header';
+import { RUNTIME_DEBUG_DISCLAIMER } from '@/pages/malwareShared';
 
 const input = 'w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-xs text-gray-200 outline-none focus:border-mitre-accent';
 
@@ -20,6 +21,7 @@ export function Debugger() {
   const [jobId, setJobId] = useState(params.get('job_id') ?? '');
   const [sampleRef, setSampleRef] = useState(params.get('sample_ref') ?? '');
   const [aiProvider, setAiProvider] = useState(params.get('ai_provider') ?? 'local');
+  const [dynamicDebug, setDynamicDebug] = useState(params.get('dynamic') === 'true');
   const [workspace, setWorkspace] = useState<MalwareGraphDebuggerWorkspace | null>(null);
   const [decompilation, setDecompilation] = useState<MalwareGraphDecompilation | null>(null);
   const [selectedTraceId, setSelectedTraceId] = useState<string>('');
@@ -62,15 +64,16 @@ export function Debugger() {
     if (jobId) next.set('job_id', jobId);
     if (sampleRef) next.set('sample_ref', sampleRef);
     next.set('ai_provider', aiProvider);
+    if (dynamicDebug) next.set('dynamic', 'true');
     setParams(next, { replace: true });
-  }, [aiProvider, jobId, sampleRef, setParams]);
+  }, [aiProvider, dynamicDebug, jobId, sampleRef, setParams]);
 
   useEffect(() => {
     if (workspace?.current_trace_id) setSelectedTraceId(workspace.current_trace_id);
   }, [workspace?.current_trace_id]);
 
   const createWorkspace = useMutation({
-    mutationFn: () => malwareGraphApi.debugWorkspace(jobId, sampleRef, aiProvider),
+    mutationFn: () => malwareGraphApi.debugWorkspace(jobId, sampleRef, aiProvider, dynamicDebug, dynamicDebug),
     onSuccess: result => {
       setWorkspace(result);
       if (isDecompilation(result.decompilation)) setDecompilation(result.decompilation);
@@ -111,10 +114,17 @@ export function Debugger() {
               <select value={aiProvider} onChange={event => setAiProvider(event.target.value)} className={input}>
                 {(providers.data ?? []).map(provider => <option key={provider.provider} value={provider.provider}>{provider.provider} · {provider.configured ? provider.model : provider.env_var}</option>)}
               </select>
+              <label className="flex items-start gap-2 rounded border border-amber-500/30 bg-amber-500/10 p-2 text-[11px] leading-relaxed text-amber-100">
+                <input className="mt-0.5" type="checkbox" checked={dynamicDebug} onChange={event => setDynamicDebug(event.target.checked)} />
+                <span>
+                  <b className="block text-amber-50">Dynamic debug</b>
+                  {RUNTIME_DEBUG_DISCLAIMER}
+                </span>
+              </label>
               <button className="primary w-full" onClick={() => createWorkspace.mutate()} disabled={!jobId || !sampleRef || createWorkspace.isPending}>{createWorkspace.isPending ? 'Creating...' : 'Create debug workspace'}</button>
               <button className="secondary-action w-full" onClick={() => loadDecompilation.mutate()} disabled={!jobId || !sampleRef || loadDecompilation.isPending}>{loadDecompilation.isPending ? 'Decompiling...' : 'Load decompilation'}</button>
               <button className="secondary-action w-full" onClick={() => stepWorkspace.mutate()} disabled={!workspace || workspace.completed || stepWorkspace.isPending}>{stepWorkspace.isPending ? 'Stepping...' : workspace?.completed ? 'Session complete' : 'Step function'}</button>
-              <button className="secondary-action w-full" onClick={() => navigate(`/dynamic-analysis?job_id=${encodeURIComponent(jobId)}&sample_ref=${encodeURIComponent(sampleRef)}`)}>Dynamic analysis</button>
+              <button className="secondary-action w-full" onClick={() => navigate(`/dynamic-analysis?job_id=${encodeURIComponent(jobId)}&sample_ref=${encodeURIComponent(sampleRef)}${dynamicDebug ? '&dynamic=true' : ''}`)}>Dynamic analysis</button>
               <button className="secondary-action w-full" onClick={() => navigate(`/malware-analysis?job_id=${encodeURIComponent(jobId)}&sample_ref=${encodeURIComponent(sampleRef)}`)}>Back to Malware Analysis</button>
               {(createWorkspace.error || stepWorkspace.error || loadDecompilation.error) && <p className="text-xs text-red-300">{String(createWorkspace.error ?? stepWorkspace.error ?? loadDecompilation.error)}</p>}
             </div>
@@ -459,6 +469,7 @@ function riskColor(risk: string) {
 function statusColor(status: string) {
   if (status === 'completed') return '#22c55e';
   if (status === 'blocked') return '#ef4444';
+  if (status === 'requires-dynamic-checkbox') return '#f59e0b';
   if (status === 'ready' || status === 'selected') return '#38bdf8';
   if (status === 'planned') return '#a78bfa';
   return '#f59e0b';
