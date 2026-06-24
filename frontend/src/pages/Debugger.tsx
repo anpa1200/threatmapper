@@ -225,10 +225,10 @@ export function Debugger() {
 function DebuggerGraph({ workspace, selectedTrace, onTrace }: { workspace: MalwareGraphDebuggerWorkspace; selectedTrace: DebugTrace | null; onTrace: (traceId: string) => void }) {
   const scrollerRef = useRef<HTMLDivElement | null>(null);
   const dragRef = useRef({ active: false, x: 0, y: 0, left: 0, top: 0, moved: false });
-  const traces = workspace.function_traces.slice(0, 80);
+  const traces = workspace.function_traces;
   const lanes = ['HIGH', 'MEDIUM', 'LOW', 'UNKNOWN'];
   const left = 92;
-  const right = 120;
+  const right = 220;
   const top = 86;
   const laneHeight = 86;
   const spacing = 170;
@@ -239,8 +239,6 @@ function DebuggerGraph({ workspace, selectedTrace, onTrace }: { workspace: Malwa
   const edgeBySource = new Map(workspace.graph.edges.map(edge => [edge.source, edge]));
 
   const onPointerDown = (event: PointerEvent<HTMLDivElement>) => {
-    const target = event.target as HTMLElement;
-    if (target.closest('[data-debug-node="true"]')) return;
     const element = scrollerRef.current;
     if (!element) return;
     dragRef.current = {
@@ -257,6 +255,7 @@ function DebuggerGraph({ workspace, selectedTrace, onTrace }: { workspace: Malwa
     const element = scrollerRef.current;
     const drag = dragRef.current;
     if (!element || !drag.active) return;
+    event.preventDefault();
     const dx = event.clientX - drag.x;
     const dy = event.clientY - drag.y;
     if (Math.abs(dx) + Math.abs(dy) > 3) drag.moved = true;
@@ -270,7 +269,8 @@ function DebuggerGraph({ workspace, selectedTrace, onTrace }: { workspace: Malwa
 
   return <div
     ref={scrollerRef}
-    className="h-[500px] max-w-full cursor-grab overflow-auto overscroll-contain p-3 active:cursor-grabbing"
+    className="h-[560px] max-w-full cursor-grab select-none overflow-auto overscroll-contain p-3 active:cursor-grabbing"
+    style={{ touchAction: 'none' }}
     onPointerDown={onPointerDown}
     onPointerMove={onPointerMove}
     onPointerUp={stopDrag}
@@ -305,7 +305,10 @@ function DebuggerGraph({ workspace, selectedTrace, onTrace }: { workspace: Malwa
             opacity="0.7"
             markerEnd={`url(#debugger-arrow-${workspace.session_id})`}
           />}
-          <g data-debug-node="true" role="button" tabIndex={0} className="cursor-pointer" onClick={() => onTrace(trace.trace_id)} onKeyDown={event => {
+          <g data-debug-node="true" role="button" tabIndex={0} className="cursor-pointer" onClick={() => {
+            if (dragRef.current.moved) return;
+            onTrace(trace.trace_id);
+          }} onKeyDown={event => {
             if (event.key === 'Enter' || event.key === ' ') onTrace(trace.trace_id);
           }}>
             <rect x={x} y={y} width={nodeWidth} height={nodeHeight} rx="4" fill="#111827" stroke={color} strokeWidth={active ? 2.4 : 1.3} />
