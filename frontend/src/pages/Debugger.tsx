@@ -108,7 +108,7 @@ export function Debugger() {
   return <div className="flex h-full flex-col">
     <Header title="Decompilation & Debug IDE" />
     <div className="flex-1 overflow-y-auto p-6">
-      <div className="mx-auto grid max-w-7xl gap-4 xl:grid-cols-[360px_1fr]">
+      <div className="mx-auto grid max-w-[1800px] gap-4 xl:grid-cols-[360px_minmax(0,1fr)]">
         <div className="space-y-4">
           <Panel title="Source">
             <div className="space-y-3 p-3">
@@ -226,12 +226,16 @@ function DebuggerGraph({ workspace, selectedTrace, onTrace }: { workspace: Malwa
   const scrollerRef = useRef<HTMLDivElement | null>(null);
   const dragRef = useRef({ active: false, x: 0, y: 0, left: 0, top: 0, moved: false });
   const traces = workspace.function_traces.slice(0, 80);
-  const width = Math.max(900, traces.length * 170);
-  const height = 360;
-  const top = 74;
-  const laneHeight = 82;
+  const lanes = ['HIGH', 'MEDIUM', 'LOW', 'UNKNOWN'];
+  const left = 92;
+  const right = 120;
+  const top = 86;
+  const laneHeight = 86;
+  const spacing = 170;
   const nodeWidth = 140;
   const nodeHeight = 46;
+  const width = Math.max(1100, left + Math.max(1, traces.length) * spacing + nodeWidth + right);
+  const height = top + (lanes.length - 1) * laneHeight + nodeHeight + 70;
   const edgeBySource = new Map(workspace.graph.edges.map(edge => [edge.source, edge]));
 
   const onPointerDown = (event: PointerEvent<HTMLDivElement>) => {
@@ -266,33 +270,35 @@ function DebuggerGraph({ workspace, selectedTrace, onTrace }: { workspace: Malwa
 
   return <div
     ref={scrollerRef}
-    className="h-[380px] cursor-grab overflow-auto p-3 active:cursor-grabbing"
+    className="h-[500px] max-w-full cursor-grab overflow-auto overscroll-contain p-3 active:cursor-grabbing"
     onPointerDown={onPointerDown}
     onPointerMove={onPointerMove}
     onPointerUp={stopDrag}
     onPointerCancel={stopDrag}
   >
-    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className="block rounded border border-gray-800 bg-gray-950">
+    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className="block max-w-none rounded border border-gray-800 bg-gray-950">
       <defs>
         <marker id={`debugger-arrow-${workspace.session_id}`} markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth">
           <path d="M 0 0 L 8 4 L 0 8 z" fill="#64748b" />
         </marker>
       </defs>
-      {['HIGH', 'MEDIUM', 'UNKNOWN'].map((risk, index) => <g key={risk}>
-        <line x1="24" y1={top + index * laneHeight + 24} x2={width - 24} y2={top + index * laneHeight + 24} stroke="#111827" />
-        <text x="24" y={top + index * laneHeight - 8} fill={riskColor(risk)} fontSize="11" fontWeight="700">{risk}</text>
+      {lanes.map((risk, index) => <g key={risk}>
+        <line x1={left - 28} y1={top + index * laneHeight + nodeHeight / 2} x2={width - right / 2} y2={top + index * laneHeight + nodeHeight / 2} stroke="#111827" />
+        <text x={left - 28} y={top + index * laneHeight - 14} fill={riskColor(risk)} fontSize="11" fontWeight="700">{risk}</text>
       </g>)}
       {traces.map((trace, index) => {
-        const x = 44 + index * 170;
+        const x = left + index * spacing;
         const lane = riskLane(trace.risk_level);
         const y = top + lane * laneHeight;
         const active = selectedTrace?.trace_id === trace.trace_id;
         const edge = edgeBySource.get(trace.node_id);
         const nextIndex = edge ? traces.findIndex(item => item.node_id === edge.target) : index + 1;
         const color = trace.is_entrypoint ? '#22c55e' : active ? '#38bdf8' : riskColor(trace.risk_level);
+        const nextX = left + nextIndex * spacing;
+        const nextY = top + riskLane(traces[nextIndex]?.risk_level ?? 'UNKNOWN') * laneHeight + nodeHeight / 2;
         return <g key={trace.trace_id}>
           {nextIndex > index && nextIndex < traces.length && <path
-            d={`M ${x + nodeWidth} ${y + nodeHeight / 2} C ${x + 84} ${y - 34}, ${44 + nextIndex * 170 - 44} ${y - 34}, ${44 + nextIndex * 170} ${top + riskLane(traces[nextIndex].risk_level) * laneHeight + nodeHeight / 2}`}
+            d={`M ${x + nodeWidth} ${y + nodeHeight / 2} C ${x + nodeWidth + 42} ${y - 38}, ${nextX - 52} ${nextY - 38}, ${nextX} ${nextY}`}
             fill="none"
             stroke="#475569"
             strokeWidth="1"
@@ -391,6 +397,10 @@ function AiAssistantPanel({ result, pending }: { result: MalwareGraphDebugAssist
   return <div className="grid gap-4 p-3 text-xs xl:grid-cols-[1fr_1fr]">
     <div className="space-y-3">
       <div>
+        <b className="text-gray-200">Main Purpose</b>
+        <p className="mt-1 leading-relaxed text-gray-400">{field(assessment.main_purpose) || 'Main purpose was not returned.'}</p>
+      </div>
+      <div>
         <b className="text-gray-200">Summary</b>
         <p className="mt-1 leading-relaxed text-gray-400">{field(assessment.summary) || 'No summary returned.'}</p>
       </div>
@@ -398,11 +408,14 @@ function AiAssistantPanel({ result, pending }: { result: MalwareGraphDebugAssist
         <b className="text-gray-200">Entrypoint</b>
         <p className="mt-1 leading-relaxed text-gray-400">{field(assessment.entrypoint_assessment) || 'No entrypoint assessment returned.'}</p>
       </div>
+      <ObjectList title="Function Analysis" items={assessment.function_analysis ?? []} limit={80} />
       <ListBlock title="Next Steps" items={assessment.debug_next_steps ?? []} />
       <ListBlock title="Validation Gaps" items={assessment.validation_gaps ?? []} />
     </div>
     <div className="space-y-3">
-      <ObjectList title="Suspicious Functions" items={assessment.suspicious_functions ?? []} />
+      <ObjectList title="Malicious / Suspicious Functions" items={assessment.malicious_or_suspicious_functions ?? assessment.suspicious_functions ?? []} />
+      <ObjectList title="TTPs" items={assessment.ttps ?? []} />
+      <ObjectList title="IOCs" items={assessment.iocs ?? []} />
       <ListBlock title="API Hooks To Prioritize" items={assessment.api_hooks_to_prioritize ?? []} mono />
       <ObjectList title="IOC / TTP Leads" items={assessment.ioc_or_ttp_leads ?? []} />
       {result.error && <div className="rounded border border-amber-500/30 bg-amber-950/20 p-2 text-amber-100">{result.error}</div>}
@@ -419,16 +432,60 @@ function ListBlock({ title, items, mono = false }: { title: string; items: unkno
   </div>;
 }
 
-function ObjectList({ title, items }: { title: string; items: Array<Record<string, unknown>> }) {
+function ObjectList({ title, items, limit = 40 }: { title: string; items: Array<Record<string, unknown>>; limit?: number }) {
   return <div>
     <b className="text-gray-200">{title}</b>
     <div className="mt-2 max-h-56 overflow-y-auto rounded border border-gray-800 bg-gray-950">
-      {items.length ? items.slice(0, 40).map((item, index) => <div key={index} className="border-b border-gray-900 p-2 text-[11px] leading-relaxed text-gray-400">
-        <div className="font-mono text-gray-200">{field(item.name ?? item.value ?? item.address ?? item.type)}</div>
-        <div className="mt-1 text-gray-500">{field(item.reason ?? item.risk ?? item)}</div>
+      {items.length ? items.slice(0, limit).map((item, index) => <div key={index} className="border-b border-gray-900 p-2 text-[11px] leading-relaxed text-gray-400">
+        <ObjectHeader item={item} />
+        <div className="mt-1 space-y-1 text-gray-500">
+          {objectDetailRows(item).map(row => <div key={row.key}>
+            <span className="text-gray-600">{row.key}: </span>
+            <span className={row.mono ? 'break-all font-mono text-gray-400' : 'text-gray-500'}>{row.value}</span>
+          </div>)}
+        </div>
       </div>) : <div className="p-2 text-gray-600">none</div>}
     </div>
   </div>;
+}
+
+function ObjectHeader({ item }: { item: Record<string, unknown> }) {
+  const title = field(item.name ?? item.attack_id ?? item.value ?? item.address ?? item.type) || 'item';
+  const href = objectRoute(item);
+  const meta = [field(item.address), field(item.risk), field(item.confidence)].filter(Boolean).join(' · ');
+  const className = "break-all font-mono text-gray-200 hover:text-mitre-accent";
+  return <div>
+    {href ? <a className={className} href={href}>{title}</a> : <div className="break-all font-mono text-gray-200">{title}</div>}
+    {meta && <div className="mt-0.5 text-[10px] uppercase text-gray-600">{meta}</div>}
+  </div>;
+}
+
+function objectRoute(item: Record<string, unknown>) {
+  const attackId = field(item.attack_id ?? (field(item.type) === 'ttp' ? item.value : ''));
+  if (/^T\d{4}(?:\.\d{3})?$/.test(attackId)) return `/navigator?technique=${encodeURIComponent(attackId)}`;
+  if (field(item.type) === 'ioc' || item.value) return `/ioc-library?search=${encodeURIComponent(field(item.value ?? item.name))}`;
+  return '';
+}
+
+function objectDetailRows(item: Record<string, unknown>) {
+  const keys = [
+    'role',
+    'description',
+    'reason',
+    'evidence',
+    'ttps',
+    'iocs',
+    'next_debug_action',
+    'type',
+    'value',
+  ];
+  return keys
+    .filter(key => item[key] !== undefined && item[key] !== null && field(item[key]) !== '')
+    .map(key => ({
+      key: key.replace(/_/g, ' '),
+      value: field(item[key]),
+      mono: ['value', 'iocs', 'ttps'].includes(key),
+    }));
 }
 
 function Registers({ workspace }: { workspace: MalwareGraphDebuggerWorkspace }) {
@@ -597,7 +654,8 @@ function riskColor(risk: string) {
 function riskLane(risk: string) {
   if (risk === 'HIGH' || risk === 'CRITICAL') return 0;
   if (risk === 'MEDIUM') return 1;
-  return 2;
+  if (risk === 'LOW') return 2;
+  return 3;
 }
 
 function statusColor(status: string) {

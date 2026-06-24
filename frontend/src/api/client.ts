@@ -1109,8 +1109,13 @@ export interface MalwareGraphDebugAssistant {
   generated_at: string;
   assessment: {
     summary?: string;
+    main_purpose?: string;
     entrypoint_assessment?: string;
+    function_analysis?: Array<Record<string, unknown>>;
+    malicious_or_suspicious_functions?: Array<Record<string, unknown>>;
     suspicious_functions?: Array<Record<string, unknown>>;
+    ttps?: Array<Record<string, unknown>>;
+    iocs?: Array<Record<string, unknown>>;
     debug_next_steps?: string[];
     api_hooks_to_prioritize?: string[];
     ioc_or_ttp_leads?: Array<Record<string, unknown>>;
