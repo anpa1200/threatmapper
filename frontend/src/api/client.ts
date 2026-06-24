@@ -1186,6 +1186,30 @@ export interface MalwareGraphStringsAnalysis {
   ai_status: string;
 }
 
+export interface MalwareGraphFullAiAnalysis {
+  [key: string]: unknown;
+  artifact_id: string;
+  type: 'ai-full-analysis';
+  job_id: string;
+  source_target_entity_id: string;
+  target_entity_id: string;
+  ai_provider: string;
+  started_at: string;
+  completed_at: string;
+  status: string;
+  stage_status: Record<string, string>;
+  completed_stages: number;
+  failed_stages: number;
+  summary: string;
+  main_purpose?: string;
+  stage_results: Record<string, unknown>;
+  report_ready: boolean;
+  report_summary?: string;
+  report_verdict?: string;
+  report_score?: number;
+  routes: Record<string, string>;
+}
+
 export interface MalwareGraphUnpackPlan {
   job_id: string;
   sample_ref: string;
@@ -1471,4 +1495,21 @@ export const malwareGraphApi = {
     }).then(r => r.data),
   obfuscationAnalysis: (jobId: string, sampleRef = 'archive--file--0001', aiProvider = 'local'): Promise<MalwareGraphObfuscationAnalysis> =>
     http.post(`/malwaregraph/analyses/${jobId}/obfuscation-analysis`, null, { params: { sample_ref: sampleRef, ai_provider: aiProvider } }).then(r => r.data),
+  aiFullAnalysis: (
+    jobId: string,
+    sampleRef = 'archive--file--0001',
+    aiProvider = 'local',
+    dynamicAnalysis = false,
+    runtimeDebugDisclaimerAccepted = false,
+    preferUnpackedOutput = true,
+  ): Promise<MalwareGraphFullAiAnalysis> =>
+    http.post(`/malwaregraph/analyses/${jobId}/ai-full-analysis`, null, {
+      params: {
+        sample_ref: sampleRef,
+        ai_provider: aiProvider,
+        dynamic_analysis: dynamicAnalysis,
+        runtime_debug_disclaimer_accepted: runtimeDebugDisclaimerAccepted,
+        prefer_unpacked_output: preferUnpackedOutput,
+      },
+    }).then(r => r.data),
 };
