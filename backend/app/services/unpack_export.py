@@ -3,9 +3,10 @@ Walk the unpack chain from analysis.json, copy each layer's file to
 saved-outputs/ with the user-defined naming convention:
 
   Original:  <original_name>.<ext>
-  Layer 1:   <original_stem>_<method1>_layer1.<ext>
-  Layer 2:   <original_stem>_<method1>_layer1_<method2>_layer2.<ext>
+  Layer 1:   <original_stem>_<found_name_1>_layer1.<ext>
+  Layer 2:   <original_stem>_<found_name_1>_layer1_<found_name_2>_layer2.<ext>
   ...
+where <found_name_N> is the stem of the actual file extracted at that tier.
 """
 from __future__ import annotations
 
@@ -113,11 +114,13 @@ def save_unpacked_layers(job_id: str) -> list[SavedLayer]:
         output = record["output"]
         method = _clean(record.get("unpack_method") or record.get("packer") or "unknown")
         out_name = output.get("name", "")
-        _, layer_ext = _stem_ext(out_name)
+        out_stem, layer_ext = _stem_ext(out_name)
         if not layer_ext or layer_ext == ".bin":
             layer_ext = orig_ext
+        # Use the actual found filename stem as the tier label (fallback to method)
+        out_label = _clean(out_stem) if out_stem else method
 
-        new_stem = f"{stem_so_far}_{method}_layer{layer}"
+        new_stem = f"{stem_so_far}_{out_label}_layer{layer}"
         new_filename = f"{new_stem}{layer_ext}"
 
         src = extracted_dir / out_name
