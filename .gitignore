@@ -19,3 +19,5 @@ backend/logs/
 data/
 *.json.gz
 pg_data/
+!backend/app/data/
+!backend/app/data/**

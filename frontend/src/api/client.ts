@@ -1646,3 +1646,50 @@ export const retroHuntApi = {
   taskStatus: (taskId: string): Promise<RetroHuntTaskStatus> =>
     http.get(`/retrohunt/collect/${taskId}`).then(r => r.data),
 };
+
+// ── Knowledge Library ─────────────────────────────────────────────────────────
+
+export interface KnowledgeArticle {
+  id: number;
+  category: string;
+  external_id: string;
+  title: string;
+  summary: string;
+  tags: string[];
+  meta: Record<string, unknown>;
+  source_file: string;
+  published_at: string | null;
+}
+
+export interface KnowledgeArticleDetail extends KnowledgeArticle {
+  body: string;
+}
+
+export interface KnowledgeStats {
+  total: number;
+  by_category: Record<string, number>;
+}
+
+export const knowledgeApi = {
+  list: (params?: {
+    q?: string;
+    category?: string;
+    tag?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<KnowledgeArticle[]> => {
+    const query = new URLSearchParams();
+    if (params?.q) query.set('q', params.q);
+    if (params?.category) query.set('category', params.category);
+    if (params?.tag) query.set('tag', params.tag);
+    if (params?.limit) query.set('limit', String(params.limit));
+    if (params?.offset) query.set('offset', String(params.offset));
+    return http.get(`/knowledge/articles?${query}`).then(r => r.data);
+  },
+  get: (id: number): Promise<KnowledgeArticleDetail> =>
+    http.get(`/knowledge/articles/${id}`).then(r => r.data),
+  stats: (): Promise<KnowledgeStats> =>
+    http.get('/knowledge/stats').then(r => r.data),
+  seed: (): Promise<{ inserted: number; skipped: number; total: number }> =>
+    http.post('/knowledge/seed').then(r => r.data),
+};
