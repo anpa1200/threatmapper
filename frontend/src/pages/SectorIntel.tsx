@@ -89,6 +89,7 @@ export function SectorIntel() {
                   options={(technologyOptions.data ?? []).map(item => ({ id: item.id, label: item.label }))}
                   allowEmpty
                 />
+                <VendorDropdown />
                 <div>
                   <span className="label">Activity Window</span>
                   <div className="grid grid-cols-3 gap-2">
@@ -190,6 +191,49 @@ export function SectorIntel() {
         </div>
       </div>
       {openPack && <PackDetail pack={openPack} onClose={() => setOpenPack(null)} />}
+    </div>
+  );
+}
+
+const VENDORS = [
+  {
+    id: 'nvidia',
+    label: 'NVIDIA',
+    description: 'Sector Intelligence Packs',
+    to: '/sector-packs',
+    icon: '◈',
+  },
+];
+
+function VendorDropdown() {
+  const navigate = useNavigate();
+  return (
+    <div>
+      <span className="label">Vendors</span>
+      <details className="group relative">
+        <summary className="field flex cursor-pointer list-none items-center justify-between gap-3">
+          <span className="truncate text-gray-500">Select vendor</span>
+          <span className="text-xs text-gray-500 group-open:rotate-180">v</span>
+        </summary>
+        <div className="absolute z-20 mt-1 w-full rounded border border-gray-700 bg-gray-950 shadow-xl">
+          <div className="p-2 space-y-0.5">
+            {VENDORS.map(vendor => (
+              <button
+                key={vendor.id}
+                onClick={() => navigate(vendor.to)}
+                className="flex w-full items-center gap-3 rounded px-2 py-2.5 text-xs text-gray-300 hover:bg-gray-800 hover:text-white transition-colors"
+              >
+                <span className="text-base text-mitre-accent">{vendor.icon}</span>
+                <span className="flex flex-col items-start">
+                  <span className="font-semibold">{vendor.label}</span>
+                  <span className="text-[10px] text-gray-500">{vendor.description}</span>
+                </span>
+                <span className="ml-auto text-[10px] text-gray-600">↗</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      </details>
     </div>
   );
 }
