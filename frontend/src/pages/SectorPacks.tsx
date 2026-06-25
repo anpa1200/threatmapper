@@ -477,6 +477,7 @@ export default function SectorPacks() {
   });
 
   return (
+    <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
     <div style={{ padding: '24px', maxWidth: 1400, margin: '0 auto' }}>
       <div style={{ marginBottom: 24 }}>
         <h1 style={{ margin: '0 0 4px', fontSize: 22, color: '#f3f4f6' }}>NVIDIA Sector Intelligence Packs</h1>
@@ -545,6 +546,7 @@ export default function SectorPacks() {
       {selected && (
         <PackDetail pack={selected} onClose={() => setSelected(null)} />
       )}
+    </div>
     </div>
   );
 }
