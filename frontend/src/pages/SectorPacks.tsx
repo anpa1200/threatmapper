@@ -19,7 +19,7 @@ const TABS = [
 
 type TabKey = typeof TABS[number]['key'];
 
-function Badge({ label, color }: { label: string; color: string }) {
+export function Badge({ label, color }: { label: string; color: string }) {
   return (
     <span style={{
       display: 'inline-block', padding: '1px 7px', borderRadius: 4,
@@ -59,7 +59,7 @@ function TextSection({ title, text }: { title: string; text: string }) {
   );
 }
 
-function PackDetail({ pack, onClose }: { pack: SectorPack; onClose: () => void }) {
+export function PackDetail({ pack, onClose }: { pack: SectorPack; onClose: () => void }) {
   const [tab, setTab] = useState<TabKey>('overview');
   const confColor = CONFIDENCE_COLORS[pack.confidence_level] ?? '#6b7280';
 
@@ -276,7 +276,7 @@ function PackDetail({ pack, onClose }: { pack: SectorPack; onClose: () => void }
   );
 }
 
-function PackCard({ pack, onClick }: { pack: SectorPack; onClick: () => void }) {
+export function PackCard({ pack, onClick }: { pack: SectorPack; onClick: () => void }) {
   const confColor = CONFIDENCE_COLORS[pack.confidence_level] ?? '#6b7280';
   return (
     <div

@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { iocApi, sectorApi } from '@/api/client';
-import type { ActorRelevance } from '@/api/client';
+import { iocApi, sectorApi, sectorPacksApi } from '@/api/client';
+import type { ActorRelevance, SectorPack } from '@/api/client';
+import { PackCard, PackDetail } from '@/pages/SectorPacks';
 import { Header } from '@/components/Layout/Header';
 import { useAppStore } from '@/store';
 import { safeHref } from '@/utils/url';
@@ -21,7 +22,10 @@ export function SectorIntel() {
   const [selectedRegions, setSelectedRegions] = useState<string[]>([]);
   const [technologies, setTechnologies] = useState<string[]>([]);
   const [days, setDays] = useState(365);
+  const [selectedPackSectors, setSelectedPackSectors] = useState<string[]>([]);
+  const [openPack, setOpenPack] = useState<SectorPack | null>(null);
 
+  const packs = useQuery({ queryKey: ['sector-packs'], queryFn: () => sectorPacksApi.list({ pack_source: 'nvidia' }) });
   const sources = useQuery({ queryKey: ['sector-sources'], queryFn: sectorApi.sources });
   const sectors = useQuery({ queryKey: ['sector-options'], queryFn: sectorApi.sectors });
   const regions = useQuery({ queryKey: ['sector-regions'], queryFn: sectorApi.regions });
@@ -135,6 +139,27 @@ export function SectorIntel() {
             </Panel>
           </section>
 
+          <Panel title="NVIDIA Sector Intelligence Packs">
+            <div className="p-4 space-y-4">
+              <MultiChoiceDropdown
+                label="Sectors"
+                placeholder="All sectors"
+                selected={selectedPackSectors}
+                onChange={setSelectedPackSectors}
+                options={(packs.data ?? []).map(p => ({ id: p.sector_id, label: p.sector_name, meta: p.confidence_level }))}
+                allowEmpty
+              />
+              {packs.isLoading && <div className="text-sm text-gray-500">Loading packs…</div>}
+              <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-3">
+                {(packs.data ?? [])
+                  .filter(p => selectedPackSectors.length === 0 || selectedPackSectors.includes(p.sector_id))
+                  .map(p => (
+                    <PackCard key={p.sector_id} pack={p} onClick={() => setOpenPack(p)} />
+                  ))}
+              </div>
+            </div>
+          </Panel>
+
           <Panel title={`Relevant Actors for ${selectedSectors.join(', ') || 'selected sectors'}${selectedRegions.length ? ` / ${selectedRegions.join(', ')}` : ''}${technologies.length ? ` / ${technologies.join(', ')}` : ''}`}>
             {relevance.isLoading ? (
               <div className="p-4 text-sm text-gray-500">Scoring actors...</div>
@@ -164,6 +189,7 @@ export function SectorIntel() {
           </Panel>
         </div>
       </div>
+      {openPack && <PackDetail pack={openPack} onClose={() => setOpenPack(null)} />}
     </div>
   );
 }
