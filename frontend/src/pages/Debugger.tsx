@@ -27,6 +27,7 @@ export function Debugger() {
   const [decompilation, setDecompilation] = useState<MalwareGraphDecompilation | null>(null);
   const [aiAssistant, setAiAssistant] = useState<MalwareGraphDebugAssistant | null>(null);
   const [selectedTraceId, setSelectedTraceId] = useState<string>('');
+  const [autoRunFunctions, setAutoRunFunctions] = useState(false);
 
   const jobs = useQuery({ queryKey: ['malwaregraph-jobs'], queryFn: malwareGraphApi.jobs, retry: false });
   const providers = useQuery({ queryKey: ['malwaregraph-providers'], queryFn: malwareGraphApi.providers, retry: false });
@@ -79,6 +80,12 @@ export function Debugger() {
     if (workspace?.current_trace_id) setSelectedTraceId(workspace.current_trace_id);
   }, [workspace?.current_trace_id]);
 
+  useEffect(() => {
+    if (!autoRunFunctions || !workspace || workspace.completed || stepWorkspace.isPending) return;
+    stepWorkspace.mutate();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoRunFunctions, workspace?.step_count, workspace?.completed]);
+
   const createWorkspace = useMutation({
     mutationFn: () => malwareGraphApi.debugWorkspace(jobId, sampleRef, aiProvider, dynamicDebug, dynamicDebug),
     onSuccess: result => {
@@ -89,7 +96,10 @@ export function Debugger() {
   });
   const stepWorkspace = useMutation({
     mutationFn: () => malwareGraphApi.stepDebugWorkspace(workspace!.session_id),
-    onSuccess: setWorkspace,
+    onSuccess: result => {
+      setWorkspace(result);
+      if (result.completed) setAutoRunFunctions(false);
+    },
   });
   const loadDecompilation = useMutation({
     mutationFn: () => malwareGraphApi.decompilation(jobId, sampleRef),
@@ -139,7 +149,9 @@ export function Debugger() {
               <button className="primary w-full" onClick={() => createWorkspace.mutate()} disabled={!jobId || !sampleRef || createWorkspace.isPending}>{createWorkspace.isPending ? 'Creating...' : 'Create debug workspace'}</button>
               <button className="secondary-action w-full" onClick={() => loadDecompilation.mutate()} disabled={!jobId || !sampleRef || loadDecompilation.isPending}>{loadDecompilation.isPending ? 'Decompiling...' : 'Load decompilation'}</button>
               <button className="secondary-action w-full" onClick={() => stepWorkspace.mutate()} disabled={!workspace || workspace.completed || stepWorkspace.isPending}>{stepWorkspace.isPending ? 'Stepping...' : workspace?.completed ? 'Session complete' : 'Step function'}</button>
-              <button className="secondary-action w-full" onClick={() => runAiAssistant.mutate()} disabled={!workspace || runAiAssistant.isPending}>{runAiAssistant.isPending ? 'AI assistant running...' : 'AI debug assistant'}</button>
+              <button className="secondary-action w-full" onClick={() => setAutoRunFunctions(true)} disabled={!workspace || workspace.completed || stepWorkspace.isPending || autoRunFunctions}>{autoRunFunctions ? 'Running functions...' : 'Run all functions'}</button>
+              {autoRunFunctions && <button className="secondary-action w-full" onClick={() => setAutoRunFunctions(false)}>Stop function run</button>}
+              <button className="primary w-full" onClick={() => runAiAssistant.mutate()} disabled={!workspace || runAiAssistant.isPending}>{runAiAssistant.isPending ? 'AI assistant running...' : aiAssistant ? 'Refresh AI debug summary' : 'Full AI debug summary'}</button>
               <button className="secondary-action w-full" onClick={() => navigate(`/dynamic-analysis?job_id=${encodeURIComponent(jobId)}&sample_ref=${encodeURIComponent(sampleRef)}${dynamicDebug ? '&dynamic=true' : ''}`)}>Dynamic analysis</button>
               <button className="secondary-action w-full" onClick={() => navigate(`/malware-analysis?job_id=${encodeURIComponent(jobId)}&sample_ref=${encodeURIComponent(sampleRef)}`)}>Back to Malware Analysis</button>
               {(createWorkspace.error || stepWorkspace.error || loadDecompilation.error || runAiAssistant.error) && <p className="text-xs text-red-300">{String(createWorkspace.error ?? stepWorkspace.error ?? loadDecompilation.error ?? runAiAssistant.error)}</p>}
@@ -185,15 +197,15 @@ export function Debugger() {
             <Panel title="AIDebug Function Graph">
               <DebuggerGraph workspace={workspace} selectedTrace={selectedTrace} onTrace={setSelectedTraceId} />
             </Panel>
-            <Panel title={`AI Debug Assistant${aiAssistant?.provider ? ` · ${aiAssistant.provider}` : ''}`}>
+              <Panel title={`Full AI Debug Summary${aiAssistant?.provider ? ` · ${aiAssistant.provider}` : ''}`}>
               <AiAssistantPanel result={aiAssistant} pending={runAiAssistant.isPending} />
             </Panel>
             <div className="grid gap-4 xl:grid-cols-[420px_1fr]">
               <Panel title="Function Traces">
-                <TraceList workspace={workspace} selectedTraceId={selectedTrace?.trace_id ?? ''} onTrace={setSelectedTraceId} />
+                <TraceList workspace={workspace} selectedTraceId={selectedTrace?.trace_id ?? ''} assistant={aiAssistant} onTrace={setSelectedTraceId} />
               </Panel>
-              <Panel title="Current Function">
-                {selectedTrace ? <CurrentFunction trace={selectedTrace} /> : <Empty text="No selected function." />}
+              <Panel title="IDA Function View">
+                {selectedTrace ? <CurrentFunction trace={selectedTrace} assistant={aiAssistant} /> : <Empty text="No selected function." />}
               </Panel>
             </div>
             <div className="grid gap-4 xl:grid-cols-2">
@@ -328,36 +340,60 @@ function DebuggerGraph({ workspace, selectedTrace, onTrace }: { workspace: Malwa
   </div>;
 }
 
-function TraceList({ workspace, selectedTraceId, onTrace }: { workspace: MalwareGraphDebuggerWorkspace; selectedTraceId: string; onTrace: (traceId: string) => void }) {
+function TraceList({ workspace, selectedTraceId, assistant, onTrace }: { workspace: MalwareGraphDebuggerWorkspace; selectedTraceId: string; assistant: MalwareGraphDebugAssistant | null; onTrace: (traceId: string) => void }) {
   return <div className="max-h-[520px] overflow-y-auto divide-y divide-gray-800">
-    {workspace.function_traces.map(trace => <button key={trace.trace_id} onClick={() => onTrace(trace.trace_id)} className={`block w-full p-3 text-left text-xs ${trace.trace_id === selectedTraceId ? 'bg-mitre-accent/10' : 'hover:bg-gray-900'}`}>
+    {workspace.function_traces.map(trace => {
+      const ai = functionAiForTrace(assistant, trace);
+      const tag = functionTag(trace, ai);
+      return <button key={trace.trace_id} onClick={() => onTrace(trace.trace_id)} className={`block w-full p-3 text-left text-xs ${trace.trace_id === selectedTraceId ? 'bg-mitre-accent/10' : 'hover:bg-gray-900'}`}>
       <div className="flex items-start justify-between gap-2">
         <b className="min-w-0 truncate font-mono text-gray-200">{trace.name}</b>
-        <span className="shrink-0" style={{ color: riskColor(trace.risk_level) }}>{trace.risk_level}</span>
+        <span className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] ${tagClass(tag)}`}>{tag}</span>
       </div>
       <div className="mt-1 flex flex-wrap gap-2 text-[10px] text-gray-600">
         <span>{trace.address}</span>
         <span>{trace.instruction_count} insn</span>
         <span>{trace.status}</span>
+        <span style={{ color: riskColor(trace.risk_level) }}>{trace.risk_level}</span>
       </div>
-      <p className="mt-1 line-clamp-2 text-[11px] leading-relaxed text-gray-500">{trace.summary}</p>
-    </button>)}
+      <p className="mt-1 line-clamp-2 text-[11px] leading-relaxed text-gray-500">{field(ai?.purpose ?? ai?.summary ?? ai?.description) || trace.summary}</p>
+    </button>;
+    })}
   </div>;
 }
 
-function CurrentFunction({ trace }: { trace: DebugTrace }) {
+function CurrentFunction({ trace, assistant }: { trace: DebugTrace; assistant: MalwareGraphDebugAssistant | null }) {
+  const ai = functionAiForTrace(assistant, trace);
+  const tag = functionTag(trace, ai);
   return <div className="divide-y divide-gray-800 text-xs">
-    <div className="grid gap-2 p-3 md:grid-cols-4">
+    <div className="grid gap-2 p-3 md:grid-cols-5">
       <Info label="Address" value={trace.address} />
+      <Info label="AI tag" value={tag} />
       <Info label="Risk" value={trace.risk_level} />
       <Info label="ATT&CK" value={trace.mitre_technique || 'none'} />
       <Info label="Source" value={`${trace.source}${trace.is_entrypoint ? ' · entrypoint' : ''}`} />
     </div>
+    <div className="grid gap-3 p-3 xl:grid-cols-[minmax(0,1fr)_320px]">
+      <div>
+        <div className="mb-2 flex flex-wrap items-center gap-2">
+          <span className={`rounded px-2 py-1 text-[10px] font-semibold uppercase ${tagClass(tag)}`}>{tag}</span>
+          <span className="rounded bg-gray-800 px-2 py-1 font-mono text-[10px] text-gray-400">{trace.address}</span>
+          {trace.is_entrypoint && <span className="rounded bg-green-950/40 px-2 py-1 text-[10px] text-green-300">entrypoint</span>}
+        </div>
+        <b className="text-sm text-gray-100">{trace.name}</b>
+        <p className="mt-2 whitespace-pre-wrap leading-relaxed text-gray-300">{field(ai?.purpose ?? ai?.summary ?? ai?.description) || trace.summary || 'No function purpose returned yet.'}</p>
+      </div>
+      <div className="rounded border border-gray-800 bg-gray-950 p-3">
+        <b className="text-gray-200">AI Function Summary</b>
+        <p className="mt-2 whitespace-pre-wrap text-[11px] leading-relaxed text-gray-400">{field(ai?.evidence ?? ai?.reason ?? ai?.behavior ?? ai?.next_debug_action) || 'Run Full AI debug summary to explain this function and classify its behavior.'}</p>
+      </div>
+    </div>
     <div className="p-3">
-      <b className="text-gray-200">{trace.name}</b>
-      <p className="mt-2 leading-relaxed text-gray-400">{trace.summary}</p>
+      <b className="text-gray-200">Behavior Tags</b>
       <div className="mt-2 flex flex-wrap gap-1.5">
         {trace.behaviors.map(item => <span key={item} className="rounded border border-gray-700 px-2 py-1 text-[10px] text-gray-300">{item}</span>)}
+        {Boolean(ai?.ttps) && <span className="rounded border border-mitre-accent/40 px-2 py-1 text-[10px] text-mitre-accent">{field(ai?.ttps)}</span>}
+        {!trace.behaviors.length && !ai?.ttps && <span className="text-gray-600">none</span>}
       </div>
     </div>
     {(trace.api_hooks ?? []).length > 0 && <div className="p-3">
@@ -402,15 +438,22 @@ function AiAssistantPanel({ result, pending }: { result: MalwareGraphDebugAssist
   if (pending) return <Empty text="AI assistant is analyzing the debug workspace." />;
   if (!result) return <Empty text="Run AI debug assistant to prioritize entrypoint validation, suspicious functions, hooks, IOC/TTP leads, and next steps." />;
   const assessment = result.assessment ?? {};
+  const suspicious = assessment.malicious_or_suspicious_functions ?? assessment.suspicious_functions ?? [];
+  const normalCount = Math.max(0, (assessment.function_analysis?.length ?? 0) - suspicious.length);
   return <div className="grid gap-4 p-3 text-xs xl:grid-cols-[1fr_1fr]">
     <div className="space-y-3">
-      <div>
-        <b className="text-gray-200">Main Purpose</b>
-        <p className="mt-1 leading-relaxed text-gray-400">{field(assessment.main_purpose) || 'Main purpose was not returned.'}</p>
+      <div className="grid gap-2 md:grid-cols-3">
+        <Metric label="Normal" value={normalCount} />
+        <Metric label="Suspicious/Malicious" value={suspicious.length} />
+        <Metric label="TTPs" value={assessment.ttps?.length ?? 0} />
       </div>
       <div>
-        <b className="text-gray-200">Summary</b>
-        <p className="mt-1 leading-relaxed text-gray-400">{field(assessment.summary) || 'No summary returned.'}</p>
+        <b className="text-sm text-white">Whole Malware Purpose</b>
+        <p className="mt-1 whitespace-pre-wrap leading-relaxed text-gray-300">{field(assessment.main_purpose) || 'Main purpose was not returned.'}</p>
+      </div>
+      <div>
+        <b className="text-gray-200">Full Debug Summary</b>
+        <p className="mt-1 whitespace-pre-wrap leading-relaxed text-gray-400">{field(assessment.summary) || 'No summary returned.'}</p>
       </div>
       <div>
         <b className="text-gray-200">Entrypoint</b>
@@ -421,11 +464,12 @@ function AiAssistantPanel({ result, pending }: { result: MalwareGraphDebugAssist
       <ListBlock title="Validation Gaps" items={assessment.validation_gaps ?? []} />
     </div>
     <div className="space-y-3">
-      <ObjectList title="Malicious / Suspicious Functions" items={assessment.malicious_or_suspicious_functions ?? assessment.suspicious_functions ?? []} />
+      <ObjectList title="Malicious / Suspicious Functions" items={suspicious} />
       <ObjectList title="TTPs" items={assessment.ttps ?? []} />
       <ObjectList title="IOCs" items={assessment.iocs ?? []} />
       <ListBlock title="API Hooks To Prioritize" items={assessment.api_hooks_to_prioritize ?? []} mono />
       <ObjectList title="IOC / TTP Leads" items={assessment.ioc_or_ttp_leads ?? []} />
+      <ListBlock title="Validation Gaps" items={assessment.validation_gaps ?? []} />
       {result.error && <div className="rounded border border-amber-500/30 bg-amber-950/20 p-2 text-amber-100">{result.error}</div>}
     </div>
   </div>;
@@ -494,6 +538,36 @@ function objectDetailRows(item: Record<string, unknown>) {
       value: field(item[key]),
       mono: ['value', 'iocs', 'ttps'].includes(key),
     }));
+}
+
+function functionAiForTrace(assistant: MalwareGraphDebugAssistant | null, trace: DebugTrace): Record<string, unknown> | null {
+  const assessment = assistant?.assessment;
+  if (!assessment) return null;
+  const candidates = [
+    ...(assessment.function_analysis ?? []),
+    ...(assessment.malicious_or_suspicious_functions ?? []),
+    ...(assessment.suspicious_functions ?? []),
+  ];
+  const traceAddress = trace.address.toLowerCase();
+  const traceName = trace.name.toLowerCase();
+  return candidates.find(item => {
+    const address = field(item.address ?? item.va ?? item.rva).toLowerCase();
+    const name = field(item.name ?? item.function ?? item.function_name).toLowerCase();
+    return Boolean((address && (address === traceAddress || traceAddress.includes(address) || address.includes(traceAddress))) || (name && (name === traceName || name.includes(traceName) || traceName.includes(name))));
+  }) ?? null;
+}
+
+function functionTag(trace: DebugTrace, ai: Record<string, unknown> | null): 'normal' | 'suspicious' | 'malicious' {
+  const raw = `${field(ai?.tag)} ${field(ai?.classification)} ${field(ai?.risk)} ${field(ai?.risk_level)} ${field(ai?.verdict)} ${trace.risk_level} ${trace.behaviors.join(' ')}`.toLowerCase();
+  if (raw.includes('malicious') || raw.includes('critical') || raw.includes('high')) return 'malicious';
+  if (raw.includes('suspicious') || raw.includes('medium') || raw.includes('warn') || trace.api_hooks?.length || trace.strings_referenced.length) return 'suspicious';
+  return 'normal';
+}
+
+function tagClass(tag: 'normal' | 'suspicious' | 'malicious') {
+  if (tag === 'malicious') return 'border border-red-600/40 bg-red-950/30 text-red-300';
+  if (tag === 'suspicious') return 'border border-amber-500/40 bg-amber-950/30 text-amber-300';
+  return 'border border-green-600/40 bg-green-950/30 text-green-300';
 }
 
 function Registers({ workspace }: { workspace: MalwareGraphDebuggerWorkspace }) {
