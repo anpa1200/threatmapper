@@ -21,6 +21,12 @@ the surrounding intelligence infrastructure that makes every finding actionable.
   research, and strategy).
 - NVIDIA Sector Packs now deep-link to every relevant AdversaryGraph tool
   directly from technique IDs, actor names, IOC types, and CVE IDs.
+- Dynamic Analysis now includes an AI feedback loop that steps function evidence,
+  reruns AI review, and records evidence gained, validation gaps, next actions,
+  and confidence by iteration.
+- The debugger workspace now has an IDA-style AI function view with step/run
+  controls, function purpose summaries, whole-malware debug summary, and
+  normal/suspicious/malicious function tags.
 
 ## What Changed Since v3.2.0
 
