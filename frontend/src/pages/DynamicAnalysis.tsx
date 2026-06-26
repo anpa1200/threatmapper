@@ -3,6 +3,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   malwareGraphApi,
+  type MalwareGraphDebuggerWorkspace,
   type MalwareGraphRuntimeDebugSession,
 } from '@/api/client';
 import { Header } from '@/components/Layout/Header';
@@ -31,7 +32,9 @@ export function DynamicAnalysis() {
   const [sampleRef, setSampleRef]                 = useState(params.get('sample_ref') ?? '');
   const [disclaimerAccepted, setDisclaimer]       = useState(params.get('dynamic') === 'true');
   const [session, setSession]                     = useState<MalwareGraphRuntimeDebugSession | null>(null);
+  const [workspace, setWorkspace]                 = useState<MalwareGraphDebuggerWorkspace | null>(null);
   const [autoStepping, setAutoStepping]           = useState(false);
+  const [autoFunctionStepping, setAutoFunctionStepping] = useState(false);
 
   const jobs     = useQuery({ queryKey: ['malwaregraph-jobs'],             queryFn: malwareGraphApi.jobs,      retry: false });
   const analysis = useQuery({ queryKey: ['malwaregraph-analysis', jobId], queryFn: () => malwareGraphApi.analysis(jobId), enabled: Boolean(jobId) });
@@ -57,16 +60,22 @@ export function DynamicAnalysis() {
     setParams(next, { replace: true });
   }, [disclaimerAccepted, jobId, sampleRef, setParams]);
 
-  // Auto-step effect: fires whenever current_step advances while auto-stepping
+  // Auto-step effect: fires whenever current_step advances while auto-stepping.
   useEffect(() => {
     if (!autoStepping || !session || session.completed || stepSession.isPending) return;
     stepSession.mutate();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoStepping, session?.current_step, session?.completed]);
 
+  useEffect(() => {
+    if (!autoFunctionStepping || !workspace || workspace.completed || stepWorkspace.isPending) return;
+    stepWorkspace.mutate();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoFunctionStepping, workspace?.step_count, workspace?.completed]);
+
   const createSession = useMutation({
     mutationFn: () => malwareGraphApi.runtimeDebugSession(jobId, sampleRef, disclaimerAccepted, disclaimerAccepted),
-    onSuccess: result => { setSession(result); setAutoStepping(false); },
+    onSuccess: result => { setSession(result); setAutoStepping(false); setWorkspace(null); setAutoFunctionStepping(false); },
   });
 
   const stepSession = useMutation({
@@ -77,13 +86,37 @@ export function DynamicAnalysis() {
     },
   });
 
+  const createWorkspace = useMutation({
+    mutationFn: () => malwareGraphApi.debugWorkspace(jobId, sampleRef, 'local', disclaimerAccepted, disclaimerAccepted),
+    onSuccess: result => {
+      setWorkspace(result);
+      setAutoFunctionStepping(false);
+    },
+  });
+
+  const stepWorkspace = useMutation({
+    mutationFn: () => malwareGraphApi.stepDebugWorkspace(workspace!.session_id),
+    onSuccess: result => {
+      setWorkspace(result);
+      if (result.completed) setAutoFunctionStepping(false);
+    },
+  });
+
   const isRunning = autoStepping || stepSession.isPending;
+  const isFunctionRunning = autoFunctionStepping || stepWorkspace.isPending;
   const canStep   = Boolean(session && !session.completed && !isRunning);
+  const canStepFunction = Boolean(workspace && !workspace.completed && !isFunctionRunning);
 
   function handleRunAll() {
     if (!canStep) return;
     setAutoStepping(true);
     stepSession.mutate();
+  }
+
+  function handleRunAllFunctions() {
+    if (!canStepFunction) return;
+    setAutoFunctionStepping(true);
+    stepWorkspace.mutate();
   }
 
   return <div className="flex h-full flex-col">
@@ -95,13 +128,13 @@ export function DynamicAnalysis() {
           <Panel title="Runtime Target">
             <div className="space-y-3 p-3">
               <label className="block text-[10px] uppercase text-gray-600">Analysis case</label>
-              <select value={jobId} onChange={e => { setJobId(e.target.value); setSampleRef(''); setSession(null); setAutoStepping(false); }} className={malwareInput}>
+              <select value={jobId} onChange={e => { setJobId(e.target.value); setSampleRef(''); setSession(null); setWorkspace(null); setAutoStepping(false); setAutoFunctionStepping(false); }} className={malwareInput}>
                 {visibleJobs(jobs.data ?? []).map(job => (
                   <option key={job.job_id} value={job.job_id}>{caseTitle(job, undefined)} · {job.case_id ?? job.job_id}</option>
                 ))}
               </select>
               <label className="block text-[10px] uppercase text-gray-600">Runtime target</label>
-              <select value={sampleRef} onChange={e => { setSampleRef(e.target.value); setSession(null); setAutoStepping(false); }} className={malwareInput}>
+              <select value={sampleRef} onChange={e => { setSampleRef(e.target.value); setSession(null); setWorkspace(null); setAutoStepping(false); setAutoFunctionStepping(false); }} className={malwareInput}>
                 {targets.map(target => <option key={target.id} value={target.id}>{target.label}</option>)}
               </select>
               <label className="flex items-start gap-3 rounded border border-amber-500/30 bg-amber-950/20 px-3 py-2 text-xs text-amber-100">
@@ -126,6 +159,26 @@ export function DynamicAnalysis() {
                   <button className="secondary-action w-full" onClick={() => setAutoStepping(false)}>Stop auto-run</button>
                 )}
               </>}
+              {session && <>
+                <button
+                  className="primary w-full"
+                  onClick={() => createWorkspace.mutate()}
+                  disabled={!jobId || !sampleRef || !disclaimerAccepted || createWorkspace.isPending}
+                >
+                  {createWorkspace.isPending ? 'Loading functions...' : workspace ? 'Reload full function workflow' : 'Load full function workflow'}
+                </button>
+                {workspace && !workspace.completed && <>
+                  <button className="primary w-full" onClick={handleRunAllFunctions} disabled={!canStepFunction}>
+                    {isFunctionRunning ? `Running function ${workspace.step_count + 1} / ${workspace.function_traces.length}...` : 'Run all functions'}
+                  </button>
+                  <button className="secondary-action w-full" onClick={() => stepWorkspace.mutate()} disabled={!canStepFunction}>
+                    {stepWorkspace.isPending ? 'Stepping function...' : 'Step function'}
+                  </button>
+                  {autoFunctionStepping && (
+                    <button className="secondary-action w-full" onClick={() => setAutoFunctionStepping(false)}>Stop function run</button>
+                  )}
+                </>}
+              </>}
               {session?.completed && (
                 <div className="rounded border border-green-600/30 bg-green-950/20 px-3 py-2 text-xs text-green-300">
                   Session complete — all steps executed
@@ -134,8 +187,8 @@ export function DynamicAnalysis() {
               <button className="secondary-action w-full" onClick={() => navigate(`/malware-analysis?job_id=${encodeURIComponent(jobId)}&sample_ref=${encodeURIComponent(sampleRef)}`)}>
                 ← Back to case
               </button>
-              {(createSession.error || stepSession.error) && (
-                <p className="text-xs text-red-300">{String(createSession.error ?? stepSession.error)}</p>
+              {(createSession.error || stepSession.error || createWorkspace.error || stepWorkspace.error) && (
+                <p className="text-xs text-red-300">{String(createSession.error ?? stepSession.error ?? createWorkspace.error ?? stepWorkspace.error)}</p>
               )}
             </div>
           </Panel>
@@ -155,6 +208,8 @@ export function DynamicAnalysis() {
             ? <DynamicSession
                 session={session}
                 isRunning={isRunning}
+                workspace={workspace}
+                isFunctionRunning={isFunctionRunning}
                 onOpenDebugger={() => navigate(`/malware-debug?job_id=${encodeURIComponent(jobId)}&sample_ref=${encodeURIComponent(sampleRef)}${session.dynamic_enabled ? '&dynamic=true' : ''}`)}
               />
             : <div className="rounded border border-amber-500/40 bg-amber-950/30 p-4 text-sm font-semibold text-amber-100">
@@ -169,9 +224,11 @@ export function DynamicAnalysis() {
 
 // ── Session view ──────────────────────────────────────────────────────────────
 
-function DynamicSession({ session, isRunning, onOpenDebugger }: {
+function DynamicSession({ session, isRunning, workspace, isFunctionRunning, onOpenDebugger }: {
   session: MalwareGraphRuntimeDebugSession;
   isRunning: boolean;
+  workspace: MalwareGraphDebuggerWorkspace | null;
+  isFunctionRunning: boolean;
   onOpenDebugger: () => void;
 }) {
   const current = session.steps[session.current_step] ?? session.steps[0] ?? null;
@@ -197,6 +254,16 @@ function DynamicSession({ session, isRunning, onOpenDebugger }: {
       <RuntimeGraph session={session} />
     </Panel>
 
+    <Panel title="Runtime Session Export">
+      <pre className="max-h-80 overflow-auto p-3 text-[10px] leading-relaxed text-gray-500">{JSON.stringify(session, null, 2)}</pre>
+    </Panel>
+
+    {workspace
+      ? <FullFunctionWorkflow workspace={workspace} isRunning={isFunctionRunning} />
+      : <Panel title="Full Function Workflow">
+          <Empty text="Load the full function workflow to view function traces, API hooks, memory/register state, event logs, graph export, and raw runtime snapshots." />
+        </Panel>}
+
     {/* Findings summary — shown after any step completes */}
     {findings.total > 0 && <FindingsSummary findings={findings} />}
 
@@ -218,6 +285,162 @@ function DynamicSession({ session, isRunning, onOpenDebugger }: {
       </div>
     </Panel>
   </>;
+}
+
+function FullFunctionWorkflow({ workspace, isRunning }: {
+  workspace: MalwareGraphDebuggerWorkspace;
+  isRunning: boolean;
+}) {
+  return <div className="space-y-4">
+    <div className="grid gap-3 md:grid-cols-5">
+      <Metric label="Target" value={workspace.target_name} />
+      <Metric label="Functions" value={workspace.function_traces.length} tone={workspace.function_traces.length ? 'warn' : 'default'} />
+      <Metric label="API hooks" value={workspace.api_hooks.length} tone={workspace.api_hooks.length ? 'warn' : 'default'} />
+      <Metric label="Events" value={workspace.events.length} tone={workspace.events.length ? 'warn' : 'default'} />
+      <Metric label="Function step" value={`${Math.min(workspace.step_count, workspace.function_traces.length)} / ${workspace.function_traces.length}`} tone={workspace.completed ? 'good' : isRunning ? 'warn' : 'default'} />
+    </div>
+
+    <Panel title="Execution Summary">
+      <div className="grid gap-3 p-3 text-xs md:grid-cols-3">
+        <Info label="Workspace" value={workspace.session_id} />
+        <Info label="Mode" value={workspace.mode} />
+        <Info label="Dynamic enabled" value={workspace.dynamic_enabled ? 'yes' : 'no'} />
+        <Info label="Completed" value={workspace.completed ? 'yes' : 'no'} />
+        <Info label="Current trace" value={workspace.current_trace_id} />
+        <Info label="Risk summary" value={JSON.stringify(workspace.risk_summary)} />
+      </div>
+    </Panel>
+
+    <div className="grid gap-4 xl:grid-cols-2">
+      <KeyValuePanel title="Engine" data={workspace.engine} />
+      <KeyValuePanel title="Binary" data={workspace.binary} />
+      <KeyValuePanel title="Entrypoint" data={workspace.entrypoint ?? {}} />
+      <KeyValuePanel title="Isolation" data={workspace.isolation} />
+    </div>
+
+    <Panel title="Function Results">
+      <div className="divide-y divide-gray-800">
+        {workspace.function_traces.map((trace, index) => (
+          <FunctionTraceRow key={trace.trace_id} trace={trace} index={index} current={trace.trace_id === workspace.current_trace_id} />
+        ))}
+        {!workspace.function_traces.length && <Empty text="No function traces returned by MalwareGraph." />}
+      </div>
+    </Panel>
+
+    <div className="grid gap-4 xl:grid-cols-2">
+      <RecordsPanel title="API Hooks" records={workspace.api_hooks} />
+      <RecordsPanel title="API Calls" records={workspace.api_calls} />
+      <RecordsPanel title="Registers" records={workspace.registers} />
+      <RecordsPanel title="Memory Regions" records={workspace.memory_regions} />
+      <RecordsPanel title="Runtime Events" records={workspace.events} />
+      <RecordsPanel title="IOC Leads" records={workspace.ioc_leads} />
+      <RecordsPanel title="ATT&CK Leads" records={workspace.attack_leads} />
+      <RecordsPanel title="Controls" records={workspace.controls} />
+      <RecordsPanel title="Breakpoints" records={workspace.breakpoints} />
+    </div>
+
+    <Panel title="Graph Export">
+      <div className="grid gap-3 p-3 md:grid-cols-3">
+        <Metric label="Nodes" value={workspace.graph.nodes.length} />
+        <Metric label="Edges" value={workspace.graph.edges.length} />
+        <Metric label="Layout" value={workspace.graph.layout} />
+      </div>
+      <pre className="max-h-96 overflow-auto border-t border-gray-800 p-3 text-[10px] leading-relaxed text-gray-500">{JSON.stringify(workspace.graph, null, 2)}</pre>
+    </Panel>
+
+    <Panel title="Raw Workspace Export">
+      <pre className="max-h-[520px] overflow-auto p-3 text-[10px] leading-relaxed text-gray-500">{JSON.stringify(workspace.export ?? workspace, null, 2)}</pre>
+    </Panel>
+  </div>;
+}
+
+function FunctionTraceRow({ trace, index, current }: {
+  trace: MalwareGraphDebuggerWorkspace['function_traces'][number];
+  index: number;
+  current: boolean;
+}) {
+  const [open, setOpen] = useState(current || index < 3);
+  return <div className={current ? 'bg-mitre-accent/5 text-xs' : 'text-xs'}>
+    <button type="button" onClick={() => setOpen(v => !v)} className="flex w-full items-start justify-between gap-3 p-3 text-left hover:bg-gray-900/40">
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="rounded bg-gray-800 px-1.5 py-0.5 text-[10px] text-gray-500">{index + 1}</span>
+          <b className="font-mono text-gray-100">{trace.name}</b>
+          <span className="font-mono text-[10px] text-gray-500">{trace.address}</span>
+          <span className="rounded px-1.5 py-0.5 text-[10px]" style={{ color: statusColor(trace.status), background: '#020617' }}>{trace.status}</span>
+          <span className={`rounded px-1.5 py-0.5 text-[10px] ${trace.risk_level === 'high' ? 'bg-red-950/40 text-red-300' : trace.risk_level === 'medium' ? 'bg-amber-950/40 text-amber-300' : 'bg-gray-900 text-gray-500'}`}>{trace.risk_level}</span>
+        </div>
+        <p className="mt-1 break-words text-[11px] leading-relaxed text-gray-500">{trace.summary || trace.notes || 'No function summary returned.'}</p>
+      </div>
+      <span className="shrink-0 text-gray-600">{open ? '▲' : '▼'}</span>
+    </button>
+    {open && <div className="space-y-3 border-t border-gray-800/60 p-3">
+      <div className="grid gap-2 md:grid-cols-4">
+        <Info label="Executed" value={trace.executed ? 'yes' : 'no'} />
+        <Info label="Source" value={trace.source} />
+        <Info label="Section" value={trace.section ?? 'unknown'} />
+        <Info label="Confidence" value={`${Math.round(trace.confidence * 100)}%`} />
+        <Info label="Instructions" value={String(trace.instruction_count)} />
+        <Info label="MITRE" value={trace.mitre_technique || 'none'} />
+        <Info label="RVA" value={trace.rva ?? 'n/a'} />
+        <Info label="Entrypoint" value={trace.is_entrypoint ? 'yes' : 'no'} />
+      </div>
+      {trace.behaviors.length > 0 && <TokenList label="Behaviors" values={trace.behaviors} tone="warn" />}
+      {trace.api_hooks && trace.api_hooks.length > 0 && <TokenList label="API hooks" values={trace.api_hooks} tone="default" />}
+      {trace.strings_referenced.length > 0 && <TokenList label="Strings referenced" values={trace.strings_referenced} tone="default" />}
+      {trace.calls_to.length > 0 && <TokenList label="Calls to" values={trace.calls_to} tone="default" />}
+      {trace.called_from.length > 0 && <TokenList label="Called from" values={trace.called_from} tone="default" />}
+      {trace.disassembly.length > 0 && <details className="rounded border border-gray-800">
+        <summary className="cursor-pointer px-3 py-2 text-[10px] uppercase text-gray-500 hover:text-gray-300">Disassembly ({trace.disassembly.length})</summary>
+        <pre className="max-h-72 overflow-auto p-3 text-[10px] leading-relaxed text-gray-500">{JSON.stringify(trace.disassembly, null, 2)}</pre>
+      </details>}
+      <details className="rounded border border-gray-800">
+        <summary className="cursor-pointer px-3 py-2 text-[10px] uppercase text-gray-500 hover:text-gray-300">Snapshot and raw function JSON</summary>
+        <pre className="max-h-96 overflow-auto p-3 text-[10px] leading-relaxed text-gray-500">{JSON.stringify(trace, null, 2)}</pre>
+      </details>
+    </div>}
+  </div>;
+}
+
+function TokenList({ label, values, tone }: { label: string; values: string[]; tone: 'default' | 'warn' }) {
+  return <div>
+    <div className="mb-1 text-[10px] uppercase text-gray-500">{label}</div>
+    <div className="flex flex-wrap gap-1.5">
+      {values.map((value, index) => (
+        <span key={`${value}-${index}`} className={`max-w-full break-all rounded border px-1.5 py-0.5 font-mono text-[10px] ${tone === 'warn' ? 'border-amber-600/30 bg-amber-950/20 text-amber-200' : 'border-gray-700 bg-gray-900 text-gray-300'}`}>{value}</span>
+      ))}
+    </div>
+  </div>;
+}
+
+function KeyValuePanel({ title, data }: { title: string; data: Record<string, unknown> }) {
+  return <Panel title={title}>
+    <div className="grid gap-2 p-3 text-xs">
+      {Object.entries(data).map(([key, value]) => <Info key={key} label={key.replace(/_/g, ' ')} value={field(value)} />)}
+      {!Object.keys(data).length && <Empty text="No data returned." />}
+    </div>
+  </Panel>;
+}
+
+function RecordsPanel({ title, records }: { title: string; records: Array<Record<string, unknown>> }) {
+  return <Panel title={title}>
+    <div className="max-h-96 overflow-y-auto divide-y divide-gray-800">
+      {records.map((record, index) => (
+        <details key={index} className="group">
+          <summary className="cursor-pointer px-3 py-2 text-xs text-gray-300 hover:bg-gray-900/40">
+            <span className="mr-2 rounded bg-gray-800 px-1.5 py-0.5 text-[10px] text-gray-500">{index + 1}</span>
+            {recordLabel(record)}
+          </summary>
+          <pre className="overflow-auto border-t border-gray-800 p-3 text-[10px] leading-relaxed text-gray-500">{JSON.stringify(record, null, 2)}</pre>
+        </details>
+      ))}
+      {!records.length && <Empty text="No records returned." />}
+    </div>
+  </Panel>;
+}
+
+function recordLabel(record: Record<string, unknown>): string {
+  return String(record.name ?? record.label ?? record.api ?? record.address ?? record.type ?? record.trace_id ?? record.event ?? record.value ?? JSON.stringify(record).slice(0, 120));
 }
 
 // ── Step row with extracted findings ─────────────────────────────────────────
