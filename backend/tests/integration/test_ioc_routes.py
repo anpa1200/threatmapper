@@ -91,7 +91,8 @@ async def test_threatfox_sync_reports_missing_key(client: AsyncClient, monkeypat
     monkeypatch.setattr(settings, "threatfox_auth_key", "")
     resp = await client.post("/api/ioc/sync/threatfox?days=1")
     assert resp.status_code == 400
-    assert "THREATFOX_AUTH_KEY" in resp.json()["detail"]
+    # Error detail is sanitized — no internal exception text is returned to clients
+    assert "Operation failed" in resp.json()["detail"]
 
 
 @pytest.mark.asyncio
@@ -118,8 +119,8 @@ async def test_threatfox_sync_reports_rejected_key(client: AsyncClient, monkeypa
     resp = await client.post("/api/ioc/sync/threatfox?days=1")
 
     assert resp.status_code == 400
-    assert "THREATFOX_AUTH_KEY" in resp.json()["detail"]
-    assert "unknown_auth_key" in resp.json()["detail"]
+    # Error detail is sanitized — no internal exception text is returned to clients
+    assert "Operation failed" in resp.json()["detail"]
 
 
 @pytest.mark.asyncio
@@ -129,7 +130,8 @@ async def test_otx_sync_reports_missing_key(client: AsyncClient, monkeypatch):
     monkeypatch.setattr(settings, "otx_api_key", "")
     resp = await client.post("/api/ioc/sync/otx?max_groups=1")
     assert resp.status_code == 400
-    assert "OTX_API_KEY" in resp.json()["detail"]
+    # Error detail is sanitized — no internal exception text is returned to clients
+    assert "Operation failed" in resp.json()["detail"]
 
 
 @pytest.mark.asyncio
@@ -139,7 +141,8 @@ async def test_actor_otx_enrich_reports_missing_key(client: AsyncClient, monkeyp
     monkeypatch.setattr(settings, "otx_api_key", "")
     resp = await client.post("/api/ioc/actors/G0049/enrich/otx")
     assert resp.status_code == 400
-    assert "OTX_API_KEY" in resp.json()["detail"]
+    # Error detail is sanitized — no internal exception text is returned to clients
+    assert "Operation failed" in resp.json()["detail"]
 
 
 @pytest.mark.asyncio
@@ -149,7 +152,8 @@ async def test_virustotal_lookup_reports_missing_key(client: AsyncClient, monkey
     monkeypatch.setattr(settings, "virustotal_api_key", "")
     resp = await client.post("/api/ioc/virustotal/lookup", json={"indicator": "8.8.8.8"})
     assert resp.status_code == 400
-    assert "VIRUSTOTAL_API_KEY" in resp.json()["detail"]
+    # Error detail is sanitized — no internal exception text is returned to clients
+    assert "Operation failed" in resp.json()["detail"]
 
 
 @pytest.mark.asyncio
@@ -204,14 +208,16 @@ async def test_custom_ioc_source_update_kind_validation(client: AsyncClient):
 async def test_custom_ioc_source_delete_missing_source(client: AsyncClient):
     resp = await client.delete("/api/ioc/sources/custom-does-not-exist")
     assert resp.status_code == 400
-    assert "not found" in resp.json()["detail"]
+    # Error detail is sanitized — no internal exception text is returned to clients
+    assert "Operation failed" in resp.json()["detail"]
 
 
 @pytest.mark.asyncio
 async def test_custom_ioc_source_sync_missing_source(client: AsyncClient):
     resp = await client.post("/api/ioc/sync/custom-does-not-exist")
     assert resp.status_code == 400
-    assert "not found" in resp.json()["detail"]
+    # Error detail is sanitized — no internal exception text is returned to clients
+    assert "Operation failed" in resp.json()["detail"]
 
 
 @pytest.mark.asyncio
