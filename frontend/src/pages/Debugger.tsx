@@ -437,7 +437,7 @@ function TraceList({ workspace, selectedTraceId, assistant, onTrace }: { workspa
         <span>{trace.status}</span>
         <span style={{ color: riskColor(trace.risk_level) }}>{trace.risk_level}</span>
       </div>
-      <p className="mt-1 line-clamp-2 text-[11px] leading-relaxed text-gray-500">{field(ai?.purpose ?? ai?.summary ?? ai?.description) || trace.summary}</p>
+      <p className="mt-1 line-clamp-2 text-[11px] leading-relaxed text-gray-500"><TtpText value={field(ai?.purpose ?? ai?.summary ?? ai?.description) || trace.summary} /></p>
     </button>;
     })}
   </div>;
@@ -462,18 +462,18 @@ function CurrentFunction({ trace, assistant }: { trace: DebugTrace; assistant: M
           {trace.is_entrypoint && <span className="rounded bg-green-950/40 px-2 py-1 text-[10px] text-green-300">entrypoint</span>}
         </div>
         <b className="text-sm text-gray-100">{trace.name}</b>
-        <p className="mt-2 whitespace-pre-wrap leading-relaxed text-gray-300">{field(ai?.purpose ?? ai?.summary ?? ai?.description) || trace.summary || 'No function purpose returned yet.'}</p>
+        <p className="mt-2 whitespace-pre-wrap leading-relaxed text-gray-300"><TtpText value={field(ai?.purpose ?? ai?.summary ?? ai?.description) || trace.summary || 'No function purpose returned yet.'} /></p>
       </div>
       <div className="rounded border border-gray-800 bg-gray-950 p-3">
         <b className="text-gray-200">AI Function Summary</b>
-        <p className="mt-2 whitespace-pre-wrap text-[11px] leading-relaxed text-gray-400">{field(ai?.evidence ?? ai?.reason ?? ai?.behavior ?? ai?.next_debug_action) || 'Run Full AI debug summary to explain this function and classify its behavior.'}</p>
+        <p className="mt-2 whitespace-pre-wrap text-[11px] leading-relaxed text-gray-400"><TtpText value={field(ai?.evidence ?? ai?.reason ?? ai?.behavior ?? ai?.next_debug_action) || 'Run Full AI debug summary to explain this function and classify its behavior.'} /></p>
       </div>
     </div>
     <div className="p-3">
       <b className="text-gray-200">Behavior Tags</b>
       <div className="mt-2 flex flex-wrap gap-1.5">
-        {trace.behaviors.map(item => <span key={item} className="rounded border border-gray-700 px-2 py-1 text-[10px] text-gray-300">{item}</span>)}
-        {Boolean(ai?.ttps) && <span className="rounded border border-mitre-accent/40 px-2 py-1 text-[10px] text-mitre-accent">{field(ai?.ttps)}</span>}
+        {trace.behaviors.map(item => <span key={item} className="rounded border border-gray-700 px-2 py-1 text-[10px] text-gray-300"><TtpText value={item} /></span>)}
+        {Boolean(ai?.ttps) && <span className="rounded border border-mitre-accent/40 px-2 py-1 text-[10px] text-mitre-accent"><TtpText value={field(ai?.ttps)} /></span>}
         {!trace.behaviors.length && !ai?.ttps && <span className="text-gray-600">none</span>}
       </div>
     </div>
@@ -558,7 +558,7 @@ function OllyDbgCpuView({
                 <td className={active ? 'px-2 py-1.5 text-mitre-accent' : 'px-2 py-1.5 text-gray-400'}>{address || '-'}</td>
                 <td className="break-all px-2 py-1.5 text-gray-600">{field(item.bytes ?? item.opcodes ?? item.hex) || '-'}</td>
                 <td className={`break-all px-2 py-1.5 ${instructionTone(instruction)}`}>{instruction}</td>
-                <td className="break-words px-2 py-1.5 text-gray-500">{instructionComment(trace, ai, item, index)}</td>
+                <td className="break-words px-2 py-1.5 text-gray-500"><TtpText value={instructionComment(trace, ai, item, index)} /></td>
               </tr>;
             }) : <tr><td colSpan={5} className="px-3 py-6 text-center text-gray-600">No disassembly recovered for this function.</td></tr>}
           </tbody>
@@ -609,8 +609,8 @@ function OllyDbgCpuView({
     <div className="grid gap-3 xl:col-span-2 lg:grid-cols-3">
       <div className="rounded border border-gray-800 bg-gray-950 p-3">
         <b className="text-gray-200">AI Function Explanation</b>
-        <p className="mt-2 whitespace-pre-wrap text-[11px] leading-relaxed text-gray-400">{field(ai?.purpose ?? ai?.summary ?? ai?.description) || trace.summary || 'Run Full AI debug summary for per-function explanation.'}</p>
-        <p className="mt-2 whitespace-pre-wrap text-[11px] leading-relaxed text-gray-500">{field(ai?.evidence ?? ai?.reason ?? ai?.next_debug_action)}</p>
+        <p className="mt-2 whitespace-pre-wrap text-[11px] leading-relaxed text-gray-400"><TtpText value={field(ai?.purpose ?? ai?.summary ?? ai?.description) || trace.summary || 'Run Full AI debug summary for per-function explanation.'} /></p>
+        <p className="mt-2 whitespace-pre-wrap text-[11px] leading-relaxed text-gray-500"><TtpText value={field(ai?.evidence ?? ai?.reason ?? ai?.next_debug_action)} /></p>
       </div>
       <div className="rounded border border-gray-800 bg-gray-950 p-3">
         <b className="text-gray-200">API / Import Focus</b>
@@ -623,7 +623,7 @@ function OllyDbgCpuView({
         <b className="text-gray-200">Memory / Runtime Notes</b>
         <div className="mt-2 max-h-32 overflow-y-auto divide-y divide-gray-900 text-[11px] text-gray-500">
           {memoryDiffs.length ? memoryDiffs.slice(0, 20).map((item, index) => <div key={index} className="break-all py-1">{field(item)}</div>) : <div className="py-1">No memory diff returned for this step.</div>}
-          {trace.behaviors.map(item => <div key={item} className="break-all py-1 text-gray-400">{item}</div>)}
+          {trace.behaviors.map(item => <div key={item} className="break-all py-1 text-gray-400"><TtpText value={item} /></div>)}
         </div>
       </div>
     </div>
@@ -644,7 +644,7 @@ function EntrypointFinding({ workspace, decompilation, onTrace }: { workspace: M
       <button className="secondary-action min-w-32" disabled={!entryTrace} onClick={() => entryTrace && onTrace(entryTrace.trace_id)}>Select entrypoint</button>
     </div>
     <div className="md:col-span-2 text-[11px] leading-relaxed text-gray-500">
-      {entryTrace ? `${entryTrace.summary} Source: ${entryTrace.source}. File offset: ${field(entry.file_offset) || 'unknown'}.` : 'No entrypoint trace was recovered for this target.'}
+      <TtpText value={entryTrace ? `${entryTrace.summary} Source: ${entryTrace.source}. File offset: ${field(entry.file_offset) || 'unknown'}.` : 'No entrypoint trace was recovered for this target.'} />
     </div>
   </div>;
 }
@@ -664,15 +664,15 @@ function AiAssistantPanel({ result, pending }: { result: MalwareGraphDebugAssist
       </div>
       <div>
         <b className="text-sm text-white">Whole Malware Purpose</b>
-        <p className="mt-1 whitespace-pre-wrap leading-relaxed text-gray-300">{field(assessment.main_purpose) || 'Main purpose was not returned.'}</p>
+        <p className="mt-1 whitespace-pre-wrap leading-relaxed text-gray-300"><TtpText value={field(assessment.main_purpose) || 'Main purpose was not returned.'} /></p>
       </div>
       <div>
         <b className="text-gray-200">Full Debug Summary</b>
-        <p className="mt-1 whitespace-pre-wrap leading-relaxed text-gray-400">{field(assessment.summary) || 'No summary returned.'}</p>
+        <p className="mt-1 whitespace-pre-wrap leading-relaxed text-gray-400"><TtpText value={field(assessment.summary) || 'No summary returned.'} /></p>
       </div>
       <div>
         <b className="text-gray-200">Entrypoint</b>
-        <p className="mt-1 leading-relaxed text-gray-400">{field(assessment.entrypoint_assessment) || 'No entrypoint assessment returned.'}</p>
+        <p className="mt-1 leading-relaxed text-gray-400"><TtpText value={field(assessment.entrypoint_assessment) || 'No entrypoint assessment returned.'} /></p>
       </div>
       <ObjectList title="Function Analysis" items={assessment.function_analysis ?? []} limit={80} />
       <ListBlock title="Next Steps" items={assessment.debug_next_steps ?? []} />
@@ -694,7 +694,7 @@ function ListBlock({ title, items, mono = false }: { title: string; items: unkno
   return <div>
     <b className="text-gray-200">{title}</b>
     <div className={`mt-2 max-h-40 overflow-y-auto rounded border border-gray-800 bg-gray-950 ${mono ? 'font-mono' : ''}`}>
-      {items.length ? items.slice(0, 40).map((item, index) => <div key={`${field(item)}-${index}`} className="border-b border-gray-900 px-2 py-1.5 text-[11px] leading-relaxed text-gray-400">{field(item)}</div>) : <div className="p-2 text-gray-600">none</div>}
+      {items.length ? items.slice(0, 40).map((item, index) => <div key={`${field(item)}-${index}`} className="border-b border-gray-900 px-2 py-1.5 text-[11px] leading-relaxed text-gray-400"><TtpText value={item} /></div>) : <div className="p-2 text-gray-600">none</div>}
     </div>
   </div>;
 }
@@ -708,7 +708,7 @@ function ObjectList({ title, items, limit = 40 }: { title: string; items: Array<
         <div className="mt-1 space-y-1 text-gray-500">
           {objectDetailRows(item).map(row => <div key={row.key}>
             <span className="text-gray-600">{row.key}: </span>
-            <span className={row.mono ? 'break-all font-mono text-gray-400' : 'text-gray-500'}>{row.value}</span>
+            <span className={row.mono ? 'break-all font-mono text-gray-400' : 'text-gray-500'}><TtpText value={row.value} /></span>
           </div>)}
         </div>
       </div>) : <div className="p-2 text-gray-600">none</div>}
@@ -722,8 +722,8 @@ function ObjectHeader({ item }: { item: Record<string, unknown> }) {
   const meta = [field(item.address), field(item.risk), field(item.confidence)].filter(Boolean).join(' · ');
   const className = "break-all font-mono text-gray-200 hover:text-mitre-accent";
   return <div>
-    {href ? <a className={className} href={href}>{title}</a> : <div className="break-all font-mono text-gray-200">{title}</div>}
-    {meta && <div className="mt-0.5 text-[10px] uppercase text-gray-600">{meta}</div>}
+    {href ? <a className={className} href={href}>{title}</a> : <div className="break-all font-mono text-gray-200"><TtpText value={title} /></div>}
+    {meta && <div className="mt-0.5 text-[10px] uppercase text-gray-600"><TtpText value={meta} /></div>}
   </div>;
 }
 
@@ -1067,7 +1067,7 @@ function Metric({ label, value }: { label: string; value: number | string }) {
 function Info({ label, value }: { label: string; value: string }) {
   return <div className="rounded bg-gray-900 p-2">
     <div className="text-[10px] uppercase text-gray-600">{label}</div>
-    <div className="mt-1 break-all font-mono text-[11px] text-gray-300">{value}</div>
+    <div className="mt-1 break-all font-mono text-[11px] text-gray-300"><TtpText value={value} /></div>
   </div>;
 }
 
@@ -1082,6 +1082,31 @@ function field(value: unknown): string {
   if (typeof value === 'boolean') return value ? 'yes' : 'no';
   if (Array.isArray(value)) return value.map(item => field(item)).join(', ');
   return String(value);
+}
+
+const ATTACK_ID_PATTERN = /\bT\d{4}(?:\.\d{3})?\b/gi;
+
+function TtpText({
+  value,
+  className = '',
+  linkClassName = 'font-mono text-mitre-accent hover:underline',
+}: {
+  value: unknown;
+  className?: string;
+  linkClassName?: string;
+}) {
+  const text = field(value);
+  const parts: ReactNode[] = [];
+  let cursor = 0;
+  for (const match of text.matchAll(ATTACK_ID_PATTERN)) {
+    const id = match[0].toUpperCase();
+    const index = match.index ?? 0;
+    if (index > cursor) parts.push(text.slice(cursor, index));
+    parts.push(<a key={`${id}-${index}`} href={`/navigator?technique=${encodeURIComponent(id)}`} className={linkClassName}>{id}</a>);
+    cursor = index + match[0].length;
+  }
+  if (cursor < text.length) parts.push(text.slice(cursor));
+  return <span className={className}>{parts.length ? parts : text}</span>;
 }
 
 function isMissingDebugWorkspace(error: unknown) {

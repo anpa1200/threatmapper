@@ -14,6 +14,7 @@ import {
   Metric,
   Panel,
   RUNTIME_DEBUG_DISCLAIMER,
+  TtpText,
   analysisTargets,
   caseIdentifier,
   caseTitle,
@@ -492,7 +493,7 @@ function FeedbackLoopPanel({ running, entries, workspace }: {
       {entries.map(entry => <details key={`${entry.iteration}-${entry.timestamp}`} open={entry.iteration === entries.length}>
         <summary className="cursor-pointer px-3 py-2 text-xs hover:bg-gray-900/40">
           <span className="mr-2 rounded bg-gray-800 px-1.5 py-0.5 text-[10px] text-gray-500">#{entry.iteration}</span>
-          <span className="text-gray-200">{entry.hypothesis || 'AI evidence review'}</span>
+          <span className="text-gray-200"><TtpText value={entry.hypothesis || 'AI evidence review'} /></span>
           <span className="ml-2 text-[10px] uppercase text-gray-600">{entry.status} · confidence {entry.confidence}</span>
         </summary>
         <div className="grid gap-3 p-3 text-xs xl:grid-cols-3">
@@ -510,7 +511,7 @@ function LoopList({ title, items }: { title: string; items: string[] }) {
   return <div>
     <b className="text-gray-200">{title}</b>
     <div className="mt-2 max-h-44 overflow-y-auto rounded border border-gray-800 bg-gray-950">
-      {items.length ? items.map((item, index) => <div key={`${item}-${index}`} className="border-b border-gray-900 px-2 py-1.5 text-[11px] leading-relaxed text-gray-400">{item}</div>) : <div className="p-2 text-gray-600">none</div>}
+      {items.length ? items.map((item, index) => <div key={`${item}-${index}`} className="border-b border-gray-900 px-2 py-1.5 text-[11px] leading-relaxed text-gray-400"><TtpText value={item} /></div>) : <div className="p-2 text-gray-600">none</div>}
     </div>
   </div>;
 }
@@ -579,7 +580,7 @@ function FunctionTraceRow({ trace, index, current }: {
           <span className="rounded px-1.5 py-0.5 text-[10px]" style={{ color: statusColor(trace.status), background: '#020617' }}>{trace.status}</span>
           <span className={`rounded px-1.5 py-0.5 text-[10px] ${trace.risk_level === 'high' ? 'bg-red-950/40 text-red-300' : trace.risk_level === 'medium' ? 'bg-amber-950/40 text-amber-300' : 'bg-gray-900 text-gray-500'}`}>{trace.risk_level}</span>
         </div>
-        <p className="mt-1 break-words text-[11px] leading-relaxed text-gray-500">{trace.summary || trace.notes || 'No function summary returned.'}</p>
+        <p className="mt-1 break-words text-[11px] leading-relaxed text-gray-500"><TtpText value={trace.summary || trace.notes || 'No function summary returned.'} /></p>
       </div>
       <span className="shrink-0 text-gray-600">{open ? '▲' : '▼'}</span>
     </button>
@@ -644,7 +645,7 @@ function AiDynamicSummary({ result, pending }: { result: MalwareGraphDebugAssist
 function SummaryBlock({ title, text, important = false }: { title: string; text: unknown; important?: boolean }) {
   return <section className={important ? 'rounded border border-mitre-accent/30 bg-mitre-accent/10 p-3' : ''}>
     <b className={important ? 'text-sm text-white' : 'text-gray-200'}>{title}</b>
-    <p className="mt-2 whitespace-pre-wrap break-words text-[12px] leading-relaxed text-gray-300">{field(text) || 'No AI assessment returned for this section.'}</p>
+    <p className="mt-2 whitespace-pre-wrap break-words text-[12px] leading-relaxed text-gray-300"><TtpText value={field(text) || 'No AI assessment returned for this section.'} /></p>
   </section>;
 }
 
@@ -652,7 +653,7 @@ function ListBlock({ title, items, mono = false }: { title: string; items: unkno
   return <div>
     <b className="text-gray-200">{title}</b>
     <div className={`mt-2 max-h-48 overflow-y-auto rounded border border-gray-800 bg-gray-950 ${mono ? 'font-mono' : ''}`}>
-      {items.length ? items.slice(0, 60).map((item, index) => <div key={`${field(item)}-${index}`} className="border-b border-gray-900 px-2 py-1.5 text-[11px] leading-relaxed text-gray-400">{field(item)}</div>) : <div className="p-2 text-gray-600">none</div>}
+      {items.length ? items.slice(0, 60).map((item, index) => <div key={`${field(item)}-${index}`} className="border-b border-gray-900 px-2 py-1.5 text-[11px] leading-relaxed text-gray-400"><TtpText value={item} /></div>) : <div className="p-2 text-gray-600">none</div>}
     </div>
   </div>;
 }
@@ -666,7 +667,7 @@ function ObjectList({ title, items, limit = 60 }: { title: string; items: Array<
         <div className="mt-1 space-y-1 text-gray-500">
           {objectDetailRows(item).map(row => <div key={row.key}>
             <span className="text-gray-600">{row.key}: </span>
-            <span className={row.mono ? 'break-all font-mono text-gray-400' : 'text-gray-500'}>{row.value}</span>
+            <span className={row.mono ? 'break-all font-mono text-gray-400' : 'text-gray-500'}><TtpText value={row.value} /></span>
           </div>)}
         </div>
       </div>) : <div className="p-2 text-gray-600">none</div>}
@@ -679,8 +680,8 @@ function ObjectHeader({ item }: { item: Record<string, unknown> }) {
   const route = objectRoute(item);
   const meta = [field(item.address), field(item.risk_level ?? item.risk), field(item.confidence)].filter(Boolean).join(' · ');
   return <div>
-    {route ? <a className="break-all font-mono text-gray-200 hover:text-mitre-accent" href={route}>{title}</a> : <div className="break-all font-mono text-gray-200">{title}</div>}
-    {meta && <div className="mt-0.5 text-[10px] uppercase text-gray-600">{meta}</div>}
+    {route ? <a className="break-all font-mono text-gray-200 hover:text-mitre-accent" href={route}>{title}</a> : <div className="break-all font-mono text-gray-200"><TtpText value={title} /></div>}
+    {meta && <div className="mt-0.5 text-[10px] uppercase text-gray-600"><TtpText value={meta} /></div>}
   </div>;
 }
 
@@ -720,7 +721,7 @@ function TokenList({ label, values, tone }: { label: string; values: string[]; t
     <div className="mb-1 text-[10px] uppercase text-gray-500">{label}</div>
     <div className="flex flex-wrap gap-1.5">
       {values.map((value, index) => (
-        <span key={`${value}-${index}`} className={`max-w-full break-all rounded border px-1.5 py-0.5 font-mono text-[10px] ${tone === 'warn' ? 'border-amber-600/30 bg-amber-950/20 text-amber-200' : 'border-gray-700 bg-gray-900 text-gray-300'}`}>{value}</span>
+        <span key={`${value}-${index}`} className={`max-w-full break-all rounded border px-1.5 py-0.5 font-mono text-[10px] ${tone === 'warn' ? 'border-amber-600/30 bg-amber-950/20 text-amber-200' : 'border-gray-700 bg-gray-900 text-gray-300'}`}><TtpText value={value} /></span>
       ))}
     </div>
   </div>;
