@@ -38,6 +38,9 @@ export function DynamicAnalysis() {
   const [aiSummary, setAiSummary]                 = useState<MalwareGraphDebugAssistant | null>(null);
   const [autoStepping, setAutoStepping]           = useState(false);
   const [autoFunctionStepping, setAutoFunctionStepping] = useState(false);
+  const [feedbackLoopRunning, setFeedbackLoopRunning] = useState(false);
+  const [lastAiLoopStep, setLastAiLoopStep] = useState<number | null>(null);
+  const [loopHistory, setLoopHistory] = useState<FeedbackLoopEntry[]>([]);
 
   const jobs     = useQuery({ queryKey: ['malwaregraph-jobs'],             queryFn: malwareGraphApi.jobs,      retry: false });
   const providers = useQuery({ queryKey: ['malwaregraph-providers'], queryFn: malwareGraphApi.providers, retry: false });
@@ -78,9 +81,32 @@ export function DynamicAnalysis() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoFunctionStepping, workspace?.step_count, workspace?.completed]);
 
+  useEffect(() => {
+    if (!feedbackLoopRunning) return;
+    if (!session && !createSession.isPending) {
+      createSession.mutate();
+      return;
+    }
+    if (session && !workspace && !createWorkspace.isPending) {
+      createWorkspace.mutate();
+      return;
+    }
+    if (!workspace || stepWorkspace.isPending || runAiSummary.isPending || createWorkspace.isPending) return;
+    if (lastAiLoopStep !== workspace.step_count) {
+      runAiSummary.mutate({ loop: true });
+      return;
+    }
+    if (!workspace.completed) {
+      stepWorkspace.mutate();
+      return;
+    }
+    setFeedbackLoopRunning(false);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [feedbackLoopRunning, session?.session_id, workspace?.session_id, workspace?.step_count, workspace?.completed, lastAiLoopStep]);
+
   const createSession = useMutation({
     mutationFn: () => malwareGraphApi.runtimeDebugSession(jobId, sampleRef, disclaimerAccepted, disclaimerAccepted),
-    onSuccess: result => { setSession(result); setAutoStepping(false); setWorkspace(null); setAiSummary(null); setAutoFunctionStepping(false); },
+    onSuccess: result => { setSession(result); setAutoStepping(false); setWorkspace(null); setAiSummary(null); setAutoFunctionStepping(false); setLastAiLoopStep(null); },
   });
 
   const stepSession = useMutation({
@@ -97,6 +123,7 @@ export function DynamicAnalysis() {
       setWorkspace(result);
       setAiSummary(result.ai_assistant ?? null);
       setAutoFunctionStepping(false);
+      setLastAiLoopStep(null);
     },
   });
 
@@ -109,6 +136,22 @@ export function DynamicAnalysis() {
   });
 
   const runAiSummary = useMutation({
+    mutationFn: (_options?: { loop?: boolean }) => malwareGraphApi.debugWorkspaceAiAssistant(workspace!.session_id, aiProvider),
+    onSuccess: (result, options) => {
+      const snapshot = workspace;
+      setAiSummary(result);
+      setWorkspace(current => current ? { ...current, ai_assistant: result } : current);
+      if (options?.loop && snapshot) {
+        setLastAiLoopStep(snapshot.step_count);
+        setLoopHistory(current => [
+          ...current,
+          buildFeedbackLoopEntry(current.length + 1, result, snapshot),
+        ]);
+      }
+    },
+  });
+
+  const runManualAiSummary = useMutation({
     mutationFn: () => malwareGraphApi.debugWorkspaceAiAssistant(workspace!.session_id, aiProvider),
     onSuccess: result => {
       setAiSummary(result);
@@ -133,6 +176,12 @@ export function DynamicAnalysis() {
     stepWorkspace.mutate();
   }
 
+  function handleStartFeedbackLoop() {
+    setFeedbackLoopRunning(true);
+    setLoopHistory([]);
+    setLastAiLoopStep(null);
+  }
+
   return <div className="flex h-full flex-col">
     <Header title="Dynamic Analysis" />
     <div className="flex-1 overflow-y-auto p-6">
@@ -142,13 +191,13 @@ export function DynamicAnalysis() {
           <Panel title="Runtime Target">
             <div className="space-y-3 p-3">
               <label className="block text-[10px] uppercase text-gray-600">Analysis case</label>
-              <select value={jobId} onChange={e => { setJobId(e.target.value); setSampleRef(''); setSession(null); setWorkspace(null); setAiSummary(null); setAutoStepping(false); setAutoFunctionStepping(false); }} className={malwareInput}>
+              <select value={jobId} onChange={e => { setJobId(e.target.value); setSampleRef(''); setSession(null); setWorkspace(null); setAiSummary(null); setAutoStepping(false); setAutoFunctionStepping(false); setFeedbackLoopRunning(false); setLoopHistory([]); setLastAiLoopStep(null); }} className={malwareInput}>
                 {visibleJobs(jobs.data ?? []).map(job => (
                   <option key={job.job_id} value={job.job_id}>{caseTitle(job, undefined)} · {job.case_id ?? job.job_id}</option>
                 ))}
               </select>
               <label className="block text-[10px] uppercase text-gray-600">Runtime target</label>
-              <select value={sampleRef} onChange={e => { setSampleRef(e.target.value); setSession(null); setWorkspace(null); setAiSummary(null); setAutoStepping(false); setAutoFunctionStepping(false); }} className={malwareInput}>
+              <select value={sampleRef} onChange={e => { setSampleRef(e.target.value); setSession(null); setWorkspace(null); setAiSummary(null); setAutoStepping(false); setAutoFunctionStepping(false); setFeedbackLoopRunning(false); setLoopHistory([]); setLastAiLoopStep(null); }} className={malwareInput}>
                 {targets.map(target => <option key={target.id} value={target.id}>{target.label}</option>)}
               </select>
               <label className="block text-[10px] uppercase text-gray-600">AI analysis provider</label>
@@ -202,10 +251,18 @@ export function DynamicAnalysis() {
                   )}
                 </>}
                 {workspace && (
-                  <button className="primary w-full" onClick={() => runAiSummary.mutate()} disabled={runAiSummary.isPending}>
-                    {runAiSummary.isPending ? 'AI analyzing dynamic results...' : aiSummary ? 'Re-run AI malware summary' : 'AI analyze dynamic results'}
+                  <button className="primary w-full" onClick={() => runManualAiSummary.mutate()} disabled={runManualAiSummary.isPending || feedbackLoopRunning}>
+                    {runManualAiSummary.isPending ? 'AI analyzing dynamic results...' : aiSummary ? 'Re-run AI malware summary' : 'AI analyze dynamic results'}
                   </button>
                 )}
+                <button
+                  className="primary w-full"
+                  onClick={handleStartFeedbackLoop}
+                  disabled={!jobId || !sampleRef || !disclaimerAccepted || feedbackLoopRunning || createSession.isPending || createWorkspace.isPending || stepWorkspace.isPending || runAiSummary.isPending}
+                >
+                  {feedbackLoopRunning ? 'AI feedback loop running...' : 'Run AI feedback loop'}
+                </button>
+                {feedbackLoopRunning && <button className="secondary-action w-full" onClick={() => setFeedbackLoopRunning(false)}>Stop AI feedback loop</button>}
               </>}
               {session?.completed && (
                 <div className="rounded border border-green-600/30 bg-green-950/20 px-3 py-2 text-xs text-green-300">
@@ -215,8 +272,8 @@ export function DynamicAnalysis() {
               <button className="secondary-action w-full" onClick={() => navigate(`/malware-analysis?job_id=${encodeURIComponent(jobId)}&sample_ref=${encodeURIComponent(sampleRef)}`)}>
                 ← Back to case
               </button>
-              {(createSession.error || stepSession.error || createWorkspace.error || stepWorkspace.error || runAiSummary.error) && (
-                <p className="text-xs text-red-300">{String(createSession.error ?? stepSession.error ?? createWorkspace.error ?? stepWorkspace.error ?? runAiSummary.error)}</p>
+              {(createSession.error || stepSession.error || createWorkspace.error || stepWorkspace.error || runAiSummary.error || runManualAiSummary.error) && (
+                <p className="text-xs text-red-300">{String(createSession.error ?? stepSession.error ?? createWorkspace.error ?? stepWorkspace.error ?? runAiSummary.error ?? runManualAiSummary.error)}</p>
               )}
             </div>
           </Panel>
@@ -239,7 +296,9 @@ export function DynamicAnalysis() {
                 workspace={workspace}
                 isFunctionRunning={isFunctionRunning}
                 aiSummary={aiSummary}
-                aiPending={runAiSummary.isPending}
+                aiPending={runAiSummary.isPending || runManualAiSummary.isPending}
+                feedbackLoopRunning={feedbackLoopRunning}
+                loopHistory={loopHistory}
                 onOpenDebugger={() => navigate(`/malware-debug?job_id=${encodeURIComponent(jobId)}&sample_ref=${encodeURIComponent(sampleRef)}${session.dynamic_enabled ? '&dynamic=true' : ''}`)}
               />
             : <div className="rounded border border-amber-500/40 bg-amber-950/30 p-4 text-sm font-semibold text-amber-100">
@@ -254,13 +313,15 @@ export function DynamicAnalysis() {
 
 // ── Session view ──────────────────────────────────────────────────────────────
 
-function DynamicSession({ session, isRunning, workspace, isFunctionRunning, aiSummary, aiPending, onOpenDebugger }: {
+function DynamicSession({ session, isRunning, workspace, isFunctionRunning, aiSummary, aiPending, feedbackLoopRunning, loopHistory, onOpenDebugger }: {
   session: MalwareGraphRuntimeDebugSession;
   isRunning: boolean;
   workspace: MalwareGraphDebuggerWorkspace | null;
   isFunctionRunning: boolean;
   aiSummary: MalwareGraphDebugAssistant | null;
   aiPending: boolean;
+  feedbackLoopRunning: boolean;
+  loopHistory: FeedbackLoopEntry[];
   onOpenDebugger: () => void;
 }) {
   const current = session.steps[session.current_step] ?? session.steps[0] ?? null;
@@ -291,7 +352,7 @@ function DynamicSession({ session, isRunning, workspace, isFunctionRunning, aiSu
     </Panel>
 
     {workspace
-      ? <FullFunctionWorkflow workspace={workspace} isRunning={isFunctionRunning} aiSummary={aiSummary} aiPending={aiPending} />
+      ? <FullFunctionWorkflow workspace={workspace} isRunning={isFunctionRunning} aiSummary={aiSummary} aiPending={aiPending} feedbackLoopRunning={feedbackLoopRunning} loopHistory={loopHistory} />
       : <Panel title="Full Function Workflow">
           <Empty text="Load the full function workflow to view function traces, API hooks, memory/register state, event logs, graph export, and raw runtime snapshots." />
         </Panel>}
@@ -319,11 +380,13 @@ function DynamicSession({ session, isRunning, workspace, isFunctionRunning, aiSu
   </>;
 }
 
-function FullFunctionWorkflow({ workspace, isRunning, aiSummary, aiPending }: {
+function FullFunctionWorkflow({ workspace, isRunning, aiSummary, aiPending, feedbackLoopRunning, loopHistory }: {
   workspace: MalwareGraphDebuggerWorkspace;
   isRunning: boolean;
   aiSummary: MalwareGraphDebugAssistant | null;
   aiPending: boolean;
+  feedbackLoopRunning: boolean;
+  loopHistory: FeedbackLoopEntry[];
 }) {
   return <div className="space-y-4">
     <div className="grid gap-3 md:grid-cols-5">
@@ -346,6 +409,8 @@ function FullFunctionWorkflow({ workspace, isRunning, aiSummary, aiPending }: {
     </Panel>
 
     <AiDynamicSummary result={aiSummary} pending={aiPending} />
+
+    <FeedbackLoopPanel running={feedbackLoopRunning} entries={loopHistory} workspace={workspace} />
 
     <div className="grid gap-4 xl:grid-cols-2">
       <KeyValuePanel title="Engine" data={workspace.engine} />
@@ -388,6 +453,114 @@ function FullFunctionWorkflow({ workspace, isRunning, aiSummary, aiPending }: {
       <pre className="max-h-[520px] overflow-auto p-3 text-[10px] leading-relaxed text-gray-500">{JSON.stringify(workspace.export ?? workspace, null, 2)}</pre>
     </Panel>
   </div>;
+}
+
+interface FeedbackLoopEntry {
+  iteration: number;
+  timestamp: string;
+  step: number;
+  status: string;
+  confidence: string;
+  hypothesis: string;
+  evidence: string[];
+  gaps: string[];
+  nextActions: string[];
+}
+
+function FeedbackLoopPanel({ running, entries, workspace }: {
+  running: boolean;
+  entries: FeedbackLoopEntry[];
+  workspace: MalwareGraphDebuggerWorkspace;
+}) {
+  const currentTrace = workspace.function_traces[workspace.current_trace_index] ?? workspace.function_traces[workspace.step_count] ?? null;
+  return <Panel title="AI Dynamic Feedback Loop">
+    <div className="grid gap-3 p-3 md:grid-cols-4">
+      <Metric label="Loop" value={running ? 'running' : entries.length ? 'paused' : 'ready'} tone={running ? 'warn' : entries.length ? 'good' : 'default'} />
+      <Metric label="Iterations" value={entries.length} tone={entries.length ? 'good' : 'default'} />
+      <Metric label="Function step" value={`${Math.min(workspace.step_count, workspace.function_traces.length)} / ${workspace.function_traces.length}`} tone={workspace.completed ? 'good' : running ? 'warn' : 'default'} />
+      <Metric label="Current evidence" value={currentTrace?.name ?? 'none'} tone={currentTrace ? 'warn' : 'default'} />
+    </div>
+    <div className="border-t border-gray-800 p-3 text-xs">
+      <div className="mb-2 text-[10px] uppercase text-gray-500">Loop policy</div>
+      <div className="grid gap-2 md:grid-cols-3">
+        <div className="rounded border border-gray-800 bg-gray-950 p-2 text-gray-400">Step one function/runtime point.</div>
+        <div className="rounded border border-gray-800 bg-gray-950 p-2 text-gray-400">Run AI on the new evidence.</div>
+        <div className="rounded border border-gray-800 bg-gray-950 p-2 text-gray-400">Continue until workflow completion or manual stop.</div>
+      </div>
+    </div>
+    <div className="divide-y divide-gray-800">
+      {entries.map(entry => <details key={`${entry.iteration}-${entry.timestamp}`} open={entry.iteration === entries.length}>
+        <summary className="cursor-pointer px-3 py-2 text-xs hover:bg-gray-900/40">
+          <span className="mr-2 rounded bg-gray-800 px-1.5 py-0.5 text-[10px] text-gray-500">#{entry.iteration}</span>
+          <span className="text-gray-200">{entry.hypothesis || 'AI evidence review'}</span>
+          <span className="ml-2 text-[10px] uppercase text-gray-600">{entry.status} · confidence {entry.confidence}</span>
+        </summary>
+        <div className="grid gap-3 p-3 text-xs xl:grid-cols-3">
+          <LoopList title="Evidence gained" items={entry.evidence} />
+          <LoopList title="Remaining gaps" items={entry.gaps} />
+          <LoopList title="Next actions" items={entry.nextActions} />
+        </div>
+      </details>)}
+      {!entries.length && <Empty text="Start the AI feedback loop to build an iteration-by-iteration evidence trail." />}
+    </div>
+  </Panel>;
+}
+
+function LoopList({ title, items }: { title: string; items: string[] }) {
+  return <div>
+    <b className="text-gray-200">{title}</b>
+    <div className="mt-2 max-h-44 overflow-y-auto rounded border border-gray-800 bg-gray-950">
+      {items.length ? items.map((item, index) => <div key={`${item}-${index}`} className="border-b border-gray-900 px-2 py-1.5 text-[11px] leading-relaxed text-gray-400">{item}</div>) : <div className="p-2 text-gray-600">none</div>}
+    </div>
+  </div>;
+}
+
+function buildFeedbackLoopEntry(iteration: number, result: MalwareGraphDebugAssistant, workspace: MalwareGraphDebuggerWorkspace): FeedbackLoopEntry {
+  const assessment = result.assessment ?? {};
+  const currentTrace = workspace.function_traces[workspace.current_trace_index] ?? workspace.function_traces[Math.max(0, workspace.step_count - 1)] ?? null;
+  const functionItems = recordsToLines(assessment.function_analysis ?? assessment.malicious_or_suspicious_functions ?? assessment.suspicious_functions ?? []);
+  const leadItems = recordsToLines([...(assessment.ttps ?? []), ...(assessment.iocs ?? []), ...(assessment.ioc_or_ttp_leads ?? [])]);
+  const evidence = [
+    currentTrace ? `Reviewed function ${currentTrace.name} at ${currentTrace.address} (${currentTrace.risk_level}, ${currentTrace.status}).` : '',
+    ...functionItems,
+    ...leadItems,
+  ].filter(Boolean).slice(0, 16);
+  const gaps = valuesToLines(assessment.validation_gaps ?? []);
+  const nextActions = valuesToLines([
+    ...(assessment.debug_next_steps ?? []),
+    ...(assessment.api_hooks_to_prioritize ?? []).map(item => `Prioritize API hook: ${field(item)}`),
+  ]);
+  return {
+    iteration,
+    timestamp: new Date().toISOString(),
+    step: workspace.step_count,
+    status: workspace.completed ? 'completed' : 'in-progress',
+    confidence: estimateConfidence(assessment, workspace),
+    hypothesis: field(assessment.main_purpose ?? assessment.summary) || 'Dynamic behavior hypothesis pending',
+    evidence,
+    gaps,
+    nextActions,
+  };
+}
+
+function recordsToLines(items: Array<Record<string, unknown>>): string[] {
+  return items.map(item => {
+    const title = field(item.name ?? item.function ?? item.attack_id ?? item.value ?? item.type) || 'finding';
+    const detail = field(item.evidence ?? item.reason ?? item.summary ?? item.description ?? item.behavior);
+    return detail ? `${title}: ${detail}` : title;
+  });
+}
+
+function valuesToLines(items: unknown[]): string[] {
+  return items.map(item => field(item)).filter(Boolean);
+}
+
+function estimateConfidence(assessment: MalwareGraphDebugAssistant['assessment'], workspace: MalwareGraphDebuggerWorkspace): string {
+  const gaps = assessment.validation_gaps?.length ?? 0;
+  const suspicious = (assessment.malicious_or_suspicious_functions?.length ?? 0) + (assessment.suspicious_functions?.length ?? 0);
+  if (workspace.completed && gaps === 0) return 'high';
+  if (workspace.completed || suspicious > 0 || gaps <= 2) return 'medium';
+  return 'low';
 }
 
 function FunctionTraceRow({ trace, index, current }: {
