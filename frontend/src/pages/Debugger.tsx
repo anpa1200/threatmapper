@@ -25,6 +25,7 @@ export function Debugger() {
   const [dynamicDebug, setDynamicDebug] = useState(params.get('dynamic') === 'true');
   const [workspace, setWorkspace] = useState<MalwareGraphDebuggerWorkspace | null>(null);
   const [decompilation, setDecompilation] = useState<MalwareGraphDecompilation | null>(null);
+  const [decompilationError, setDecompilationError] = useState('');
   const [aiAssistant, setAiAssistant] = useState<MalwareGraphDebugAssistant | null>(null);
   const [selectedTraceId, setSelectedTraceId] = useState<string>('');
   const [autoRunFunctions, setAutoRunFunctions] = useState(false);
@@ -91,7 +92,11 @@ export function Debugger() {
     onSuccess: result => {
       setWorkspace(result);
       setAiAssistant(result.ai_assistant ?? null);
-      if (isDecompilation(result.decompilation)) setDecompilation(result.decompilation);
+      const normalized = normalizeDecompilation(result.decompilation);
+      if (normalized) {
+        setDecompilation(normalized);
+        setDecompilationError('');
+      }
     },
   });
   const stepWorkspace = useMutation({
@@ -103,7 +108,20 @@ export function Debugger() {
   });
   const loadDecompilation = useMutation({
     mutationFn: () => malwareGraphApi.decompilation(jobId, sampleRef),
-    onSuccess: setDecompilation,
+    onMutate: () => {
+      setDecompilation(null);
+      setDecompilationError('');
+    },
+    onSuccess: result => {
+      const normalized = normalizeDecompilation(result);
+      if (normalized) {
+        setDecompilation(normalized);
+        setDecompilationError('');
+        return;
+      }
+      setDecompilationError('The decompilation endpoint returned an unsupported response shape.');
+    },
+    onError: error => setDecompilationError(String(error)),
   });
   const runAiAssistant = useMutation({
     mutationFn: () => malwareGraphApi.debugWorkspaceAiAssistant(workspace!.session_id, aiProvider),
@@ -128,11 +146,11 @@ export function Debugger() {
           <Panel title="Source">
             <div className="space-y-3 p-3">
               <label className="block text-[10px] uppercase text-gray-600">Analysis job</label>
-              <select value={jobId} onChange={event => { setJobId(event.target.value); setSampleRef(''); setWorkspace(null); setDecompilation(null); setAiAssistant(null); }} className={input}>
+              <select value={jobId} onChange={event => { setJobId(event.target.value); setSampleRef(''); setWorkspace(null); setDecompilation(null); setDecompilationError(''); setAiAssistant(null); }} className={input}>
                 {visibleJobs(jobs.data ?? []).map(job => <option key={job.job_id} value={job.job_id}>{job.archive_name ?? job.job_id}</option>)}
               </select>
               <label className="block text-[10px] uppercase text-gray-600">Debug target</label>
-              <select value={sampleRef} onChange={event => { setSampleRef(event.target.value); setWorkspace(null); setDecompilation(null); setAiAssistant(null); }} className={input}>
+              <select value={sampleRef} onChange={event => { setSampleRef(event.target.value); setWorkspace(null); setDecompilation(null); setDecompilationError(''); setAiAssistant(null); }} className={input}>
                 {targets.map(target => <option key={target.id} value={target.id}>{target.label}</option>)}
               </select>
               <label className="block text-[10px] uppercase text-gray-600">AI provider</label>
@@ -147,14 +165,14 @@ export function Debugger() {
                 </span>
               </label>
               <button className="primary w-full" onClick={() => createWorkspace.mutate()} disabled={!jobId || !sampleRef || createWorkspace.isPending}>{createWorkspace.isPending ? 'Creating...' : 'Create debug workspace'}</button>
-              <button className="secondary-action w-full" onClick={() => loadDecompilation.mutate()} disabled={!jobId || !sampleRef || loadDecompilation.isPending}>{loadDecompilation.isPending ? 'Decompiling...' : 'Load decompilation'}</button>
+              <button className="secondary-action w-full" onClick={() => loadDecompilation.mutate()} disabled={!jobId || !sampleRef || loadDecompilation.isPending}>{loadDecompilation.isPending ? 'Decompiling...' : decompilation ? 'Reload decompilation' : 'Load decompilation'}</button>
               <button className="secondary-action w-full" onClick={() => stepWorkspace.mutate()} disabled={!workspace || workspace.completed || stepWorkspace.isPending}>{stepWorkspace.isPending ? 'Stepping...' : workspace?.completed ? 'Session complete' : 'Step function'}</button>
               <button className="secondary-action w-full" onClick={() => setAutoRunFunctions(true)} disabled={!workspace || workspace.completed || stepWorkspace.isPending || autoRunFunctions}>{autoRunFunctions ? 'Running functions...' : 'Run all functions'}</button>
               {autoRunFunctions && <button className="secondary-action w-full" onClick={() => setAutoRunFunctions(false)}>Stop function run</button>}
               <button className="primary w-full" onClick={() => runAiAssistant.mutate()} disabled={!workspace || runAiAssistant.isPending}>{runAiAssistant.isPending ? 'AI assistant running...' : aiAssistant ? 'Refresh AI debug summary' : 'Full AI debug summary'}</button>
               <button className="secondary-action w-full" onClick={() => navigate(`/dynamic-analysis?job_id=${encodeURIComponent(jobId)}&sample_ref=${encodeURIComponent(sampleRef)}${dynamicDebug ? '&dynamic=true' : ''}`)}>Dynamic analysis</button>
               <button className="secondary-action w-full" onClick={() => navigate(`/malware-analysis?job_id=${encodeURIComponent(jobId)}&sample_ref=${encodeURIComponent(sampleRef)}`)}>Back to Malware Analysis</button>
-              {(createWorkspace.error || stepWorkspace.error || loadDecompilation.error || runAiAssistant.error) && <p className="text-xs text-red-300">{String(createWorkspace.error ?? stepWorkspace.error ?? loadDecompilation.error ?? runAiAssistant.error)}</p>}
+              {(createWorkspace.error || stepWorkspace.error || loadDecompilation.error || decompilationError || runAiAssistant.error) && <p className="text-xs text-red-300">{String(createWorkspace.error ?? stepWorkspace.error ?? loadDecompilation.error ?? decompilationError ?? runAiAssistant.error)}</p>}
             </div>
           </Panel>
           <Panel title="Controls">
@@ -189,7 +207,11 @@ export function Debugger() {
               <Metric label="Step" value={`${workspace.step_count}/${Math.max(0, workspace.function_traces.length - 1)}`} />
             </div>
             <Panel title="Decompilation">
-              {decompilation ? <DecompilationPane result={decompilation} /> : <Empty text="Load decompilation to view pseudocode, recovered APIs, and interesting strings." />}
+              {loadDecompilation.isPending
+                ? <Empty text="Loading decompilation." />
+                : decompilation
+                  ? <DecompilationPane result={decompilation} />
+                  : <Empty text="Load decompilation to view entrypoint metadata, pseudocode, recovered APIs, sections, warnings, and interesting strings." />}
             </Panel>
             <Panel title="Entrypoint Finding">
               <EntrypointFinding workspace={workspace} decompilation={decompilation} onTrace={setSelectedTraceId} />
@@ -230,7 +252,9 @@ export function Debugger() {
                 <pre className="max-h-96 overflow-auto p-3 text-[10px] leading-relaxed text-gray-500">{JSON.stringify(workspace.export, null, 2)}</pre>
               </Panel>
             </div>
-          </> : decompilation ? <Panel title="Decompilation">
+          </> : loadDecompilation.isPending ? <Panel title="Decompilation">
+            <Empty text="Loading decompilation." />
+          </Panel> : decompilation ? <Panel title="Decompilation">
             <DecompilationPane result={decompilation} />
           </Panel> : <Empty text="Select a MalwareGraph job and target to create a debugger workspace or load decompilation." />}
         </div>
@@ -653,11 +677,24 @@ function DecompilationPane({ result }: { result: MalwareGraphDecompilation }) {
         <span>{result.toolchain}</span>
         <span>{result.mode}</span>
         <span>{result.executed ? 'executed' : 'static'}</span>
+        <span>{result.status}</span>
+      </div>
+      <div className="mb-3 grid gap-2 text-xs md:grid-cols-4">
+        <Info label="Target" value={result.target_name} />
+        <Info label="File type" value={result.file_type} />
+        <Info label="Entrypoint" value={result.entrypoint ?? 'unknown'} />
+        <Info label="Language" value={result.language ?? 'unknown'} />
       </div>
       <pre className="max-h-[420px] overflow-auto rounded border border-gray-800 bg-gray-950 p-3 font-mono text-[11px] leading-relaxed text-gray-300">{result.pseudocode.join('\n') || 'No pseudocode recovered.'}</pre>
     </div>
     <div className="space-y-3">
       {result.warnings.length > 0 && <div className="rounded border border-amber-500/30 bg-amber-950/20 p-3 text-xs text-amber-100">{result.warnings.join(' ')}</div>}
+      {result.entrypoint_details && <div className="rounded border border-gray-800 bg-gray-950 p-3">
+        <b className="text-xs text-gray-200">Entrypoint details</b>
+        <div className="mt-2 grid gap-2 text-xs">
+          {Object.entries(result.entrypoint_details).map(([key, value]) => <Info key={key} label={key.replace(/_/g, ' ')} value={field(value)} />)}
+        </div>
+      </div>}
       <div className="rounded border border-gray-800 bg-gray-950 p-3">
         <b className="text-xs text-gray-200">Recovered APIs</b>
         <div className="mt-2 flex max-h-40 flex-wrap gap-1.5 overflow-y-auto">
@@ -672,6 +709,18 @@ function DecompilationPane({ result }: { result: MalwareGraphDecompilation }) {
           {!result.interesting_strings.length && <div className="text-xs text-gray-600">none</div>}
         </div>
       </div>
+      {result.sections && result.sections.length > 0 && <div className="rounded border border-gray-800 bg-gray-950 p-3">
+        <b className="text-xs text-gray-200">Sections</b>
+        <div className="mt-2 max-h-48 overflow-y-auto divide-y divide-gray-900">
+          {result.sections.map((section, index) => <div key={`${field(section.name)}-${index}`} className="py-2 text-[10px] text-gray-500">
+            <div className="flex items-center justify-between gap-2">
+              <b className="font-mono text-gray-300">{field(section.name) || `section ${index + 1}`}</b>
+              <span>entropy {field(section.entropy)}</span>
+            </div>
+            <div className="mt-1 font-mono">{field(section.virtual_address)} · {field(section.characteristics_flags)}</div>
+          </div>)}
+        </div>
+      </div>}
     </div>
   </div>;
 }
@@ -685,13 +734,31 @@ function isFirstAnalysis(artifact: unknown): artifact is MalwareGraphFirstAnalys
     && typeof item.entropy === 'number';
 }
 
-function isDecompilation(value: unknown): value is MalwareGraphDecompilation {
-  if (!value || typeof value !== 'object') return false;
+function normalizeDecompilation(value: unknown): MalwareGraphDecompilation | null {
+  if (!value || typeof value !== 'object') return null;
   const item = value as Record<string, unknown>;
-  return item.type === 'decompilation'
-    && typeof item.target_entity_id === 'string'
-    && Array.isArray(item.pseudocode)
-    && Array.isArray(item.api_calls);
+  if (item.type !== 'decompilation' || typeof item.target_entity_id !== 'string') return null;
+  return {
+    artifact_id: field(item.artifact_id) || `${field(item.target_entity_id)}--decompilation`,
+    type: 'decompilation',
+    target_entity_id: field(item.target_entity_id),
+    target_name: field(item.target_name) || field(item.target_entity_id),
+    file_type: field(item.file_type) || 'unknown',
+    status: field(item.status) || 'completed',
+    toolchain: field(item.toolchain) || 'unknown',
+    mode: field(item.mode) || 'static',
+    executed: Boolean(item.executed),
+    language: field(item.language) || undefined,
+    entrypoint: field(item.entrypoint) || undefined,
+    entrypoint_details: item.entrypoint_details && typeof item.entrypoint_details === 'object' ? item.entrypoint_details as Record<string, unknown> : undefined,
+    api_calls: Array.isArray(item.api_calls) ? item.api_calls.map(field).filter(Boolean) : [],
+    interesting_strings: Array.isArray(item.interesting_strings) ? item.interesting_strings.map(field).filter(Boolean) : [],
+    pseudocode: Array.isArray(item.pseudocode) ? item.pseudocode.map(field).filter(Boolean) : [],
+    source_preview: Array.isArray(item.source_preview) ? item.source_preview.map(field).filter(Boolean) : undefined,
+    android_references: Array.isArray(item.android_references) ? item.android_references.map(field).filter(Boolean) : undefined,
+    sections: Array.isArray(item.sections) ? item.sections.filter(section => section && typeof section === 'object') as Array<Record<string, unknown>> : undefined,
+    warnings: Array.isArray(item.warnings) ? item.warnings.map(field).filter(Boolean) : [],
+  };
 }
 
 function Panel({ title, children }: { title: string; children: ReactNode }) {
