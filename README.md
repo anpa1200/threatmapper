@@ -26,6 +26,8 @@
 
 **Current release: v4.0.0 · [Release Summary](docs/release-summary-v4.0.0.md) · [Malware Analysis Guide](docs/malware-analysis-guide.md) · [Release Article Draft](docs/publication-drafts/adversarygraph-v4-malware-analysis.md) · [From Log to Report Workflow](docs/publication-drafts/medium-adversarygraph-from-log-to-report-ioc-investigation.md) · [Live Intelligence Workspace](https://1200km.com/threat-matrix/) · [Documentation & Usage Guide](https://1200km.com/adversarygraph-docs/) · [Capabilities](https://1200km.com/adversarygraph-docs/capabilities/) · [Use Cases](https://1200km.com/adversarygraph/use-cases.html) · [1200km Article](https://1200km.com/articles/adversarygraph-v2-self-hosted-ai-cti-platform.html) · [Published Medium Article](https://medium.com/@1200km/adversarygraph-v2-5-new-name-new-release-full-ai-cti-platform-capability-map-93cd9224127e)**
 
+**Current v4 visual documentation:** [Platform Guide](docs/adversarygraph-platform-guide.md) · [Platform Screenshot Manifest](docs/assets/adversarygraph-v4-platform/manifest.md) · [Malware Screenshot Manifest](docs/assets/malware-analysis-v4/manifest.md)
+
 AdversaryGraph AI is a self-hosted CTI-to-detection workbench for mapping threat reports to MITRE ATT&CK, comparing TTP overlap with known groups and campaigns, identifying detection gaps, and exporting analyst-ready outputs.
 
 > **Rename note:** AdversaryGraph is the canonical product name. Legacy public URLs are preserved as static redirect pages where possible.
@@ -60,6 +62,7 @@ AdversaryGraph AI is a self-hosted CTI-to-detection workbench for mapping threat
 - [Validation and Limitations](#validation-and-limitations)
 - [Screenshots And Visual Evidence](#screenshots-and-visual-evidence)
 - [Features](#features)
+- [Platform Guide](docs/adversarygraph-platform-guide.md)
 - [Architecture](#architecture)
 - [Malware Analysis Module](docs/malware-analysis-module.md)
 - [Malware Analysis Architecture](docs/malware-analysis-architecture.md)
@@ -239,6 +242,26 @@ The public Web workspace is intended for exploration. Do not upload confidential
 AdversaryGraph assists analysts but does not replace analyst validation. LLM-generated ATT&CK mappings may include false positives, false negatives, or ambiguous technique assignments. Group and campaign similarity is based on TTP overlap and should be treated as an investigation lead, not attribution proof.
 
 ## Screenshots And Visual Evidence
+
+The current v4 platform walkthrough is documented in
+[`docs/adversarygraph-platform-guide.md`](docs/adversarygraph-platform-guide.md).
+It includes validated screenshots for Discover, Navigator, ATT&CK Group Library,
+AI Analysis, Compare, Group vs Group, Sector Intel, RetroHunt, Knowledge
+Library, IOC Library, IOC Investigation, VirusTotal Lookup, Feeds Management,
+Investigation Report, Operations, Pipeline, DFIR Examples, Troubleshooting,
+Sector Packs, IOC node detail, and the Malware Analysis extension.
+
+Current screenshot manifests:
+
+- v4 platform: [`docs/assets/adversarygraph-v4-platform/manifest.md`](docs/assets/adversarygraph-v4-platform/manifest.md)
+- v4 malware analysis: [`docs/assets/malware-analysis-v4/manifest.md`](docs/assets/malware-analysis-v4/manifest.md)
+- v2 historical walkthrough: [`docs/assets/adversarygraph-v2/manifest.md`](docs/assets/adversarygraph-v2/manifest.md)
+- v3 IOC investigation walkthrough: [`docs/assets/adversarygraph-v3/manifest.md`](docs/assets/adversarygraph-v3/manifest.md)
+
+| Current platform workflow | Current malware workflow |
+|---|---|
+| ![AdversaryGraph Discover dashboard](docs/assets/adversarygraph-v4-platform/01-discover-dashboard.png) | ![Malware Analysis dashboard](docs/assets/malware-analysis-v4/01-malware-analysis-dashboard.png) |
+| ![AdversaryGraph Navigator matrix](docs/assets/adversarygraph-v4-platform/02-navigator-matrix.png) | ![Malware debugger CPU view](docs/assets/malware-analysis-v4/12-debugger-ollydbg-cpu-view.png) |
 
 Screenshot evidence is preserved in [`docs/screenshots/`](docs/screenshots/).
 The set covers the public ATT&CK matrix workspace, group overlay workflows,

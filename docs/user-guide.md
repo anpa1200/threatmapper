@@ -8,6 +8,9 @@ client context/report -> ATT&CK mapping candidates -> analyst review -> actor/ca
 
 Published walkthrough and visual reference:
 
+- Current v4 platform guide: [`adversarygraph-platform-guide.md`](adversarygraph-platform-guide.md)
+- Current v4 platform screenshot manifest: [`assets/adversarygraph-v4-platform/manifest.md`](assets/adversarygraph-v4-platform/manifest.md)
+- Current v4 malware screenshot manifest: [`assets/malware-analysis-v4/manifest.md`](assets/malware-analysis-v4/manifest.md)
 - 1200km mirror: <https://1200km.com/articles/adversarygraph-v2-self-hosted-ai-cti-platform.html>
 - Medium article: <https://medium.com/@1200km/adversarygraph-v2-5-new-name-new-release-full-ai-cti-platform-capability-map-93cd9224127e>
 - Local screenshot and infographic appendix: [`full-guide-v2.md#24-visual-appendix`](full-guide-v2.md#24-visual-appendix)
@@ -36,6 +39,24 @@ Use <https://1200km.com/threat-matrix/> for:
 - Browser-generated exports.
 
 Do not upload private reports to public demos.
+
+## Current Platform Modules
+
+For a screenshot-backed walkthrough of every current module, see the
+[AdversaryGraph Platform Guide](adversarygraph-platform-guide.md). It covers:
+
+- Discover and workflow entry points
+- Navigator and ATT&CK/ATLAS matrix review
+- ATT&CK Group Library and actor/campaign pivots
+- AI Analysis for report extraction
+- Compare and Group vs Group similarity workflows
+- Sector Intel and Sector Packs
+- RetroHunt and Knowledge Library
+- IOC Library, IOC Investigation, IOC Node Detail, and VirusTotal Lookup
+- Feeds Management and Pipeline imports
+- Operations and Investigation Report
+- DFIR Examples and Troubleshooting
+- Malware Analysis, String Analyzer, Unpacker, Decompilation/Debug, and Dynamic Analysis
 
 ## Docker Workspace
 

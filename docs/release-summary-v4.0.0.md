@@ -40,6 +40,9 @@ the surrounding intelligence infrastructure that makes every finding actionable.
 
 ## Links
 
+- Full Platform Guide: `docs/adversarygraph-platform-guide.md`
+- v4 Platform Screenshots: `docs/assets/adversarygraph-v4-platform/manifest.md`
+- v4 Malware Screenshots: `docs/assets/malware-analysis-v4/manifest.md`
 - Malware Analysis Guide: `docs/malware-analysis-guide.md`
 - Release Article Draft: `docs/publication-drafts/adversarygraph-v4-malware-analysis.md`
 - Malware Analysis Module: `docs/malware-analysis-module.md`

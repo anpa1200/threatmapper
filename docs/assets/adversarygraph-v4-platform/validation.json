@@ -1,0 +1,388 @@
+{
+  "captured_at": "2026-06-26T21:13:53+0300",
+  "base_url": "http://localhost:3000",
+  "viewport": "1920x1200",
+  "validation_method": "Playwright route load plus Pillow dimensions/RGB extrema check; expected page text is recorded per screenshot.",
+  "screenshots": [
+    {
+      "file": "01-discover-dashboard.png",
+      "title": "Discover dashboard",
+      "description": "Starting workspace with navigation into ATT&CK exploration, AI analysis, comparisons, sector intelligence, and operational modules.",
+      "url": "http://localhost:3000/discover",
+      "expected_text": "Discover",
+      "validation": {
+        "width": 1920,
+        "height": 1200,
+        "mean_rgb": [
+          26.7,
+          29.6,
+          49.0
+        ],
+        "nonblank": true,
+        "bytes": 236348,
+        "expected_text_found": true
+      }
+    },
+    {
+      "file": "02-navigator-matrix.png",
+      "title": "ATT&CK Navigator matrix",
+      "description": "Interactive ATT&CK/ATLAS matrix for technique review, layer selection, and evidence-driven navigation.",
+      "url": "http://localhost:3000/navigator",
+      "expected_text": "Navigator",
+      "validation": {
+        "width": 1920,
+        "height": 1200,
+        "mean_rgb": [
+          31.4,
+          34.9,
+          48.8
+        ],
+        "nonblank": true,
+        "bytes": 568394,
+        "expected_text_found": true
+      }
+    },
+    {
+      "file": "03-apt-library.png",
+      "title": "ATT&CK Group Library",
+      "description": "Actor and campaign library with ATT&CK relationships, source-backed group context, and pivots into overlays.",
+      "url": "http://localhost:3000/apt",
+      "expected_text": "ATT&CK Group Library",
+      "validation": {
+        "width": 1920,
+        "height": 1200,
+        "mean_rgb": [
+          28.8,
+          31.2,
+          51.4
+        ],
+        "nonblank": true,
+        "bytes": 304529,
+        "expected_text_found": true
+      }
+    },
+    {
+      "file": "04-ai-analysis.png",
+      "title": "AI Analysis",
+      "description": "Report ingestion surface for pasted text, PDF/DOCX/TXT uploads, provider selection, and mapping extraction.",
+      "url": "http://localhost:3000/analyze",
+      "expected_text": "Analyze with AI",
+      "validation": {
+        "width": 1920,
+        "height": 1200,
+        "mean_rgb": [
+          29.3,
+          30.1,
+          50.9
+        ],
+        "nonblank": true,
+        "bytes": 134534,
+        "expected_text_found": true
+      }
+    },
+    {
+      "file": "05-compare-behavior.png",
+      "title": "Compare reports and layers",
+      "description": "Comparison workspace for TTP overlap, similarity scoring, and detection-gap review across reports or layers.",
+      "url": "http://localhost:3000/compare",
+      "expected_text": "Group & Campaign Similarity",
+      "validation": {
+        "width": 1920,
+        "height": 1200,
+        "mean_rgb": [
+          26.6,
+          28.2,
+          49.3
+        ],
+        "nonblank": true,
+        "bytes": 95618,
+        "expected_text_found": true
+      }
+    },
+    {
+      "file": "06-group-vs-group.png",
+      "title": "Group vs Group comparison",
+      "description": "Group-to-group behavior comparison for overlap, distinctive techniques, and shared tactics.",
+      "url": "http://localhost:3000/group-compare",
+      "expected_text": "Group vs Group",
+      "validation": {
+        "width": 1920,
+        "height": 1200,
+        "mean_rgb": [
+          27.4,
+          29.3,
+          50.2
+        ],
+        "nonblank": true,
+        "bytes": 151830,
+        "expected_text_found": true
+      }
+    },
+    {
+      "file": "07-sector-intel.png",
+      "title": "Sector Intelligence",
+      "description": "Sector intelligence ranking that connects sectors, regions, technologies, actors, and evidence.",
+      "url": "http://localhost:3000/sector-intel",
+      "expected_text": "Sector Intelligence",
+      "validation": {
+        "width": 1920,
+        "height": 1200,
+        "mean_rgb": [
+          25.7,
+          28.4,
+          48.3
+        ],
+        "nonblank": true,
+        "bytes": 151746,
+        "expected_text_found": true
+      }
+    },
+    {
+      "file": "08-retrohunt.png",
+      "title": "RetroHunt",
+      "description": "Retrohunt workspace for searching historical indicators, techniques, and evidence across local intelligence.",
+      "url": "http://localhost:3000/retrohunt",
+      "expected_text": "RetroHunt",
+      "validation": {
+        "width": 1920,
+        "height": 1200,
+        "mean_rgb": [
+          29.9,
+          31.7,
+          52.1
+        ],
+        "nonblank": true,
+        "bytes": 304768,
+        "expected_text_found": true
+      }
+    },
+    {
+      "file": "09-knowledge-library.png",
+      "title": "Knowledge Library",
+      "description": "Knowledge library for saved reports, references, entities, and investigation source material.",
+      "url": "http://localhost:3000/knowledge",
+      "expected_text": "Knowledge Library",
+      "validation": {
+        "width": 1920,
+        "height": 1200,
+        "mean_rgb": [
+          29.5,
+          32.6,
+          51.5
+        ],
+        "nonblank": true,
+        "bytes": 381508,
+        "expected_text_found": true
+      }
+    },
+    {
+      "file": "10-ioc-library.png",
+      "title": "IOC Library",
+      "description": "IOC library for stored observables, source attribution, TTP links, actor links, and enrichment metadata.",
+      "url": "http://localhost:3000/ioc-library",
+      "expected_text": "IOC Library",
+      "validation": {
+        "width": 1920,
+        "height": 1200,
+        "mean_rgb": [
+          25.3,
+          29.4,
+          48.2
+        ],
+        "nonblank": true,
+        "bytes": 238670,
+        "expected_text_found": true
+      }
+    },
+    {
+      "file": "11-ioc-investigation.png",
+      "title": "IOC Investigation",
+      "description": "IOC investigation pivot workspace for IPs, domains, URLs, hashes, reputation, relationships, and timeline evidence.",
+      "url": "http://localhost:3000/ioc-investigation",
+      "expected_text": "IOC Investigation",
+      "validation": {
+        "width": 1920,
+        "height": 1200,
+        "mean_rgb": [
+          25.7,
+          28.0,
+          47.7
+        ],
+        "nonblank": true,
+        "bytes": 150492,
+        "expected_text_found": true
+      }
+    },
+    {
+      "file": "12-virustotal-lookup.png",
+      "title": "VirusTotal Lookup",
+      "description": "VirusTotal lookup page for on-demand hash/domain/IP/URL enrichment when an API key is configured.",
+      "url": "http://localhost:3000/virustotal",
+      "expected_text": "VirusTotal",
+      "validation": {
+        "width": 1920,
+        "height": 1200,
+        "mean_rgb": [
+          26.8,
+          28.6,
+          49.5
+        ],
+        "nonblank": true,
+        "bytes": 103615,
+        "expected_text_found": true
+      }
+    },
+    {
+      "file": "13-feeds-management.png",
+      "title": "Feeds Management",
+      "description": "Feed management page for ATT&CK/ATLAS sync, IOC sources, custom feeds, OpenCTI, STIX/TAXII, Sigma/YARA, and sandbox feeds.",
+      "url": "http://localhost:3000/feeds",
+      "expected_text": "Feeds Management",
+      "validation": {
+        "width": 1920,
+        "height": 1200,
+        "mean_rgb": [
+          26.0,
+          28.7,
+          47.6
+        ],
+        "nonblank": true,
+        "bytes": 233255,
+        "expected_text_found": true
+      }
+    },
+    {
+      "file": "14-investigation-report.png",
+      "title": "Investigation report",
+      "description": "Report generation workspace for investigation summaries, exported evidence, and analyst handoff.",
+      "url": "http://localhost:3000/report",
+      "expected_text": "Investigation Report",
+      "validation": {
+        "width": 1920,
+        "height": 1200,
+        "mean_rgb": [
+          25.8,
+          28.8,
+          47.3
+        ],
+        "nonblank": true,
+        "bytes": 237748,
+        "expected_text_found": true
+      }
+    },
+    {
+      "file": "15-operations.png",
+      "title": "Operations",
+      "description": "Operations view for platform tasks, source refreshes, background jobs, and controlled workflow actions.",
+      "url": "http://localhost:3000/operations",
+      "expected_text": "Operational Intelligence",
+      "validation": {
+        "width": 1920,
+        "height": 1200,
+        "mean_rgb": [
+          26.8,
+          28.4,
+          49.5
+        ],
+        "nonblank": true,
+        "bytes": 96540,
+        "expected_text_found": true
+      }
+    },
+    {
+      "file": "16-pipeline.png",
+      "title": "Pipeline imports",
+      "description": "Pipeline import workspace for STIX/TAXII, MISP JSON, custom feeds, detection content, and data-source onboarding.",
+      "url": "http://localhost:3000/pipeline",
+      "expected_text": "Intelligence Pipeline",
+      "validation": {
+        "width": 1920,
+        "height": 1200,
+        "mean_rgb": [
+          26.6,
+          28.4,
+          49.3
+        ],
+        "nonblank": true,
+        "bytes": 104255,
+        "expected_text_found": true
+      }
+    },
+    {
+      "file": "17-dfir-examples.png",
+      "title": "DFIR Examples",
+      "description": "DFIR examples page that provides sample workflows and public report material for demonstrations.",
+      "url": "http://localhost:3000/examples",
+      "expected_text": "DFIR Examples",
+      "validation": {
+        "width": 1920,
+        "height": 1200,
+        "mean_rgb": [
+          28.0,
+          30.3,
+          49.9
+        ],
+        "nonblank": true,
+        "bytes": 217965,
+        "expected_text_found": true
+      }
+    },
+    {
+      "file": "18-troubleshooting.png",
+      "title": "Troubleshooting",
+      "description": "Troubleshooting page for deployment health, self-test output, Docker/API guidance, and recovery steps.",
+      "url": "http://localhost:3000/troubleshooting",
+      "expected_text": "Troubleshooting",
+      "validation": {
+        "width": 1920,
+        "height": 1200,
+        "mean_rgb": [
+          25.0,
+          27.4,
+          46.0
+        ],
+        "nonblank": true,
+        "bytes": 238789,
+        "expected_text_found": true
+      }
+    },
+    {
+      "file": "19-sector-packs.png",
+      "title": "Sector packs",
+      "description": "Sector pack workspace for packaged sector context, actor relevance, and reusable intelligence bundles.",
+      "url": "http://localhost:3000/sector-packs",
+      "expected_text": "MITRE Sector Intelligence Packs",
+      "validation": {
+        "width": 1920,
+        "height": 1200,
+        "mean_rgb": [
+          27.4,
+          31.2,
+          49.9
+        ],
+        "nonblank": true,
+        "bytes": 293387,
+        "expected_text_found": true
+      }
+    },
+    {
+      "file": "20-ioc-node-detail.png",
+      "title": "IOC node detail",
+      "description": "IOC node detail view for graph-oriented observable context and pivots.",
+      "url": "http://localhost:3000/ioc-node?value=8.8.8.8&type=ip",
+      "expected_text": "Investigation Node Detail",
+      "validation": {
+        "width": 1920,
+        "height": 1200,
+        "mean_rgb": [
+          25.2,
+          28.2,
+          47.1
+        ],
+        "nonblank": true,
+        "bytes": 201375,
+        "expected_text_found": true
+      }
+    }
+  ]
+}
