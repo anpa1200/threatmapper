@@ -25,6 +25,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
       - name: Run unit tests
+        env:
+          DB_PASS: ci_test_password
+          LOG_DIR: /tmp/adversarygraph-test-logs
         run: PYTHONPATH=. python -m pytest
 
   frontend-build:
