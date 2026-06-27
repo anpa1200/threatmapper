@@ -17,6 +17,7 @@ logs/
 backend/logs/
 .DS_Store
 .claude/
+SECURITY_FIX_PROMPT.md
 data/
 *.json.gz
 pg_data/
