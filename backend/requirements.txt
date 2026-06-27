@@ -38,6 +38,7 @@ fpdf2==2.8.1
 httpx==0.28.1
 structlog==24.4.0
 python-slugify==8.0.4
+defusedxml==0.7.1
 
 # Testing
 pytest==9.0.3

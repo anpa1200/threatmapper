@@ -6,6 +6,7 @@ from sqlalchemy.orm import selectinload
 
 from app.core.database import get_session
 from app.models.attack import AttackVersion, Tactic, Technique
+from app.services.auth import TeamUser, current_user
 
 router = APIRouter(prefix="/attack", tags=["ATT&CK"])
 
@@ -131,7 +132,7 @@ class TechniqueDetail(TechniqueListItem):
 # ── Endpoints ─────────────────────────────────────────────────────────────────
 
 @router.get("/versions", response_model=list[VersionOut])
-async def list_versions(session: AsyncSession = Depends(get_session)):
+async def list_versions(session: AsyncSession = Depends(get_session), _: TeamUser = Depends(current_user)):
     rows = await session.execute(select(AttackVersion).order_by(AttackVersion.domain))
     return [VersionOut(domain=v.domain, version=v.version, is_latest=v.is_latest)
             for v in rows.scalars()]
@@ -142,6 +143,7 @@ async def list_tactics(
     domain: str = Query("enterprise-attack"),
     version: str | None = Query(None),
     session: AsyncSession = Depends(get_session),
+    _: TeamUser = Depends(current_user),
 ):
     ver_id = await _resolve_version_id(session, domain, version)
 
@@ -181,6 +183,7 @@ async def list_techniques(
     subtechniques: bool = Query(True),
     search: str | None = Query(None, description="Partial name/ID search"),
     session: AsyncSession = Depends(get_session),
+    _: TeamUser = Depends(current_user),
 ):
     ver_id = await _resolve_version_id(session, domain, version)
 
@@ -221,6 +224,7 @@ async def get_technique(
     domain: str = Query("enterprise-attack"),
     version: str | None = Query(None),
     session: AsyncSession = Depends(get_session),
+    _: TeamUser = Depends(current_user),
 ):
     ver_id = await _resolve_version_id(session, domain, version)
 

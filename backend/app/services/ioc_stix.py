@@ -9,6 +9,7 @@ from typing import Any
 import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.safe_http import async_safe_get
 from app.services.ioc_intel import IOCImportItem, create_ioc_source, import_iocs, list_ioc_library
 
 STIX_NAMESPACE = uuid.UUID("8b5f5359-613e-4ca0-b6f6-7d526b01f2d5")
@@ -129,10 +130,12 @@ async def import_taxii_collection(
     if token:
         headers["Authorization"] = f"Bearer {token}"
     auth = (username, password) if username and password else None
-    async with httpx.AsyncClient(timeout=60, headers=headers, auth=auth) as client:
-        response = await client.get(objects_url)
-        response.raise_for_status()
-        payload = response.json()
+    try:
+        response = await async_safe_get(objects_url, timeout=60, headers=headers, auth=auth)
+    except ValueError as exc:
+        raise ValueError(f"TAXII URL rejected: {exc}") from exc
+    response.raise_for_status()
+    payload = response.json()
     bundle = payload if payload.get("type") == "bundle" else {"type": "bundle", "objects": payload.get("objects", [])}
     return await import_ioc_stix_bundle(
         session,

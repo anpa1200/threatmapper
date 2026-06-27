@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_session
 from app.models.operations import DetectionCandidate, Investigation, ReportIntake, TrackedActor
+from app.services.auth import TeamUser, analyst, audit
 
 router = APIRouter(prefix="/operations", tags=["Operational Intelligence"])
 
@@ -74,88 +75,104 @@ async def get_or_404(db: AsyncSession, model, item_id: str):
 
 
 @router.get("/investigations")
-async def investigations(db: AsyncSession = Depends(get_session)):
+async def investigations(db: AsyncSession = Depends(get_session), _: TeamUser = Depends(analyst)):
     rows = await db.execute(select(Investigation).order_by(Investigation.updated_at.desc()))
     return [out(row) for row in rows.scalars().all()]
 
 
 @router.post("/investigations", status_code=201)
-async def create_investigation(body: InvestigationBody, db: AsyncSession = Depends(get_session)):
+async def create_investigation(body: InvestigationBody, db: AsyncSession = Depends(get_session), user: TeamUser = Depends(analyst)):
     row = Investigation(**body.model_dump())
-    db.add(row); await db.commit(); await db.refresh(row)
+    db.add(row); await db.flush()
+    await audit(db, user, "operations.create_investigation", "investigation", str(row.id), {"name": row.name})
+    await db.commit(); await db.refresh(row)
     return out(row)
 
 
 @router.put("/investigations/{item_id}")
-async def update_investigation(item_id: str, body: InvestigationBody, db: AsyncSession = Depends(get_session)):
+async def update_investigation(item_id: str, body: InvestigationBody, db: AsyncSession = Depends(get_session), user: TeamUser = Depends(analyst)):
     row = await get_or_404(db, Investigation, item_id)
     for key, value in body.model_dump().items(): setattr(row, key, value)
+    await audit(db, user, "operations.update_investigation", "investigation", item_id)
     await db.commit(); await db.refresh(row)
     return out(row)
 
 
 @router.delete("/investigations/{item_id}", status_code=204)
-async def delete_investigation(item_id: str, db: AsyncSession = Depends(get_session)):
-    row = await get_or_404(db, Investigation, item_id); await db.delete(row); await db.commit()
+async def delete_investigation(item_id: str, db: AsyncSession = Depends(get_session), user: TeamUser = Depends(analyst)):
+    row = await get_or_404(db, Investigation, item_id)
+    await audit(db, user, "operations.delete_investigation", "investigation", item_id)
+    await db.delete(row); await db.commit()
 
 
 @router.get("/intake")
-async def intake(db: AsyncSession = Depends(get_session)):
+async def intake(db: AsyncSession = Depends(get_session), _: TeamUser = Depends(analyst)):
     rows = await db.execute(select(ReportIntake).order_by(ReportIntake.updated_at.desc()))
     return [out(row) for row in rows.scalars().all()]
 
 
 @router.post("/intake", status_code=201)
-async def create_intake(body: IntakeBody, db: AsyncSession = Depends(get_session)):
-    row = ReportIntake(**body.model_dump()); db.add(row); await db.commit(); await db.refresh(row); return out(row)
+async def create_intake(body: IntakeBody, db: AsyncSession = Depends(get_session), user: TeamUser = Depends(analyst)):
+    row = ReportIntake(**body.model_dump()); db.add(row); await db.flush()
+    await audit(db, user, "operations.create_intake", "report_intake", str(row.id), {"title": row.title})
+    await db.commit(); await db.refresh(row); return out(row)
 
 
 @router.put("/intake/{item_id}")
-async def update_intake(item_id: str, body: IntakeBody, db: AsyncSession = Depends(get_session)):
+async def update_intake(item_id: str, body: IntakeBody, db: AsyncSession = Depends(get_session), user: TeamUser = Depends(analyst)):
     row = await get_or_404(db, ReportIntake, item_id)
     for key, value in body.model_dump().items(): setattr(row, key, value)
+    await audit(db, user, "operations.update_intake", "report_intake", item_id)
     await db.commit(); await db.refresh(row); return out(row)
 
 
 @router.delete("/intake/{item_id}", status_code=204)
-async def delete_intake(item_id: str, db: AsyncSession = Depends(get_session)):
-    row = await get_or_404(db, ReportIntake, item_id); await db.delete(row); await db.commit()
+async def delete_intake(item_id: str, db: AsyncSession = Depends(get_session), user: TeamUser = Depends(analyst)):
+    row = await get_or_404(db, ReportIntake, item_id)
+    await audit(db, user, "operations.delete_intake", "report_intake", item_id)
+    await db.delete(row); await db.commit()
 
 
 @router.get("/detections")
-async def detections(db: AsyncSession = Depends(get_session)):
+async def detections(db: AsyncSession = Depends(get_session), _: TeamUser = Depends(analyst)):
     rows = await db.execute(select(DetectionCandidate).order_by(DetectionCandidate.updated_at.desc()))
     return [out(row) for row in rows.scalars().all()]
 
 
 @router.post("/detections", status_code=201)
-async def create_detection(body: DetectionBody, db: AsyncSession = Depends(get_session)):
-    row = DetectionCandidate(**body.model_dump()); db.add(row); await db.commit(); await db.refresh(row); return out(row)
+async def create_detection(body: DetectionBody, db: AsyncSession = Depends(get_session), user: TeamUser = Depends(analyst)):
+    row = DetectionCandidate(**body.model_dump()); db.add(row); await db.flush()
+    await audit(db, user, "operations.create_detection", "detection_candidate", str(row.id), {"title": row.title, "technique_id": row.technique_id})
+    await db.commit(); await db.refresh(row); return out(row)
 
 
 @router.put("/detections/{item_id}")
-async def update_detection(item_id: str, body: DetectionBody, db: AsyncSession = Depends(get_session)):
+async def update_detection(item_id: str, body: DetectionBody, db: AsyncSession = Depends(get_session), user: TeamUser = Depends(analyst)):
     row = await get_or_404(db, DetectionCandidate, item_id)
     for key, value in body.model_dump().items(): setattr(row, key, value)
+    await audit(db, user, "operations.update_detection", "detection_candidate", item_id)
     await db.commit(); await db.refresh(row); return out(row)
 
 
 @router.delete("/detections/{item_id}", status_code=204)
-async def delete_detection(item_id: str, db: AsyncSession = Depends(get_session)):
-    row = await get_or_404(db, DetectionCandidate, item_id); await db.delete(row); await db.commit()
+async def delete_detection(item_id: str, db: AsyncSession = Depends(get_session), user: TeamUser = Depends(analyst)):
+    row = await get_or_404(db, DetectionCandidate, item_id)
+    await audit(db, user, "operations.delete_detection", "detection_candidate", item_id)
+    await db.delete(row); await db.commit()
 
 
 @router.get("/tracked-actors")
-async def tracked_actors(db: AsyncSession = Depends(get_session)):
+async def tracked_actors(db: AsyncSession = Depends(get_session), _: TeamUser = Depends(analyst)):
     rows = await db.execute(select(TrackedActor).order_by(TrackedActor.updated_at.desc()))
     return [out(row) for row in rows.scalars().all()]
 
 
 @router.post("/tracked-actors", status_code=201)
-async def track_actor(body: TrackBody, db: AsyncSession = Depends(get_session)):
+async def track_actor(body: TrackBody, db: AsyncSession = Depends(get_session), user: TeamUser = Depends(analyst)):
     existing = await db.execute(select(TrackedActor).where(TrackedActor.actor_id == body.actor_id.upper()))
     row = existing.scalar_one_or_none()
     now = datetime.now(timezone.utc).isoformat()
+    action = "operations.update_tracked_actor"
     if row:
         previous = row.last_snapshot or {}
         added = sorted(set(body.snapshot.get("technique_ids", [])) - set(previous.get("technique_ids", [])))
@@ -165,11 +182,16 @@ async def track_actor(body: TrackBody, db: AsyncSession = Depends(get_session)):
         row.last_snapshot = body.snapshot
         row.actor_name = body.actor_name or row.actor_name
     else:
+        action = "operations.create_tracked_actor"
         row = TrackedActor(actor_id=body.actor_id.upper(), actor_name=body.actor_name, last_snapshot=body.snapshot, change_log=[])
         db.add(row)
+    await db.flush()
+    await audit(db, user, action, "tracked_actor", str(row.id), {"actor_id": row.actor_id})
     await db.commit(); await db.refresh(row); return out(row)
 
 
 @router.delete("/tracked-actors/{item_id}", status_code=204)
-async def delete_tracked_actor(item_id: str, db: AsyncSession = Depends(get_session)):
-    row = await get_or_404(db, TrackedActor, item_id); await db.delete(row); await db.commit()
+async def delete_tracked_actor(item_id: str, db: AsyncSession = Depends(get_session), user: TeamUser = Depends(analyst)):
+    row = await get_or_404(db, TrackedActor, item_id)
+    await audit(db, user, "operations.delete_tracked_actor", "tracked_actor", item_id)
+    await db.delete(row); await db.commit()

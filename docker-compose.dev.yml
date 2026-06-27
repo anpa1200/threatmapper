@@ -1,0 +1,41 @@
+# Development overrides. Use together with the base compose file:
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+#
+# This file adds:
+#   - --reload for the FastAPI server (live reload on source changes)
+#   - Source bind-mounts for api, worker, and beat (no image rebuild needed)
+#   - Vite dev server for the frontend (hot module replacement)
+services:
+  api:
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    volumes:
+      - ./backend:/app
+      - attck_data:/app/data/attck
+      - adversarygraph_logs:/app/logs
+
+  worker:
+    command: celery -A app.tasks.celery_app worker --loglevel=info --concurrency=2
+    volumes:
+      - ./backend:/app
+      - attck_data:/app/data/attck
+
+  beat:
+    command: celery -A app.tasks.celery_app beat --loglevel=info
+    volumes:
+      - ./backend:/app
+      - attck_data:/app/data/attck
+
+  frontend:
+    # Override the production nginx image with the Vite dev server
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ./frontend/src:/app/src
+      - ./frontend/public:/app/public
+      - ./frontend/index.html:/app/index.html
+    environment:
+      VITE_API_URL: http://api:8000
+      VITE_REFERENCE_URL: ${REFERENCE_URL:-http://localhost:3001/anomaly-detection-atlas}
+    ports:
+      - "3000:3000"

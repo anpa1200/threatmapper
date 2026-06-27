@@ -9,6 +9,8 @@ import requests
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.safe_http import safe_get
+
 from app.models.pipeline import CollectionRun, CollectionSource, EnrichmentResult, Observable
 
 ATTACK_ID_RE = re.compile(r"\bT\d{4}(?:\.\d{3})?\b", re.IGNORECASE)
@@ -95,7 +97,7 @@ async def list_sandbox_behaviors(session: AsyncSession, limit: int = 100) -> lis
 
 
 def fetch_sandbox_reports(url: str, limit: int = 100) -> list[dict[str, Any]]:
-    response = requests.get(url, timeout=90)
+    response = safe_get(url, timeout=90)
     response.raise_for_status()
     payload = response.json()
     if isinstance(payload, list):

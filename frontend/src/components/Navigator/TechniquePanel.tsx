@@ -11,6 +11,7 @@ import { useAppStore } from '@/store';
 import { LLMChat } from './LLMChat';
 import { getTechniqueReports, getTechniqueResources } from '@/config/intelligence';
 import { ReportReferences } from '@/components/ReportReferences';
+import { safeHref } from '@/utils/url';
 
 interface Props {
   attackId: string;
@@ -94,14 +95,16 @@ export function TechniquePanel({ attackId, onClose }: Props) {
                 <p className="text-xs text-gray-300 leading-relaxed whitespace-pre-wrap">
                   {tech.description}
                 </p>
+                {safeHref(tech.url) && (
                 <a
-                  href={tech.url}
+                  href={safeHref(tech.url)}
                   target="_blank"
                   rel="noreferrer"
                   className="text-xs text-mitre-accent hover:underline mt-2 inline-block"
                 >
                   View on ATT&CK ↗
                 </a>
+                )}
               </Section>
             )}
 

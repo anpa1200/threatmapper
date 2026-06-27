@@ -8,6 +8,7 @@ import type { CampaignListItem } from '@/types/attack';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { getActorReports } from '@/config/intelligence';
 import { ReportReferences } from '@/components/ReportReferences';
+import { safeHref } from '@/utils/url';
 
 type GroupTab = 'overview' | 'techniques' | 'campaigns' | 'reports' | 'iocs';
 
@@ -222,14 +223,16 @@ export function APTLibrary() {
                   >
                     Overlay on Navigator
                   </button>
+                  {safeHref(groupDetail.url) && (
                   <a
-                    href={groupDetail.url}
+                    href={safeHref(groupDetail.url)}
                     target="_blank"
                     rel="noreferrer"
                     className="actor-header-action border border-gray-600 text-gray-400 hover:border-gray-500 hover:text-white"
                   >
                     ATT&CK ↗
                   </a>
+                  )}
                 </div>
               </div>
 
@@ -327,8 +330,8 @@ export function APTLibrary() {
                     <InfoPanel title="External References">
                       <div className="space-y-2">
                         {groupDetail.external_references.map((ref, idx) => (
-                          ref.url ? (
-                            <a key={`${ref.source_name}-${idx}`} href={ref.url} target="_blank" rel="noreferrer" className="block rounded border border-gray-800 p-2 text-xs hover:border-gray-600">
+                          safeHref(ref.url) ? (
+                            <a key={`${ref.source_name}-${idx}`} href={safeHref(ref.url)} target="_blank" rel="noreferrer" className="block rounded border border-gray-800 p-2 text-xs hover:border-gray-600">
                               <span className="block text-gray-300">{ref.source_name || 'reference'}</span>
                               {ref.description && <span className="block text-gray-500 mt-1 line-clamp-2"><AttackText text={ref.description} /></span>}
                             </a>
@@ -818,8 +821,8 @@ function ActorIOCs({
                 <div className="truncate text-gray-400" title={item.malware_family}>{item.malware_family || '-'}</div>
                 <div className="font-mono text-[10px] text-gray-500">{(item.last_seen || item.first_seen || '-').slice(0, 10)}</div>
                 <div>
-                  {item.source_url ? (
-                    <a href={item.source_url} target="_blank" rel="noreferrer" className="text-mitre-accent hover:underline">
+                  {safeHref(item.source_url) ? (
+                    <a href={safeHref(item.source_url)} target="_blank" rel="noreferrer" className="text-mitre-accent hover:underline">
                       {item.source}
                     </a>
                   ) : (
@@ -961,9 +964,9 @@ function CampaignCard({
                   >
                     Add to my TTPs
                   </button>
-                  {detail.url && (
+                  {safeHref(detail.url) && (
                     <a
-                      href={detail.url}
+                      href={safeHref(detail.url)}
                       target="_blank"
                       rel="noreferrer"
                       className="text-[10px] text-gray-400 hover:text-white border border-gray-700 px-2 py-1 rounded transition-colors"

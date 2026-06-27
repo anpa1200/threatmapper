@@ -414,11 +414,20 @@ LOCAL_LLM_BASE_URL=http://host.docker.internal:11434/v1
 LOCAL_LLM_API_KEY=local
 LOCAL_LLM_MODEL=llama3.1:8b
 
-# Database (defaults are fine for local use)
+# Database and internal services
 DB_NAME=adversarygraph
 DB_USER=ag_user
 DB_PASS=changeme_strong_password
+REDIS_PASSWORD=changeme_redis
 ADVERSARYGRAPH_DB_DIR=./data/postgres
+
+# Browser origins allowed to call the API
+CORS_ALLOWED_ORIGINS=http://localhost:3000
+
+# Optional trusted-header authentication behind a hardened reverse proxy
+AUTH_ENABLED=false
+AUTH_DEFAULT_ROLE=viewer
+PROXY_SECRET=
 
 # ATT&CK / ATLAS domains to ingest (comma-separated)
 ATTCK_DOMAINS=enterprise-attack,mobile-attack,ics-attack,atlas
@@ -1211,8 +1220,13 @@ All configuration is via environment variables in `.env`.
 |---|---|---|
 | `DB_NAME` | `adversarygraph` | PostgreSQL database name. The legacy default is kept so existing deployments continue to start after upgrade. |
 | `DB_USER` | `ag_user` | Database user |
-| `DB_PASS` | `changeme` | Database password — **change this** |
+| `DB_PASS` | required | PostgreSQL password. The API fails fast if this is missing. Use a strong deployment-specific value. |
+| `REDIS_PASSWORD` | `changeme_redis` | Redis/Celery broker password. Change this for any shared or production host. |
 | `ADVERSARYGRAPH_DB_DIR` | `./data/postgres` | External persistent Postgres data directory created on first deployment. Keep this folder across rebuilds. |
+| `CORS_ALLOWED_ORIGINS` | `http://localhost:3000,http://localhost:5173` | Comma-separated browser origins allowed to call the API. Wildcard `*` is rejected when credentials are enabled. |
+| `AUTH_ENABLED` | `false` | Enables reverse-proxy supplied identity headers. Keep disabled only for local or trusted-network use. |
+| `AUTH_DEFAULT_ROLE` | `viewer` | Role used for anonymous/local requests when auth is disabled or no proxy identity is supplied. |
+| `PROXY_SECRET` | — | Shared secret required before the API trusts `X-Auth-User` and `X-Auth-Roles` headers from a reverse proxy. |
 | `ANTHROPIC_API_KEY` | — | Anthropic / Claude API key |
 | `OPENAI_API_KEY` | — | OpenAI API key |
 | `OPENAI_MODEL` | `gpt-4.1` | OpenAI model used when no request-level model is provided |
@@ -1374,9 +1388,11 @@ AdversaryGraph is suitable for local labs, private analyst workstations, interna
 ### Security checklist
 
 - [ ] Set a strong `DB_PASS` in `.env`
+- [ ] Set a strong `REDIS_PASSWORD` in `.env`
 - [ ] Never commit `.env` to git (it is in `.gitignore`)
 - [ ] Do not expose PostgreSQL publicly; bind it to an internal network or localhost only
 - [ ] Protect the API with a VPN, SSO, OAuth proxy, authenticating reverse proxy, or internal network controls
+- [ ] For reverse-proxy auth, set `AUTH_ENABLED=true`, set `PROXY_SECRET`, and configure the proxy to strip client-supplied `X-Auth-User`, `X-Auth-Roles`, and `X-Internal-Proxy-Secret` before setting trusted values
 - [ ] Use TLS for browser and API traffic
 - [ ] Restrict CORS to approved origins
 - [ ] Use strong, unique secrets and rotate LLM API keys regularly

@@ -49,6 +49,12 @@ For private analysis:
 - Use non-default database credentials.
 - Use private LLM infrastructure if provider transmission is not acceptable.
 - Restrict access through a reverse proxy.
+- Configure `AUTH_ENABLED=true` and `PROXY_SECRET` when using trusted-header
+  authentication. The proxy must strip client-supplied `X-Auth-User`,
+  `X-Auth-Roles`, and `X-Internal-Proxy-Secret` headers before setting trusted
+  identity headers.
+- Set explicit `CORS_ALLOWED_ORIGINS`; wildcard origins are rejected when
+  credentialed API access is enabled.
 - Back up and purge data according to local policy.
 
 ## LLM Output
@@ -98,6 +104,8 @@ IOC feeds are operational data, not stable reference data. Operators should:
 
 - keep ThreatFox/OTX keys out of commits and screenshots;
 - review custom feed provenance before import;
+- expect server-side feed fetches to reject localhost, private, link-local,
+  multicast, reserved, and cloud-metadata destinations as SSRF protection;
 - avoid importing customer-private feeds into public demos;
 - define retention and export rules for actor IOC CSVs;
 - treat extracted IOCs from uploaded reports as untrusted until reviewed.

@@ -16,6 +16,7 @@ frontend/.vite/
 logs/
 backend/logs/
 .DS_Store
+.claude/
 data/
 *.json.gz
 pg_data/

@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.config import settings
+from app.core.safe_http import safe_get
 from app.core.version import APP_USER_AGENT
 from app.models.attack import AptGroup, AttackVersion, Technique
 from app.models.ioc import IOCActorLink, IOCIndicator, IOCSource
@@ -397,9 +398,14 @@ async def sync_custom_source(
         raise ValueError(f"IOC source {source_id} has no URL")
 
     try:
-        response = await asyncio.to_thread(requests.get, source.url, timeout=90)
+        response = await asyncio.to_thread(safe_get, source.url, timeout=90)
         response.raise_for_status()
         items = _parse_custom_feed(response.text, source.kind, source_id, source.url)
+    except ValueError as exc:
+        # SSRF guard blocked the URL
+        await _mark_existing_source(session, source, "error", str(exc))
+        await session.commit()
+        raise
     except Exception as exc:
         await _mark_existing_source(session, source, "error", str(exc))
         await session.commit()

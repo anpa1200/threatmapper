@@ -100,7 +100,7 @@ export function VirusTotalLookup() {
                         {result.ttps.map(ttp => (
                           <div key={ttp.attack_id} className="rounded border border-gray-800 bg-gray-950/40 p-3">
                             <div className="flex flex-wrap items-center gap-2">
-                              <a href={`/navigator?technique=${ttp.attack_id}`} className="font-mono text-sm text-mitre-accent hover:underline">{ttp.attack_id}</a>
+                              <a href={`/navigator?technique=${encodeURIComponent(ttp.attack_id)}`} className="font-mono text-sm text-mitre-accent hover:underline">{ttp.attack_id}</a>
                               <span className="text-sm text-white">{ttp.name || 'Technique from VirusTotal context'}</span>
                             </div>
                             {ttp.tactics.length > 0 && (
@@ -133,7 +133,7 @@ export function VirusTotalLookup() {
                         <div key={actor.attack_id} className="rounded border border-gray-800 bg-gray-950/40 p-3">
                           <div className="flex items-start justify-between gap-3">
                             <div>
-                              <a href={`/apt?group=${actor.attack_id}`} className="text-sm font-semibold text-white hover:text-mitre-accent">{actor.name}</a>
+                              <a href={`/apt?group=${encodeURIComponent(actor.attack_id)}`} className="text-sm font-semibold text-white hover:text-mitre-accent">{actor.name}</a>
                               <div className="mt-1 font-mono text-xs text-mitre-accent">{actor.attack_id}</div>
                             </div>
                             <span className="rounded bg-purple-950/40 px-2 py-1 text-[10px] text-purple-300">

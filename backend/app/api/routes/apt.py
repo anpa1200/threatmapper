@@ -9,6 +9,7 @@ from app.models.attack import (
     AptGroup, AptGroupTechnique, AptGroupCampaign,
     AttackVersion, Campaign, CampaignTechnique, Technique,
 )
+from app.services.auth import TeamUser, analyst, current_user
 from app.services.comparison_explainer import (
     Subject,
     TechniqueContext,
@@ -119,6 +120,7 @@ async def list_groups(
     version: str | None = Query(None),
     search: str | None = Query(None),
     session: AsyncSession = Depends(get_session),
+    _: TeamUser = Depends(current_user),
 ):
     ver_id = await _resolve_version_id(session, domain, version)
 
@@ -163,6 +165,7 @@ async def get_group(
     domain: str = Query("enterprise-attack"),
     version: str | None = Query(None),
     session: AsyncSession = Depends(get_session),
+    _: TeamUser = Depends(current_user),
 ):
     ver_id = await _resolve_version_id(session, domain, version)
 
@@ -257,6 +260,7 @@ async def compare_ttps(
     version: str | None = Query(None),
     top_n: int = Query(10, le=50),
     session: AsyncSession = Depends(get_session),
+    _: TeamUser = Depends(analyst),
 ):
     """
     Given a list of ATT&CK technique IDs, return the top-N group profiles
@@ -305,6 +309,7 @@ async def explain_ttp_overlap(
     domain: str = Query("enterprise-attack"),
     version: str | None = Query(None),
     session: AsyncSession = Depends(get_session),
+    _: TeamUser = Depends(analyst),
 ):
     """Return an auditable, caveated explanation for a supplied TTP-overlap result."""
     ver_id = await _resolve_version_id(session, domain, version)
@@ -396,6 +401,7 @@ async def list_campaigns(
     group_id: str | None = Query(None, description="Filter by group ATT&CK ID, e.g. G0016"),
     search: str | None = Query(None),
     session: AsyncSession = Depends(get_session),
+    _: TeamUser = Depends(current_user),
 ):
     """
     List ATT&CK campaigns (DB 1 — named MITRE operations).
@@ -445,6 +451,7 @@ async def get_campaign(
     domain: str = Query("enterprise-attack"),
     version: str | None = Query(None),
     session: AsyncSession = Depends(get_session),
+    _: TeamUser = Depends(current_user),
 ):
     """Full campaign detail with all techniques and attributed groups."""
     ver_id = await _resolve_version_id(session, domain, version)
@@ -499,6 +506,7 @@ async def compare_campaigns(
     version: str | None = Query(None),
     top_n: int = Query(20, le=100),
     session: AsyncSession = Depends(get_session),
+    _: TeamUser = Depends(analyst),
 ):
     """
     Given a list of technique IDs, rank every ATT&CK campaign (DB 1)

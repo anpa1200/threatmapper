@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_session
 from app.models.analysis import UserLayer
+from app.services.auth import TeamUser, analyst, audit, current_user
 
 router = APIRouter(prefix="/layers", tags=["Saved Layers"])
 
@@ -47,6 +48,7 @@ class LayerDetail(LayerListItem):
 async def list_layers(
     domain: str | None = None,
     db: AsyncSession = Depends(get_session),
+    _: TeamUser = Depends(current_user),
 ):
     stmt = select(UserLayer).order_by(UserLayer.updated_at.desc())
     if domain:
@@ -70,6 +72,7 @@ async def list_layers(
 async def save_layer(
     body: LayerCreate,
     db: AsyncSession = Depends(get_session),
+    user: TeamUser = Depends(analyst),
 ):
     layer = UserLayer(
         name=body.name,
@@ -77,6 +80,8 @@ async def save_layer(
         layer_data={"technique_ids": sorted(set(body.technique_ids))},
     )
     db.add(layer)
+    await db.flush()
+    await audit(db, user, "layers.create", "user_layer", str(layer.id), {"name": layer.name, "domain": layer.domain, "technique_count": len(layer.layer_data.get("technique_ids", []))})
     await db.commit()
     await db.refresh(layer)
     ids = layer.layer_data.get("technique_ids", [])
@@ -95,6 +100,7 @@ async def save_layer(
 async def get_layer(
     layer_id: str,
     db: AsyncSession = Depends(get_session),
+    _: TeamUser = Depends(current_user),
 ):
     try:
         lid = uuid.UUID(layer_id)
@@ -120,6 +126,7 @@ async def get_layer(
 async def delete_layer(
     layer_id: str,
     db: AsyncSession = Depends(get_session),
+    user: TeamUser = Depends(analyst),
 ):
     try:
         lid = uuid.UUID(layer_id)
@@ -129,5 +136,6 @@ async def delete_layer(
     layer = row.scalar_one_or_none()
     if not layer:
         raise HTTPException(404, "Layer not found")
+    await audit(db, user, "layers.delete", "user_layer", layer_id)
     await db.delete(layer)
     await db.commit()

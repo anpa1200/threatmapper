@@ -8,11 +8,16 @@ from __future__ import annotations
 
 import asyncio
 
+import logging
+
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_session
+from app.services.auth import TeamUser, analyst, audit, current_user
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/sync", tags=["MITRE Sync"])
 
@@ -119,7 +124,7 @@ SUPPORTED_SOURCES = {
 
 
 @router.get("/status", response_model=SyncStatusOut)
-async def sync_status(session: AsyncSession = Depends(get_session)):
+async def sync_status(session: AsyncSession = Depends(get_session), _: TeamUser = Depends(current_user)):
     """
     Check each configured domain: what version is in the DB vs latest on GitHub.
     The GitHub check is a lightweight API call (no download).
@@ -176,11 +181,12 @@ async def sync_status(session: AsyncSession = Depends(get_session)):
             any_updates_needed=any(d.needs_update for d in domains),
         )
     except Exception as exc:
-        raise HTTPException(500, f"Status check failed: {exc}") from exc
+        logger.error("sync status check failed: %s", exc, exc_info=True)
+        raise HTTPException(500, "Operation failed. See server logs.") from exc
 
 
 @router.post("/trigger", response_model=TriggerOut)
-async def trigger_sync(body: TriggerRequest | None = None):
+async def trigger_sync(body: TriggerRequest | None = None, session: AsyncSession = Depends(get_session), user: TeamUser = Depends(analyst)):
     """
     Submit a Celery task to download and ingest any out-of-date ATT&CK domains.
     Returns immediately; poll GET /sync/task/{task_id} for progress.
@@ -200,6 +206,8 @@ async def trigger_sync(body: TriggerRequest | None = None):
     try:
         from app.tasks.sync import check_and_sync
         task = check_and_sync.delay(domains=domains, force=body.force)
+        await audit(session, user, "sync.trigger", "attck_sync", task.id, {"source": body.source, "domains": domains, "force": body.force})
+        await session.commit()
         return TriggerOut(
             task_id=task.id,
             status="queued",
@@ -208,7 +216,8 @@ async def trigger_sync(body: TriggerRequest | None = None):
             force=body.force,
         )
     except Exception as exc:
-        raise HTTPException(503, f"Celery unavailable: {exc}") from exc
+        logger.error("trigger sync failed (Celery unavailable): %s", exc, exc_info=True)
+        raise HTTPException(503, "Operation failed. See server logs.") from exc
 
 
 @router.post("/ioc", response_model=IOCSyncOut)
@@ -218,30 +227,40 @@ async def trigger_ioc_sync(
     ai_enrich: bool = Query(False),
     ai_provider: str = Query("local", pattern="^(local|claude|openai|gemini|minimax)$"),
     session: AsyncSession = Depends(get_session),
+    user: TeamUser = Depends(analyst),
 ):
     """Synchronize all configured IOC sources centrally."""
     try:
         from app.services.ioc_intel import sync_all_ioc_sources
-        return await sync_all_ioc_sources(session, days=days, domain=domain, ai_enrich=ai_enrich, ai_provider=ai_provider)
+        result = await sync_all_ioc_sources(session, days=days, domain=domain, ai_enrich=ai_enrich, ai_provider=ai_provider)
+        await audit(session, user, "sync.ioc", "ioc_source", details={"days": days, "domain": domain})
+        return result
     except Exception as exc:
-        raise HTTPException(500, f"IOC sync failed: {exc}") from exc
+        logger.error("IOC sync failed: %s", exc, exc_info=True)
+        raise HTTPException(500, "Operation failed. See server logs.") from exc
 
 
 @router.post("/dynamic-db", response_model=DynamicSyncOut)
 async def trigger_dynamic_db_sync(
     days: int = Query(7, ge=1, le=7),
     force_attack: bool = Query(False),
+    session: AsyncSession = Depends(get_session),
+    user: TeamUser = Depends(analyst),
 ):
     """Synchronize the dynamic public reference DB immediately."""
     try:
         from app.tasks.sync import run_dynamic_reference_db_async
-        return await run_dynamic_reference_db_async(days=days, force_attack=force_attack)
+        result = await run_dynamic_reference_db_async(days=days, force_attack=force_attack)
+        await audit(session, user, "sync.dynamic_db", "attck_sync", details={"days": days, "force_attack": force_attack})
+        await session.commit()
+        return result
     except Exception as exc:
-        raise HTTPException(500, f"Dynamic DB sync failed: {exc}") from exc
+        logger.error("dynamic DB sync failed: %s", exc, exc_info=True)
+        raise HTTPException(500, "Operation failed. See server logs.") from exc
 
 
 @router.get("/task/{task_id}")
-async def task_status(task_id: str):
+async def task_status(task_id: str, _: TeamUser = Depends(current_user)):
     """Poll a Celery task by ID."""
     try:
         from app.tasks.celery_app import celery_app
@@ -252,4 +271,5 @@ async def task_status(task_id: str):
             "result":   result.result if result.ready() else None,
         }
     except Exception as exc:
-        raise HTTPException(503, f"Celery unavailable: {exc}") from exc
+        logger.error("task status check failed (Celery unavailable): %s", exc, exc_info=True)
+        raise HTTPException(503, "Operation failed. See server logs.") from exc

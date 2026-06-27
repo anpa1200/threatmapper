@@ -5,6 +5,7 @@ import { Header } from '@/components/Layout/Header';
 import { aptApi, iocApi, syncApi, type IOCLibraryItem } from '@/api/client';
 import { useAppStore } from '@/store';
 import type { GroupListItem } from '@/types/attack';
+import { safeHref } from '@/utils/url';
 
 type FeedKind = 'custom-json' | 'custom-csv' | 'custom-txt';
 
@@ -138,9 +139,17 @@ export function IOCLibrary() {
       source_label: 'TAXII IOC Import',
     }),
     onSuccess: () => {
+      setTaxiiToken('');
+      setTaxiiUsername('');
+      setTaxiiPassword('');
       qc.invalidateQueries({ queryKey: ['ioc-library'] });
       qc.invalidateQueries({ queryKey: ['ioc-sources'] });
       qc.invalidateQueries({ queryKey: ['actor-ioc-counts'] });
+    },
+    onError: () => {
+      setTaxiiToken('');
+      setTaxiiUsername('');
+      setTaxiiPassword('');
     },
   });
 
@@ -483,7 +492,7 @@ function IOCRow({ item, onEnrichment, onOpenDetail, onInvestigate }: {
       </td>
       <td className="max-w-44 p-3">
         <div className="font-mono text-xs text-gray-300">{item.source}</div>
-        {item.source_url && <a href={item.source_url} target="_blank" rel="noreferrer" className="mt-1 block truncate text-[10px] text-blue-400 hover:underline">{item.source_url}</a>}
+        {safeHref(item.source_url) && <a href={safeHref(item.source_url)} target="_blank" rel="noreferrer" className="mt-1 block truncate text-[10px] text-blue-400 hover:underline">{item.source_url}</a>}
       </td>
       <td className="p-3">
         <div className="flex flex-col gap-2">

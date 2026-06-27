@@ -1,7 +1,8 @@
 # Production Readiness
 
-AdversaryGraph is moving from beta toward production readiness. This document
-tracks what is currently true in the repository.
+AdversaryGraph is a production-oriented self-hosted analyst platform for
+controlled deployments. This document tracks what is currently true in the
+repository and what still needs operator hardening before internet exposure.
 
 ## Current Status
 
@@ -12,7 +13,10 @@ AdversaryGraph is suitable for:
 - portfolio and demo use
 - internal evaluation with non-sensitive or approved data
 
-AdversaryGraph is not yet a hardened public SaaS or a `v1.0` production platform.
+AdversaryGraph is not a managed public SaaS. The default deployment is suitable
+for controlled self-hosted use; public internet exposure still requires a
+hardened reverse proxy, TLS, authentication, monitoring, backups, and local data
+handling policy.
 
 ## Implemented Gates
 
@@ -30,6 +34,14 @@ AdversaryGraph is not yet a hardened public SaaS or a `v1.0` production platform
 | Release notes | Implemented | `docs/release-notes/` |
 | Sector relevance workflow | Implemented | Sector Intel page and `/api/sector/*` |
 | IOC enrichment workflow | Implemented | Actor IOC tabs and `/api/ioc/*` |
+| Required database secret | Implemented | `DB_PASS` is required at startup |
+| Redis authentication | Implemented | `REDIS_PASSWORD` / authenticated `REDIS_URL` |
+| Configurable CORS | Implemented | `CORS_ALLOWED_ORIGINS`, wildcard rejection |
+| Trusted-header auth guard | Implemented | `PROXY_SECRET` and `X-Internal-Proxy-Secret` |
+| SSRF-safe feed fetches | Implemented | `backend/app/core/safe_http.py` |
+| XML parser hardening | Implemented | `defusedxml` for RSS parsing |
+| Frontend URL scheme guard | Implemented | `frontend/src/utils/url.ts` |
+| Production frontend build | Implemented | default compose uses built frontend image; dev override is separate |
 
 ## Remaining Production Blockers
 
@@ -41,6 +53,10 @@ AdversaryGraph is not yet a hardened public SaaS or a `v1.0` production platform
 - Add per-source IOC sync scheduling policies and health history.
 - Add reverse-proxy hardening examples for production deployments.
 - Collect at least one external quickstart validation report.
+- Add broader audit coverage for all remaining state-changing routes.
+- Add body-size and schema-depth guards for STIX/MISP import routes.
+- Add non-root users and digest-pinned base images to every container image.
+- Add signed/tag-pinned external repository sync for optional Atlas docs import.
 
 ## Deployment Position
 

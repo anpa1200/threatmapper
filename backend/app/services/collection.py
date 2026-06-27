@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import re
-import xml.etree.ElementTree as ET
-from urllib.parse import urlparse
+import defusedxml.ElementTree as ET
 
 import httpx
+
+from app.core.safe_http import async_safe_get
 
 OBSERVABLE_PATTERNS = {
     "cve": re.compile(r"\bCVE-\d{4}-\d{4,8}\b", re.I),
@@ -27,12 +28,9 @@ def extract_observables(text: str) -> list[dict]:
 
 
 async def fetch_rss(url: str) -> list[dict]:
-    parsed = urlparse(url)
-    if parsed.scheme not in {"http", "https"}:
-        raise ValueError("RSS source must use HTTP or HTTPS")
-    async with httpx.AsyncClient(timeout=20, follow_redirects=True) as client:
-        response = await client.get(url, headers={"User-Agent": "AdversaryGraph/0.8"})
-        response.raise_for_status()
+    # async_safe_get validates scheme and resolves the IP to block SSRF
+    response = await async_safe_get(url, timeout=20, headers={"User-Agent": "AdversaryGraph/0.8"})
+    response.raise_for_status()
     root = ET.fromstring(response.content)
     entries = root.findall(".//item") or root.findall(".//{http://www.w3.org/2005/Atom}entry")
     output = []

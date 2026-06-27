@@ -277,20 +277,19 @@ export default function RetroHunt() {
     },
   });
 
-  // Refresh signals when task completes
-  useEffect(() => {
-    const status = (taskQuery.data as any)?.status;
-    if (status === 'SUCCESS') {
-      qc.invalidateQueries({ queryKey: ['retrohunt-signals'] });
-      qc.invalidateQueries({ queryKey: ['retrohunt-stats'] });
-    }
-  }, [(taskQuery.data as any)?.status]);
-
   const stats = statsQuery.data;
   const signals = signalsQuery.data ?? [];
   const taskStatus = (taskQuery.data as any)?.status;
   const taskResult = (taskQuery.data as any)?.result;
   const isCollecting = collectMutation.isPending || (taskId && taskStatus && taskStatus !== 'SUCCESS' && taskStatus !== 'FAILURE');
+
+  // Refresh signals when task completes
+  useEffect(() => {
+    if (taskStatus === 'SUCCESS') {
+      qc.invalidateQueries({ queryKey: ['retrohunt-signals'] });
+      qc.invalidateQueries({ queryKey: ['retrohunt-stats'] });
+    }
+  }, [qc, taskStatus]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>

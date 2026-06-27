@@ -1,8 +1,10 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { pipelineApi, type DetectionVersion } from '@/api/client';
 import { Header } from '@/components/Layout/Header';
 import { useAppStore } from '@/store';
+import { safeHref } from '@/utils/url';
 
 type Tab = 'sources' | 'observables' | 'sandbox' | 'detections' | 'imports' | 'audit';
 const input = 'w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-xs text-gray-200 outline-none focus:border-mitre-accent';
@@ -37,7 +39,8 @@ function SandboxBehaviors(){
   const sandboxSources=sources.filter(source=>source.kind==='sandbox');
   const create=useMutation({mutationFn:()=>pipelineApi.createSource({name,kind:'sandbox',url,enabled:true,interval_minutes:1440,config:{limit:100}}),onSuccess:()=>{setName('');setUrl('');qc.invalidateQueries({queryKey:['pipeline-sources']})}});
   const sync=useMutation({mutationFn:pipelineApi.runSource,onSuccess:()=>{qc.invalidateQueries({queryKey:['pipeline-runs']});qc.invalidateQueries({queryKey:['pipeline-sandbox-behaviors']});qc.invalidateQueries({queryKey:['pipeline-observables']});qc.invalidateQueries({queryKey:['pipeline-sources']})}});
-  const showOnMatrix=(ids:string[])=>{replaceTechniques(ids);window.location.href='/navigator'};
+  const navigate=useNavigate();
+  const showOnMatrix=(ids:string[])=>{replaceTechniques(ids);navigate('/navigator')};
   return <div className="max-w-7xl mx-auto grid lg:grid-cols-[420px_1fr] gap-4">
     <Panel title="Sandbox Behavior Feeds">
       <div className="p-3 space-y-3">
@@ -65,7 +68,7 @@ function SandboxBehaviors(){
               </div>
               <small className="mt-1 block text-[10px] text-gray-600">{item.provider} · confidence {item.confidence} · score {item.score ?? '-'} · {item.malware_family || 'unknown family'}</small>
             </div>
-            {item.source_url&&<a href={item.source_url} target="_blank" rel="noreferrer" className="secondary">Report ↗</a>}
+            {safeHref(item.source_url)&&<a href={safeHref(item.source_url)} target="_blank" rel="noreferrer" className="secondary">Report ↗</a>}
           </div>
           {item.ttps.length>0&&<div className="mt-3 flex flex-wrap gap-1.5">{item.ttps.slice(0,16).map(ttp=><button key={ttp} onClick={()=>showOnMatrix([ttp])} className="rounded bg-red-950/40 px-1.5 py-0.5 font-mono text-[10px] text-red-300 hover:bg-red-900/60">{ttp}</button>)}<button onClick={()=>addTechniques(item.ttps)} className="secondary">Add TTPs</button><button onClick={()=>showOnMatrix(item.ttps)} className="secondary">Matrix</button></div>}
           {item.signatures.length>0&&<div className="mt-3 grid gap-1">{item.signatures.slice(0,4).map(sig=><div key={`${sig.source}-${sig.name}`} className="rounded border border-gray-800 bg-gray-950/40 px-2 py-1 text-xs text-gray-400">{sig.name}{sig.severity&&<span className="ml-2 text-[10px] text-amber-300">{sig.severity}</span>}</div>)}</div>}
@@ -136,7 +139,7 @@ function DetectionStudio(){
         {data.map(row=><button key={row.id} className="result" onClick={()=>setActive(row)}><b>{row.title}</b><small>{row.technique_id} · {row.format} · {row.created_by}{typeof row.validation.generation==='string'?` · ${row.validation.generation}`:''}{typeof row.validation.provider==='string'&&row.validation.provider!=='deterministic'?` · ${row.validation.provider}`:''}</small></button>)}
       </Panel>
     </div>
-    {active?<Panel title={`${active.title} · ${active.format.toUpperCase()}`}><textarea className={`${input} h-[520px] font-mono rounded-none border-0`} value={active.content} onChange={e=>setActive({...active,content:e.target.value})}/><div className="p-3 flex flex-wrap items-center gap-3"><button className="primary" onClick={()=>validate.mutate()}>Validate</button><span className={active.validation.valid?'text-green-400 text-xs':'text-amber-400 text-xs'}>{active.validation.valid?'Structurally valid':'Needs review'} · {active.validation.warnings.length} warnings · {active.validation.errors.length} errors</span>{typeof active.validation.source_url==='string'&&<a href={active.validation.source_url} target="_blank" rel="noreferrer" className="secondary">Source rule ↗</a>}</div></Panel>:<Empty text="Generate, sync, or select a detection rule. Imported Sigma/YARA rules retain source links and ATT&CK tags when available."/>}
+    {active?<Panel title={`${active.title} · ${active.format.toUpperCase()}`}><textarea className={`${input} h-[520px] font-mono rounded-none border-0`} value={active.content} onChange={e=>setActive({...active,content:e.target.value})}/><div className="p-3 flex flex-wrap items-center gap-3"><button className="primary" onClick={()=>validate.mutate()}>Validate</button><span className={active.validation.valid?'text-green-400 text-xs':'text-amber-400 text-xs'}>{active.validation.valid?'Structurally valid':'Needs review'} · {active.validation.warnings.length} warnings · {active.validation.errors.length} errors</span>{safeHref(typeof active.validation.source_url==='string'?active.validation.source_url:undefined)&&<a href={safeHref(typeof active.validation.source_url==='string'?active.validation.source_url:undefined)} target="_blank" rel="noreferrer" className="secondary">Source rule ↗</a>}</div></Panel>:<Empty text="Generate, sync, or select a detection rule. Imported Sigma/YARA rules retain source links and ATT&CK tags when available."/>}
   </div>;
 }
 

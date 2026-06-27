@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_session
 from app.models.analysis import AnalysisResult, AnalysisSession
 from app.models.attack import AptGroup, Technique
+from app.services.auth import TeamUser, analyst
 
 router = APIRouter(prefix="/export", tags=["Export"])
 
@@ -33,6 +34,7 @@ _PDF_HEADERS = {
 async def export_analysis_pdf(
     session_id: str,
     db: AsyncSession = Depends(get_session),
+    _: TeamUser = Depends(analyst),
 ):
     """Generate a PDF for an existing analysis session."""
     try:
@@ -87,6 +89,7 @@ async def export_analysis_pdf(
 async def export_analysis_stix(
     session_id: str,
     db: AsyncSession = Depends(get_session),
+    _: TeamUser = Depends(analyst),
 ):
     """Generate a STIX 2.1 bundle for OpenCTI import."""
     try:
@@ -188,6 +191,7 @@ class LayerPdfRequest(BaseModel):
 async def export_layer_pdf(
     req: LayerPdfRequest,
     db: AsyncSession = Depends(get_session),
+    _: TeamUser = Depends(analyst),
 ):
     """Generate a simple PDF listing all techniques in the Navigator layer."""
     if not req.technique_ids:
