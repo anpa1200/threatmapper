@@ -5,8 +5,8 @@
 - Added Asset Attack Surface Mapping for uploaded or pasted CSV/JSON/TXT asset
   inventories, deterministic exposure/risk scoring, ATT&CK candidate links,
   priority actions, validation gaps, and optional AI-enriched summaries.
-- Added local browser history for previous Asset Surface analyses, with reload
-  and delete actions for recent inventory reviews.
+- Added saved backend cases for each Asset Surface analysis, with reload and
+  delete actions for inventory reviews.
 - Added white ATT&CK comparison layers for asset-inventory-derived TTPs so
   inventory findings are visually distinct from manually selected techniques.
 - Updated Discover with first-screen launchers for Asset Surface, Malware

@@ -17,7 +17,7 @@ result into Navigator as a white comparison layer.
   legacy systems.
 - Optional AI enrichment for executive summary, attack-path hypotheses, control
   gaps, validation gaps, assumptions, and priority actions.
-- Saved local history for previous asset analyses, with reload and delete
+- Saved backend cases for previous asset analyses, with reload and delete
   actions.
 - White asset-surface TTP layer in Navigator so inventory-derived candidates are
   visually distinct from manual selections and other comparison layers.

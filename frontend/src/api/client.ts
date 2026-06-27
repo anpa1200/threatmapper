@@ -598,6 +598,10 @@ export interface AssetSurfaceAsset {
 }
 
 export interface AssetSurfaceAnalysisResult {
+  case_id?: string | null;
+  case_name?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
   provider: string | null;
   model: string | null;
   filename: string | null;
@@ -615,9 +619,30 @@ export interface AssetSurfaceAnalysisResult {
   raw_ai_response: string;
 }
 
+export interface AssetSurfaceCaseListItem {
+  id: string;
+  name: string;
+  filename: string | null;
+  provider: string;
+  model: string;
+  use_ai: boolean;
+  asset_count: number;
+  technique_ids: string[];
+  high_or_critical_count: number;
+  summary: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export const assetSurfaceApi = {
   analyze: (formData: FormData): Promise<AssetSurfaceAnalysisResult> =>
     http.post('/asset-surface/analyze', formData, { headers: { 'Content-Type': 'multipart/form-data' } }).then(r => r.data),
+  cases: (): Promise<AssetSurfaceCaseListItem[]> =>
+    http.get('/asset-surface/cases').then(r => r.data),
+  case: (caseId: string): Promise<AssetSurfaceAnalysisResult> =>
+    http.get(`/asset-surface/cases/${caseId}`).then(r => r.data),
+  deleteCase: (caseId: string): Promise<void> =>
+    http.delete(`/asset-surface/cases/${caseId}`).then(() => {}),
 };
 
 // ── Saved Layers ──────────────────────────────────────────────────────────────

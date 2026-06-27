@@ -19,11 +19,11 @@
       "file": "02-asset-surface-analysis.png",
       "width": 1920,
       "height": 1200,
-      "bytes": 403754,
+      "bytes": 403110,
       "mean_rgb": [
-        24.61,
-        27.39,
-        44.53
+        25.0,
+        27.87,
+        45.09
       ],
       "nonblank": true
     },
@@ -31,11 +31,11 @@
       "file": "03-asset-surface-history.png",
       "width": 1920,
       "height": 1200,
-      "bytes": 403754,
+      "bytes": 403110,
       "mean_rgb": [
-        24.61,
-        27.39,
-        44.53
+        25.0,
+        27.87,
+        45.09
       ],
       "nonblank": true
     },

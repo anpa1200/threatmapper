@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { Header } from '@/components/Layout/Header';
 import { assetSurfaceApi, layersApi } from '@/api/client';
@@ -10,16 +10,6 @@ import { IocLink, TtpLink } from '@/utils/ctiLinks';
 import { useAppStore } from '@/store';
 
 type Provider = 'claude' | 'openai' | 'gemini' | 'minimax' | 'local';
-type AssetSurfaceHistoryItem = AssetSurfaceAnalysisResult & {
-  history_id: string;
-  created_at: string;
-  name: string;
-  ttp_count: number;
-  high_or_critical_count: number;
-};
-
-const ASSET_SURFACE_HISTORY_KEY = 'adversarygraph-asset-surface-history-v1';
-const ASSET_SURFACE_HISTORY_LIMIT = 20;
 
 const PROVIDERS: { id: Provider; label: string; model: string }[] = [
   { id: 'local', label: 'Local', model: 'qwen3:8b' },
@@ -37,6 +27,7 @@ postgres-payments,database,prod,Payments,10.20.5.15,,"5432","postgresql",interna
 
 export function AssetSurface() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { domain, addComparisonLayer, clearComparisonLayers, clearTechniques } = useAppStore();
   const [provider, setProvider] = useState<Provider>('local');
   const [useAi, setUseAi] = useState(true);
@@ -44,22 +35,40 @@ export function AssetSurface() {
   const [text, setText] = useState(SAMPLE);
   const [file, setFile] = useState<File | null>(null);
   const [result, setResult] = useState<AssetSurfaceAnalysisResult | null>(null);
-  const [history, setHistory] = useState<AssetSurfaceHistoryItem[]>(loadAssetSurfaceHistory);
-  const [activeHistoryId, setActiveHistoryId] = useState<string | null>(null);
+  const [activeCaseId, setActiveCaseId] = useState<string | null>(null);
   const [riskFilter, setRiskFilter] = useState('all');
   const [exposureFilter, setExposureFilter] = useState('all');
 
+  const casesQuery = useQuery({
+    queryKey: ['asset-surface-cases'],
+    queryFn: assetSurfaceApi.cases,
+  });
   const mutation = useMutation({
     mutationFn: (form: FormData) => assetSurfaceApi.analyze(form),
     onSuccess: nextResult => {
-      const item = createAssetSurfaceHistoryItem(nextResult, inventoryName);
-      setResult(item);
-      setActiveHistoryId(item.history_id);
-      setHistory(current => {
-        const next = [item, ...current.filter(entry => entry.history_id !== item.history_id)].slice(0, ASSET_SURFACE_HISTORY_LIMIT);
-        saveAssetSurfaceHistory(next);
-        return next;
-      });
+      setResult(nextResult);
+      setActiveCaseId(nextResult.case_id ?? null);
+      queryClient.invalidateQueries({ queryKey: ['asset-surface-cases'] });
+    },
+  });
+  const loadCase = useMutation({
+    mutationFn: (caseId: string) => assetSurfaceApi.case(caseId),
+    onSuccess: savedCase => {
+      setResult(savedCase);
+      setActiveCaseId(savedCase.case_id ?? null);
+      setInventoryName(savedCase.inventory_name || savedCase.case_name || savedCase.filename || 'Asset surface case');
+      setFile(null);
+      setText('');
+    },
+  });
+  const deleteCase = useMutation({
+    mutationFn: (caseId: string) => assetSurfaceApi.deleteCase(caseId),
+    onSuccess: (_data, caseId) => {
+      if (activeCaseId === caseId) {
+        setResult(null);
+        setActiveCaseId(null);
+      }
+      queryClient.invalidateQueries({ queryKey: ['asset-surface-cases'] });
     },
   });
   const saveLayer = useMutation({
@@ -189,34 +198,26 @@ export function AssetSurface() {
 
           <section className="min-h-0 border-t border-gray-800 p-4">
             <div className="mb-2 flex items-center justify-between gap-2">
-              <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Previous Analyses</div>
-              <span className="text-[10px] text-gray-600">{history.length}</span>
+              <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Saved Cases</div>
+              <span className="text-[10px] text-gray-600">{casesQuery.data?.length ?? 0}</span>
             </div>
             <div className="max-h-72 space-y-2 overflow-y-auto pr-1">
-              {history.map(item => (
+              {(casesQuery.data ?? []).map(item => (
                 <div
-                  key={item.history_id}
+                  key={item.id}
                   role="button"
                   tabIndex={0}
                   onClick={() => {
-                    setResult(item);
-                    setActiveHistoryId(item.history_id);
-                    setInventoryName(item.inventory_name || item.name);
-                    setFile(null);
-                    setText('');
+                    loadCase.mutate(item.id);
                   }}
                   onKeyDown={event => {
                     if (event.key === 'Enter' || event.key === ' ') {
                       event.preventDefault();
-                      setResult(item);
-                      setActiveHistoryId(item.history_id);
-                      setInventoryName(item.inventory_name || item.name);
-                      setFile(null);
-                      setText('');
+                      loadCase.mutate(item.id);
                     }
                   }}
                   className={`w-full rounded border p-2 text-left text-xs ${
-                    activeHistoryId === item.history_id
+                    activeCaseId === item.id
                       ? 'border-mitre-accent bg-mitre-accent/10'
                       : 'border-gray-800 bg-gray-950 hover:border-gray-700'
                   }`}
@@ -230,33 +231,37 @@ export function AssetSurface() {
                       type="button"
                       onClick={event => {
                         event.stopPropagation();
-                        setHistory(current => {
-                          const next = current.filter(entry => entry.history_id !== item.history_id);
-                          saveAssetSurfaceHistory(next);
-                          return next;
-                        });
-                        if (activeHistoryId === item.history_id) {
-                          setResult(null);
-                          setActiveHistoryId(null);
-                        }
+                        deleteCase.mutate(item.id);
                       }}
-                      className="text-[10px] text-gray-600 hover:text-red-300"
+                      disabled={deleteCase.isPending}
+                      className="text-[10px] text-gray-600 hover:text-red-300 disabled:opacity-40"
                     >
                       delete
                     </button>
                   </div>
                   <div className="mt-2 flex flex-wrap gap-1 text-[10px]">
                     <Chip>{item.asset_count} assets</Chip>
-                    <Chip>{item.ttp_count} TTPs</Chip>
+                    <Chip>{item.technique_ids.length} TTPs</Chip>
                     <Chip>{item.high_or_critical_count} high/critical</Chip>
                   </div>
                 </div>
               ))}
-              {!history.length && (
+              {casesQuery.isLoading && (
                 <div className="rounded border border-gray-800 bg-gray-950 p-3 text-xs text-gray-600">
-                  Completed asset analyses will be saved here on this browser.
+                  Loading saved asset-surface cases...
                 </div>
               )}
+              {casesQuery.error && (
+                <div className="rounded border border-red-900 bg-red-950/30 p-3 text-xs text-red-300">
+                  {String(casesQuery.error)}
+                </div>
+              )}
+              {!casesQuery.isLoading && !casesQuery.data?.length && (
+                <div className="rounded border border-gray-800 bg-gray-950 p-3 text-xs text-gray-600">
+                  Completed asset analyses will be saved as cases.
+                </div>
+              )}
+              {loadCase.error && <div className="rounded border border-red-900 bg-red-950/30 p-3 text-xs text-red-300">{String(loadCase.error)}</div>}
             </div>
           </section>
         </aside>
@@ -480,58 +485,6 @@ function DetailBlock({ title, items }: { title: string; items: string[] }) {
         {items.slice(0, 4).map((item, index) => <li key={`${title}-${index}-${item}`}>{item}</li>)}
       </ul>
     </div>
-  );
-}
-
-function loadAssetSurfaceHistory(): AssetSurfaceHistoryItem[] {
-  if (typeof window === 'undefined') return [];
-  try {
-    const raw = window.localStorage.getItem(ASSET_SURFACE_HISTORY_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter(isAssetSurfaceHistoryItem).slice(0, ASSET_SURFACE_HISTORY_LIMIT);
-  } catch {
-    return [];
-  }
-}
-
-function saveAssetSurfaceHistory(items: AssetSurfaceHistoryItem[]) {
-  if (typeof window === 'undefined') return;
-  try {
-    window.localStorage.setItem(ASSET_SURFACE_HISTORY_KEY, JSON.stringify(items.slice(0, ASSET_SURFACE_HISTORY_LIMIT)));
-  } catch {
-    // Local history is a convenience feature; analysis results should still render if storage is unavailable.
-  }
-}
-
-function createAssetSurfaceHistoryItem(result: AssetSurfaceAnalysisResult, fallbackName: string): AssetSurfaceHistoryItem {
-  const createdAt = new Date().toISOString();
-  const id = typeof crypto !== 'undefined' && 'randomUUID' in crypto
-    ? crypto.randomUUID()
-    : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-  const uniqueTtps = new Set(result.assets.flatMap(asset => asset.ttp_candidates.map(ttp => ttp.attack_id.toUpperCase())));
-  const highOrCritical = result.assets.filter(asset => ['high', 'critical'].includes(asset.risk_level) || ['high', 'critical'].includes(asset.ai_risk_level ?? '')).length;
-  return {
-    ...result,
-    history_id: id,
-    created_at: createdAt,
-    name: result.inventory_name || result.filename || fallbackName || `Asset surface ${new Date(createdAt).toLocaleString()}`,
-    ttp_count: uniqueTtps.size,
-    high_or_critical_count: highOrCritical,
-  };
-}
-
-function isAssetSurfaceHistoryItem(value: unknown): value is AssetSurfaceHistoryItem {
-  if (!value || typeof value !== 'object') return false;
-  const item = value as Partial<AssetSurfaceHistoryItem>;
-  return (
-    typeof item.history_id === 'string' &&
-    typeof item.created_at === 'string' &&
-    typeof item.name === 'string' &&
-    Array.isArray(item.assets) &&
-    typeof item.asset_count === 'number' &&
-    typeof item.summary === 'string'
   );
 }
 

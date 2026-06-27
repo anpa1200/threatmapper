@@ -12,6 +12,7 @@ from app.core.rate_limit import RateLimitMiddleware
 import app.models.sector_packs  # noqa: F401 — registers SectorPack with Base metadata
 import app.models.retrohunt     # noqa: F401 — registers RetroHuntSignal with Base metadata
 import app.models.knowledge      # noqa: F401 — registers KnowledgeArticle with Base metadata
+import app.models.asset_surface  # noqa: F401 — registers AssetSurfaceCase with Base metadata
 from app.api.routes import asset_surface, attack, apt, analyze, sync, export, ioc, layers, malwaregraph, operations, pipeline, retrohunt, sector, system, knowledge
 from app.core.config import settings
 from app.core.database import async_session_factory, create_tables

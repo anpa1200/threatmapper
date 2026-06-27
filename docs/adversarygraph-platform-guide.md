@@ -62,7 +62,7 @@ AI assistant should remain traceable back to evidence.
 | Compare | Compare current TTP layers, reports, groups, and campaigns; inspect overlap, matrix diff, tactic breakdown, and gap analysis. |
 | Group vs Group | Select multiple actor profiles; compare shared and exclusive techniques; view overlap matrix, combined matrix, and technique table. |
 | Sector Intel | Rank actors by sector, geography, technology, recency, campaign evidence, and MISP Galaxy context. |
-| Asset Surface | Upload or paste asset inventories; normalize assets, exposure, ports, technologies, and owners; build an AI-assisted attack surface matrix with risk levels, entry points, ATT&CK candidates, priority actions, validation gaps, and cross-asset findings. |
+| Asset Surface | Upload or paste asset inventories; normalize assets, exposure, ports, technologies, and owners; create saved attack-surface cases; build an AI-assisted matrix with risk levels, entry points, ATT&CK candidates, priority actions, validation gaps, and cross-asset findings. |
 | RetroHunt | Search historical local intelligence, reports, indicators, techniques, and evidence for repeated patterns. |
 | Knowledge Library | Browse stored reports, references, entities, and investigation source material. |
 | IOC Library | Search observables, source attribution, freshness, enrichment fields, mapped TTPs, and actor links. |
@@ -239,6 +239,9 @@ normalizes owners, environments, IPs, domains, ports, technologies, exposure,
 and criticality, then produces risk levels, likely entry points, ATT&CK
 technique candidates, priority actions, assumptions, validation gaps, and
 optional AI-enriched executive findings.
+Each completed run creates a saved case so analysts can reopen the exact matrix,
+compare inventory changes, export JSON evidence, and send the same TTP set back
+to Navigator later.
 
 The module is useful when the starting point is infrastructure rather than a
 report, IOC, actor, or malware sample. It helps answer:

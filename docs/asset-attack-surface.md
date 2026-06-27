@@ -12,13 +12,14 @@ external scanner output, service inventories, and plain hostname/IP lists.
 4. Keep **Use AI enrichment** enabled when you want an executive summary,
    attack-path hypotheses, control gaps, assumptions, and validation steps.
 5. Click **Analyze Attack Surface**.
-6. Review the matrix by risk and exposure, then open clickable ATT&CK technique
+6. AdversaryGraph creates a saved Asset Surface case for the analysis.
+7. Review the matrix by risk and exposure, then open clickable ATT&CK technique
    tags in Navigator for detection planning.
-7. Use **Add White Layer** to show all mapped candidates as a white comparison
+8. Use **Add White Layer** to show all mapped candidates as a white comparison
    layer, **Open Matrix** to replace the current Navigator view with the
    asset-surface layer, **Save Layer** to store the layer server-side, or
    **Export JSON** for audit and handoff.
-8. Reopen previous runs from **Previous Analyses** when comparing inventories or
+9. Reopen previous runs from **Saved Cases** when comparing inventories or
    refining an exposure review.
 
 ## Current Screenshots
@@ -31,7 +32,7 @@ listed in
 |---|---|
 | Discover launchers with Asset Surface and malware-analysis tools | ![Discover launchers](assets/adversarygraph-v4.1-platform/01-discover-launchers.png) |
 | Asset Surface analysis result with risk, exposure, TTPs, and actions | ![Asset Surface analysis result](assets/adversarygraph-v4.1-platform/02-asset-surface-analysis.png) |
-| Saved previous Asset Surface analyses | ![Asset Surface history](assets/adversarygraph-v4.1-platform/03-asset-surface-history.png) |
+| Saved previous Asset Surface cases | ![Asset Surface history](assets/adversarygraph-v4.1-platform/03-asset-surface-history.png) |
 | White Navigator layer for asset-inventory TTP candidates | ![Asset Surface white Navigator layer](assets/adversarygraph-v4.1-platform/04-asset-surface-white-matrix.png) |
 
 ## Supported Inventory Fields
@@ -72,6 +73,17 @@ Each asset receives:
   business context and validation questions.
 - Cross-asset findings, assumptions, and validation gaps when AI enrichment is
   enabled.
+
+## Saved Cases
+
+Every completed analysis is stored as an Asset Surface case in the backend. A
+case preserves the full matrix JSON, summary, provider/model metadata, filename,
+asset count, unique ATT&CK technique IDs, high/critical count, timestamps, and
+validation gaps.
+
+Saved cases can be reloaded from the left panel without re-uploading the
+inventory. Deleting a case removes the saved matrix record, but it does not
+delete any ATT&CK layer that was separately saved through **Save Layer**.
 
 ## ATT&CK Mapping Scope
 
