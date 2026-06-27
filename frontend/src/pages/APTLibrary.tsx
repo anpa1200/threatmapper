@@ -9,6 +9,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { getActorReports } from '@/config/intelligence';
 import { ReportReferences } from '@/components/ReportReferences';
 import { safeHref } from '@/utils/url';
+import { TtpLink } from '@/utils/ctiLinks';
 
 type GroupTab = 'overview' | 'techniques' | 'campaigns' | 'reports' | 'iocs';
 
@@ -979,7 +980,7 @@ function CampaignCard({
               <div className="space-y-1 max-h-56 overflow-y-auto">
                 {detail.techniques.map((t) => (
                   <div key={t.attack_id} className="flex items-center gap-2 py-1">
-                    <span className="font-mono text-[10px] text-purple-400 w-16 shrink-0">{t.attack_id}</span>
+                    <TtpLink id={t.attack_id} className="font-mono text-[10px] text-purple-400 w-16 shrink-0 hover:text-mitre-accent" />
                     <span className="text-xs text-gray-300 flex-1">{t.name}</span>
                     <span className="text-[10px] bg-gray-800 text-gray-500 px-1.5 rounded shrink-0">
                       {t.tactics?.[0] ?? ''}

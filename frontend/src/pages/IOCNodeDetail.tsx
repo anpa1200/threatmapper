@@ -6,8 +6,9 @@ import { Header } from '@/components/Layout/Header';
 import { aptApi, attackApi, iocApi } from '@/api/client';
 import { useAppStore } from '@/store';
 import { RelationshipGraph } from './IOCInvestigation';
+import { IocLink, TtpLink } from '@/utils/ctiLinks';
 
-const OBSERVABLE_TYPES = new Set(['ioc', 'ip', 'ipv4', 'ipv6', 'domain', 'url', 'hash', 'md5', 'sha1', 'sha256']);
+const OBSERVABLE_TYPES = new Set(['ioc', 'ip', 'ipv4', 'ipv6', 'domain', 'url', 'email', 'hash', 'md5', 'sha1', 'sha256']);
 const SEARCHABLE_OBJECT_TYPES = new Set([...OBSERVABLE_TYPES, 'file', 'report', 'collection']);
 
 export function IOCNodeDetail() {
@@ -182,24 +183,27 @@ export function IOCNodeDetail() {
               {!library.isLoading && !library.error && !library.data?.items.length && <Empty text="No local IOC records match this node yet." />}
               <div className="space-y-2">
                 {library.data?.items.map(item => (
-                  <button
+                  <article
                     key={item.id}
-                    type="button"
-                    onClick={() => navigate(`/ioc-library/${item.id}`)}
-                    className="w-full rounded border border-gray-800 bg-gray-950/50 p-3 text-left hover:border-mitre-accent/60"
+                    className="w-full rounded border border-gray-800 bg-gray-950/50 p-3 text-left"
                   >
-                    <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="min-w-0 flex flex-wrap items-center gap-2">
                       <span className="rounded bg-gray-800 px-1.5 py-0.5 font-mono text-[10px] text-gray-300">{item.type}</span>
-                      <span className="break-all font-mono text-sm text-white">{item.value}</span>
+                        <IocLink value={item.value} type={item.type} source={item.source} className="break-all font-mono text-sm text-white hover:text-cyan-200 hover:underline" />
+                      </div>
+                      <button type="button" onClick={() => navigate(`/ioc-library/${item.id}`)} className="rounded border border-gray-700 px-2 py-1 text-[10px] text-gray-300 hover:border-mitre-accent">Open record</button>
                     </div>
                     <div className="mt-1 text-[11px] text-gray-500">{item.source} · confidence {item.confidence} · last seen {item.last_seen || '-'}</div>
                     {item.description && <p className="mt-2 line-clamp-2 text-xs text-gray-400">{item.description}</p>}
                     {item.technique_ids.length > 0 && (
                       <div className="mt-2 flex flex-wrap gap-1">
-                        {item.technique_ids.slice(0, 12).map(id => <span key={id} className="rounded bg-mitre-accent/10 px-1.5 py-0.5 font-mono text-[10px] text-mitre-accent">{id}</span>)}
+                        {item.technique_ids.slice(0, 12).map(id => (
+                          <TtpLink key={id} id={id} className="rounded bg-mitre-accent/10 px-1.5 py-0.5 font-mono text-[10px] text-mitre-accent hover:bg-mitre-accent/20" />
+                        ))}
                       </div>
                     )}
-                  </button>
+                  </article>
                 ))}
               </div>
             </Panel>

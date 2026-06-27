@@ -562,6 +562,64 @@ export const analyzeApi = {
     http.patch(`/analyze/sessions/${sessionId}/techniques/${attackId}/review`, body).then(r => r.data),
 };
 
+// ── Asset Attack Surface ─────────────────────────────────────────────────────
+
+export interface AssetSurfaceTtpCandidate {
+  attack_id: string;
+  name: string;
+  reason: string;
+}
+
+export interface AssetSurfaceAsset {
+  asset_id: string;
+  asset: string;
+  asset_type: string;
+  environment: string;
+  owner: string;
+  exposure: string;
+  criticality: string;
+  ip_addresses: string[];
+  domains: string[];
+  ports: number[];
+  technologies: string[];
+  risk_score: number;
+  risk_level: 'critical' | 'high' | 'medium' | 'low';
+  ai_risk_level?: string;
+  attack_surface: string[];
+  likely_entry_points: string[];
+  attack_paths?: string[];
+  ttp_candidates: AssetSurfaceTtpCandidate[];
+  control_gaps?: string[];
+  validation_steps?: string[];
+  detection_ideas?: string[];
+  priority_actions: string[];
+  evidence: string[];
+  business_context?: string;
+}
+
+export interface AssetSurfaceAnalysisResult {
+  provider: string | null;
+  model: string | null;
+  filename: string | null;
+  inventory_name: string | null;
+  asset_count: number;
+  summary: string;
+  exposure_counts: Record<string, number>;
+  risk_counts: Record<string, number>;
+  assets: AssetSurfaceAsset[];
+  top_risks: AssetSurfaceAsset[];
+  recommended_workflow: string[];
+  cross_asset_findings: string[];
+  assumptions: string[];
+  validation_gaps: string[];
+  raw_ai_response: string;
+}
+
+export const assetSurfaceApi = {
+  analyze: (formData: FormData): Promise<AssetSurfaceAnalysisResult> =>
+    http.post('/asset-surface/analyze', formData, { headers: { 'Content-Type': 'multipart/form-data' } }).then(r => r.data),
+};
+
 // ── Saved Layers ──────────────────────────────────────────────────────────────
 
 export interface SavedLayer {

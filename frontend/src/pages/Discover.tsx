@@ -79,14 +79,19 @@ export function Discover() {
           <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
             <div>
               <p className="mb-6 max-w-3xl text-sm text-gray-400">
-                Start with an actor, behavior, report, IOC, sector, feed, detection gap, or AI analysis. AdversaryGraph connects live
-                ATT&amp;CK data, IOC enrichment, private analysis, and the shared 1200km research ecosystem.
+                Start with an actor, behavior, report, IOC, malware sample, asset inventory, sector, feed, detection gap, or AI analysis.
+                AdversaryGraph connects live ATT&amp;CK data, IOC enrichment, MalwareGraph analysis, asset attack-surface mapping,
+                private analysis, and the shared 1200km research ecosystem.
               </p>
               <div className="grid gap-3 md:grid-cols-4">
                 <Start title="Investigate actor" text="Profiles, campaigns, reports, aliases, behavior, and IOCs." onClick={() => navigate('/apt')} />
                 <Start title="Analyze report with AI" text="Extract ATT&CK evidence using your configured LLM." onClick={() => navigate('/analyze')} />
+                <Start title="Analyze malware" text="Create cases, upload samples, extract IOCs, strings, TTPs, and AI summaries." onClick={() => navigate('/malware-analysis')} />
+                <Start title="Map asset surface" text="Upload CMDB, scanner, or cloud inventory and map exposed assets to ATT&CK." onClick={() => navigate('/asset-surface')} />
                 <Start title="Compare behavior" text="Rank group, campaign, and stored-report overlap." onClick={() => navigate('/compare')} />
                 <Start title="Review coverage" text="Prioritize selected techniques without coverage." onClick={() => navigate('/navigator')} />
+                <Start title="Debug malware" text="Open the decompilation/debug IDE for function stepping and AI explanations." onClick={() => navigate('/malware-debug')} />
+                <Start title="Unpack sample" text="Plan static/runtime unpacking and continue into strings, debug, and analysis." onClick={() => navigate('/malware-unpacker')} />
               </div>
             </div>
             <Panel title="IOC quick actions">
@@ -128,6 +133,12 @@ export function Discover() {
             <Panel title="Action launcher">
               <div className="grid gap-2 p-2 md:grid-cols-2 xl:grid-cols-3">
                 <ActionLink label="Sector intelligence" detail="Filter relevant actors by sector, region, technology, and recency." onClick={() => navigate('/sector-intel')} />
+                <ActionLink label="Asset attack surface" detail="Normalize inventories, score exposure, map entry points to ATT&CK, and save TTP layers." onClick={() => navigate('/asset-surface')} />
+                <ActionLink label="Malware Analysis" detail="Upload malware safely, review first analysis, hashes, files, strings, IOCs, TTPs, and family leads." onClick={() => navigate('/malware-analysis')} />
+                <ActionLink label="String Analyzer" detail="Extract strings, commands, URLs, registry keys, APIs, and IOC/TTP leads from samples." onClick={() => navigate('/string-analyzer')} />
+                <ActionLink label="Decompilation & Debug IDE" detail="Step through functions, inspect pseudocode/disassembly, and get AI explanations per function." onClick={() => navigate('/malware-debug')} />
+                <ActionLink label="Malware Unpacker" detail="Analyze packers, unpack layers, deobfuscate strings/code, and continue into debugger tools." onClick={() => navigate('/malware-unpacker')} />
+                <ActionLink label="Dynamic analysis" detail="Review safe runtime workflow output, process/file/registry/network/API events, and AI summaries." onClick={() => navigate('/dynamic-analysis')} />
                 <ActionLink label="Group vs Group" detail="Compare two adversaries and their overlapping behavior." onClick={() => navigate('/group-compare')} />
                 <ActionLink label="Detection pipeline" detail="Connect Sigma, YARA, YARA-L, sandbox behavior, and AI rule generation." onClick={() => navigate('/pipeline')} />
                 <ActionLink label="DFIR examples" detail="Open downloaded public report examples and mapped TTPs." onClick={() => navigate('/examples')} />
@@ -233,6 +244,15 @@ export function Discover() {
               <div className="grid grid-cols-2 gap-2 p-2">
                 {[
                   'AI report extraction',
+                  'Asset attack surface mapping',
+                  'MalwareGraph case workflow',
+                  'Safe sample upload',
+                  'Hash reputation and feed checks',
+                  'String analysis',
+                  'Decompiler and debugger IDE',
+                  'AI function explanations',
+                  'Static unpack planning',
+                  'Dynamic analysis summaries',
                   'Private report library',
                   'Campaign comparison',
                   'Saved server layers',

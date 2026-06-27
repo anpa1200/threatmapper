@@ -9,6 +9,7 @@ client context/report -> ATT&CK mapping candidates -> analyst review -> actor/ca
 Published walkthrough and visual reference:
 
 - Current v4 platform guide: [`adversarygraph-platform-guide.md`](adversarygraph-platform-guide.md)
+- Current v4.1 screenshot addendum: [`assets/adversarygraph-v4.1-platform/manifest.md`](assets/adversarygraph-v4.1-platform/manifest.md)
 - Current v4 platform screenshot manifest: [`assets/adversarygraph-v4-platform/manifest.md`](assets/adversarygraph-v4-platform/manifest.md)
 - Current v4 malware screenshot manifest: [`assets/malware-analysis-v4/manifest.md`](assets/malware-analysis-v4/manifest.md)
 - 1200km mirror: <https://1200km.com/articles/adversarygraph-v2-self-hosted-ai-cti-platform.html>
@@ -51,6 +52,7 @@ For a screenshot-backed walkthrough of every current module, see the
 - AI Analysis for report extraction
 - Compare and Group vs Group similarity workflows
 - Sector Intel and Sector Packs
+- Asset Attack Surface Mapping for CMDB, scanner, and cloud inventory review
 - RetroHunt and Knowledge Library
 - IOC Library, IOC Investigation, IOC Node Detail, and VirusTotal Lookup
 - Feeds Management and Pipeline imports
@@ -67,6 +69,8 @@ Use the Docker deployment for:
 - Configured LLM extraction.
 - Stored analyses and exports.
 - Sector Intelligence and local actor relevance scoring.
+- Asset inventory attack surface matrices with optional AI enrichment, saved
+  local analysis history, and white Navigator layers for inventory-derived TTPs.
 - IOC Intelligence with source-backed actor observables.
 - API-driven workflows.
 

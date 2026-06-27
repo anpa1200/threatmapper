@@ -1,8 +1,24 @@
 # Changelog
 
-## Unreleased
+## v4.1.0 - 2026-06-27
 
-No unreleased changes.
+- Added Asset Attack Surface Mapping for uploaded or pasted CSV/JSON/TXT asset
+  inventories, deterministic exposure/risk scoring, ATT&CK candidate links,
+  priority actions, validation gaps, and optional AI-enriched summaries.
+- Added local browser history for previous Asset Surface analyses, with reload
+  and delete actions for recent inventory reviews.
+- Added white ATT&CK comparison layers for asset-inventory-derived TTPs so
+  inventory findings are visually distinct from manually selected techniques.
+- Updated Discover with first-screen launchers for Asset Surface, Malware
+  Analysis, String Analyzer, Decompilation and Debug, Malware Unpacker, and
+  Dynamic Analysis.
+- Fixed sidebar scrolling for long module lists and updated the UI footer,
+  backend version, frontend package version, and release documentation to
+  v4.1.0.
+- Added v4.1 screenshot evidence for Discover, Asset Surface analysis, saved
+  Asset Surface history, and the white asset-surface Navigator layer.
+
+## Unreleased
 
 ## v3.1.0 - 2026-06-21
 

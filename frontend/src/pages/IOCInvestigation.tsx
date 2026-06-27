@@ -6,6 +6,7 @@ import { Header } from '@/components/Layout/Header';
 import { AddToInvestigationButton } from '@/components/AddToInvestigationButton';
 import { iocApi, type IOCInvestigationHistoryItem, type IOCInvestigationResult } from '@/api/client';
 import { useAppStore } from '@/store';
+import { TtpLink } from '@/utils/ctiLinks';
 import clsx from 'clsx';
 import * as d3 from 'd3';
 
@@ -517,7 +518,7 @@ function UrlscanActivity({ source }: { source: IOCInvestigationResult['sources']
         <span className="text-xs font-semibold text-white">urlscan activity analysis</span>
         <span className="rounded bg-gray-800 px-2 py-0.5 text-[10px] text-gray-400">{activity.mode || 'heuristic'}</span>
         {(activity.technique_ids ?? []).map(id => (
-          <span key={id} className="rounded bg-mitre-accent/10 px-1.5 py-0.5 font-mono text-[10px] text-mitre-accent">{id}</span>
+          <TtpLink key={id} id={id} className="rounded bg-mitre-accent/10 px-1.5 py-0.5 font-mono text-[10px] text-mitre-accent hover:bg-mitre-accent/20" />
         ))}
       </div>
       {activity.summary && <p className="mt-2 text-xs leading-5 text-gray-400">{activity.summary}</p>}

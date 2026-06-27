@@ -16,6 +16,7 @@ const nav = [
   { to: '/compare',       label: 'Compare',       icon: '⬡' },
   { to: '/group-compare', label: 'Group vs Group', icon: '◉' },
   { to: '/sector-intel',  label: 'Sector Intel', icon: '◎' },
+  { to: '/asset-surface', label: 'Asset Surface', icon: '▥' },
   { to: '/retrohunt',     label: 'RetroHunt', icon: '⌖' },
   { to: '/knowledge',     label: 'Knowledge Library', icon: '◎' },
   { to: '/ioc-library',   label: 'IOC Library', icon: '▣' },
@@ -42,9 +43,9 @@ export function Sidebar() {
   const hasUpdate = syncStatus?.any_updates_needed ?? false;
 
   return (
-    <aside className="flex flex-col w-56 bg-mitre-navy border-r border-gray-700 shrink-0">
+    <aside className="flex h-screen min-h-0 w-56 shrink-0 flex-col overflow-hidden border-r border-gray-700 bg-mitre-navy">
       {/* Logo */}
-      <div className="px-5 py-5 border-b border-gray-700">
+      <div className="shrink-0 border-b border-gray-700 px-5 py-5">
         <div className="flex items-center gap-2">
           <img src={adversaryGraphIcon} alt="" className="h-8 w-8 rounded-lg object-cover" />
           <div>
@@ -55,8 +56,8 @@ export function Sidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 px-3 py-4 space-y-1">
-        <div className="pb-3"><GlobalSearch /></div>
+      <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto px-3 py-4 pr-2">
+        <div className="sticky top-0 z-10 -mx-3 -mt-4 bg-mitre-navy px-3 pb-3 pt-4"><GlobalSearch /></div>
         {nav.map(({ to, label, icon }) => (
           <NavLink
             key={to}
@@ -86,7 +87,7 @@ export function Sidebar() {
       </nav>
 
       {/* Ecosystem links */}
-      <div className="px-3 pb-3 space-y-1">
+      <div className="max-h-[30vh] shrink-0 space-y-1 overflow-y-auto border-t border-gray-800 px-3 py-3">
         <button onClick={() => setShowWorkspaces(value => !value)} className="w-full flex items-center px-3 py-1.5 rounded-lg text-[11px] text-gray-500 hover:text-gray-300 hover:bg-gray-700/40">
           Workspaces ({workspaces.length})
         </button>
@@ -112,7 +113,7 @@ export function Sidebar() {
       </div>
 
       {/* Footer — ATT&CK sync status */}
-      <div className="px-4 py-3 border-t border-gray-700">
+      <div className="shrink-0 border-t border-gray-700 px-4 py-3">
         {hasUpdate ? (
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse shrink-0" />
@@ -124,7 +125,7 @@ export function Sidebar() {
             <NavLink to="/feeds" className="text-[10px] text-gray-500 hover:text-gray-300">ATT&CK up to date</NavLink>
           </div>
         )}
-        <div className="text-[10px] text-gray-600 mt-0.5">AdversaryGraph v3.1.0</div>
+        <div className="text-[10px] text-gray-600 mt-0.5">AdversaryGraph v4.1.0</div>
       </div>
     </aside>
   );

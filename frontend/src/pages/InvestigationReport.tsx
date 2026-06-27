@@ -4,6 +4,7 @@ import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/rea
 import { aptApi, attackApi, analyzeApi, iocApi, operationsApi, type IOCItem, type Investigation } from '@/api/client';
 import { useAppStore } from '@/store';
 import { Header } from '@/components/Layout/Header';
+import { IocLink } from '@/utils/ctiLinks';
 
 type Provider = 'local' | 'claude' | 'openai' | 'gemini' | 'minimax';
 type ReportFormat = 'md' | 'txt' | 'pdf';
@@ -1145,14 +1146,12 @@ function InvestigationStructure({
           <div className="max-h-52 divide-y divide-gray-800 overflow-auto">
             {iocNodes.length ? iocNodes.map(node => (
               <div key={node.key} className="py-2">
-                <button
-                  type="button"
-                  onClick={() => onInvestigateIoc(node.value)}
-                  title={`Investigate ${node.value}`}
+                <IocLink
+                  value={node.value}
+                  type={node.type}
+                  source={node.source || 'Investigation'}
                   className="block w-full truncate text-left font-mono text-xs text-gray-100 hover:text-mitre-accent"
-                >
-                  {node.value}
-                </button>
+                />
                 <p className="mt-1 line-clamp-2 text-[10px] leading-4 text-gray-500">
                   {node.type} · {node.source || 'investigation evidence'}{node.description ? ` · ${node.description}` : ''}
                 </p>

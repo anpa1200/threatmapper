@@ -45,6 +45,9 @@ function cellColors(
   const layerColors = matchedLayers.map(layer => layer.color);
   if (sel && ov) return layeredColors([COLORS.userOnly.border, ...layerColors], true);
   if (matchedLayers.length > 1) return layeredColors(layerColors, false);
+  if (matchedLayers.length === 1 && matchedLayers[0].color.toLowerCase() === '#ffffff') {
+    return { bg: 'rgba(255,255,255,0.16)', border: '#ffffff', id: '#ffffff', name: '#f8fafc' };
+  }
   if (matchedLayers.length === 1) return { bg: `${matchedLayers[0].color}33`, border: matchedLayers[0].color, id: '#dbeafe', name: '#f8fafc' };
   if (sel)       return COLORS.userOnly;
   if (ov)        return COLORS.overlayOnly;

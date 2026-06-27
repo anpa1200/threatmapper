@@ -15,7 +15,7 @@
 **AI-assisted CTI-to-detection workbench for MITRE ATT&CK mapping, malware-analysis evidence, IOC enrichment, and detection-gap analysis.**
 
 [![CI](https://github.com/anpa1200/adversarygraph/actions/workflows/ci.yml/badge.svg)](https://github.com/anpa1200/adversarygraph/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/badge/release-v4.0.0-blue)](VERSION)
+[![Release](https://img.shields.io/badge/release-v4.1.0-blue)](VERSION)
 [![License](https://img.shields.io/badge/license-personal%20use%20only-orange)](LICENSE)
 [![Security policy](https://img.shields.io/badge/security-policy-blue)](SECURITY.md)
 [![Roadmap](https://img.shields.io/badge/roadmap-public-blue)](ROADMAP.md)
@@ -24,9 +24,9 @@
 [![Awesome Threat Intelligence](https://img.shields.io/badge/awesome--threat--intelligence-submitted-yellow)](https://github.com/hslatman/awesome-threat-intelligence/pull/385)
 [![Threat Hunting](https://img.shields.io/badge/awesome--threat--hunting-submitted-yellow)](https://github.com/threat-hunting/awesome_Threat-Hunting/pull/5)
 
-**Current release: v4.0.0 · [Release Summary](docs/release-summary-v4.0.0.md) · [Malware Analysis Guide](docs/malware-analysis-guide.md) · [Official Platform Guide](https://1200km.com/adversarygraph-docs/platform-guide/) · [Official Malware Analysis Docs](https://1200km.com/adversarygraph-docs/malware-analysis/) · [Release Article Draft](docs/publication-drafts/adversarygraph-v4-malware-analysis.md) · [From Log to Report Workflow](docs/publication-drafts/medium-adversarygraph-from-log-to-report-ioc-investigation.md) · [Live Intelligence Workspace](https://1200km.com/threat-matrix/) · [Documentation & Usage Guide](https://1200km.com/adversarygraph-docs/) · [Capabilities](https://1200km.com/adversarygraph-docs/capabilities/) · [Use Cases](https://1200km.com/adversarygraph/use-cases.html) · [1200km Article](https://1200km.com/articles/adversarygraph-v2-self-hosted-ai-cti-platform.html) · [Published Medium Article](https://medium.com/@1200km/adversarygraph-v2-5-new-name-new-release-full-ai-cti-platform-capability-map-93cd9224127e)**
+**Current release: v4.1.0 · [Release Summary](docs/release-summary-v4.1.0.md) · [Malware Analysis Guide](docs/malware-analysis-guide.md) · [Official Platform Guide](https://1200km.com/adversarygraph-docs/platform-guide/) · [Official Malware Analysis Docs](https://1200km.com/adversarygraph-docs/malware-analysis/) · [Release Article Draft](docs/publication-drafts/adversarygraph-v4-malware-analysis.md) · [From Log to Report Workflow](docs/publication-drafts/medium-adversarygraph-from-log-to-report-ioc-investigation.md) · [Live Intelligence Workspace](https://1200km.com/threat-matrix/) · [Documentation & Usage Guide](https://1200km.com/adversarygraph-docs/) · [Capabilities](https://1200km.com/adversarygraph-docs/capabilities/) · [Use Cases](https://1200km.com/adversarygraph/use-cases.html) · [1200km Article](https://1200km.com/articles/adversarygraph-v2-self-hosted-ai-cti-platform.html) · [Published Medium Article](https://medium.com/@1200km/adversarygraph-v2-5-new-name-new-release-full-ai-cti-platform-capability-map-93cd9224127e)**
 
-**Current v4 visual documentation:** [Platform Guide](docs/adversarygraph-platform-guide.md) · [Platform Screenshot Manifest](docs/assets/adversarygraph-v4-platform/manifest.md) · [Malware Screenshot Manifest](docs/assets/malware-analysis-v4/manifest.md)
+**Current v4.1 visual documentation:** [Platform Guide](docs/adversarygraph-platform-guide.md) · [v4.1 Screenshot Manifest](docs/assets/adversarygraph-v4.1-platform/manifest.md) · [v4 Platform Screenshot Manifest](docs/assets/adversarygraph-v4-platform/manifest.md) · [Malware Screenshot Manifest](docs/assets/malware-analysis-v4/manifest.md)
 
 AdversaryGraph AI is a self-hosted CTI-to-detection workbench for mapping threat reports, IOC context, malware-analysis findings, and operational telemetry to MITRE ATT&CK, comparing TTP overlap with known groups and campaigns, identifying detection gaps, and exporting analyst-ready outputs.
 
@@ -62,6 +62,7 @@ AdversaryGraph AI is a self-hosted CTI-to-detection workbench for mapping threat
 - [From Log to Report Workflow](#from-log-to-report-workflow)
 - [Project Maturity Evidence](#project-maturity-evidence)
 - [Malware Analysis Mode](#malware-analysis-mode)
+- [Asset Attack Surface Mapping](docs/asset-attack-surface.md)
 - [Public Demo Privacy Note](#public-demo-privacy-note)
 - [Validation and Limitations](#validation-and-limitations)
 - [Screenshots And Visual Evidence](#screenshots-and-visual-evidence)
@@ -188,7 +189,7 @@ The complete public walkthrough is mirrored in the 1200km ecosystem:
 
 ## Project Maturity Evidence
 
-AdversaryGraph v4.0.0 publishes the operational evidence expected from a serious self-hosted CTI tool:
+AdversaryGraph v4.1.0 publishes the operational evidence expected from a serious self-hosted CTI tool:
 
 | Area | Evidence |
 |---|---|
@@ -203,7 +204,7 @@ AdversaryGraph v4.0.0 publishes the operational evidence expected from a serious
 
 The current documentation is intended to make external review practical rather than promotional.
 
-For the current release scope, see the [v4.0.0 release summary](docs/release-summary-v4.0.0.md) and [release notes](docs/release-notes/v4.0.0.md).
+For the current release scope, see the [v4.1.0 release summary](docs/release-summary-v4.1.0.md) and [release notes](docs/release-notes/v4.1.0.md).
 
 ## Malware Analysis Mode
 
@@ -251,8 +252,13 @@ Library, IOC Library, IOC Investigation, VirusTotal Lookup, Feeds Management,
 Investigation Report, Operations, Pipeline, DFIR Examples, Troubleshooting,
 Sector Packs, IOC node detail, and the Malware Analysis extension.
 
+The v4.1 screenshot addendum documents the current Discover launchers, Asset
+Surface analysis result, saved Asset Surface history, and white Navigator layer
+created from inventory-derived TTPs.
+
 Current screenshot manifests:
 
+- v4.1 platform addendum: [`docs/assets/adversarygraph-v4.1-platform/manifest.md`](docs/assets/adversarygraph-v4.1-platform/manifest.md)
 - v4 platform: [`docs/assets/adversarygraph-v4-platform/manifest.md`](docs/assets/adversarygraph-v4-platform/manifest.md)
 - v4 malware analysis: [`docs/assets/malware-analysis-v4/manifest.md`](docs/assets/malware-analysis-v4/manifest.md)
 - v2 historical walkthrough: [`docs/assets/adversarygraph-v2/manifest.md`](docs/assets/adversarygraph-v2/manifest.md)
@@ -296,6 +302,7 @@ also available at [`docs/demo-videos/dfir-report-ai-analysis-compare.gif`](docs/
 | **Compare — Campaigns** | Jaccard similarity ranking of your TTPs vs every named MITRE campaign (e.g. SolarWinds C0024, Operation Ghost C0023) |
 | **Compare — Reports** | Browse stored AI analyses (DB 2); re-run group-similarity comparison without re-calling the LLM |
 | **Sector Intelligence** | Local actor relevance scoring by client sector, geography, environment keywords, activity window, ATT&CK campaign recency, and MISP Galaxy evidence |
+| **Asset Attack Surface Mapping** | Upload CSV/JSON/TXT asset inventories or paste host/IP/service lists, normalize exposed assets, score internet/internal/third-party surfaces, generate an attack surface matrix, propose likely entry points, ATT&CK technique candidates, priority actions, validation gaps, and optional AI-enriched executive summaries. See [Asset Attack Surface Mapping](docs/asset-attack-surface.md). |
 | **IOC Intelligence** | Local source-backed IOC storage with ThreatFox/OTX/Malpedia sync, global IOC Library search, MISP/custom feed connection, actor IOC tabs, IOC-to-TTP mapping, freshness filtering, confidence, source links, VT check, and CSV export |
 | **VirusTotal Lookup** | On-demand IOC reputation lookup for IPs, domains, URLs, and hashes with clean verdicts, extracted ATT&CK TTPs, local actor matches, and matrix/My TTP actions |
 | **DFIR Examples** | Indexed public DFIR Report examples with TTP/actor metadata and a local PDF workflow for private AI analysis |

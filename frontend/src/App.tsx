@@ -12,6 +12,7 @@ import { Operations } from '@/pages/Operations';
 import { Pipeline } from '@/pages/Pipeline';
 import { Examples } from '@/pages/Examples';
 import { SectorIntel } from '@/pages/SectorIntel';
+import { AssetSurface } from '@/pages/AssetSurface';
 import { KnowledgeLibrary } from '@/pages/KnowledgeLibrary';
 import SectorPacks from '@/pages/SectorPacks';
 import RetroHunt from '@/pages/RetroHunt';
@@ -60,6 +61,7 @@ export default function App() {
               <Route path="/pipeline" element={<RoleGate require="analyst"><Pipeline /></RoleGate>} />
               <Route path="/examples" element={<Examples />} />
               <Route path="/sector-intel" element={<SectorIntel />} />
+              <Route path="/asset-surface" element={<AssetSurface />} />
               <Route path="/sector-packs" element={<SectorPacks />} />
               <Route path="/knowledge" element={<KnowledgeLibrary />} />
               <Route path="/retrohunt" element={<RetroHunt />} />

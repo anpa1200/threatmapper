@@ -12,7 +12,7 @@ from app.core.rate_limit import RateLimitMiddleware
 import app.models.sector_packs  # noqa: F401 — registers SectorPack with Base metadata
 import app.models.retrohunt     # noqa: F401 — registers RetroHuntSignal with Base metadata
 import app.models.knowledge      # noqa: F401 — registers KnowledgeArticle with Base metadata
-from app.api.routes import attack, apt, analyze, sync, export, ioc, layers, malwaregraph, operations, pipeline, retrohunt, sector, system, knowledge
+from app.api.routes import asset_surface, attack, apt, analyze, sync, export, ioc, layers, malwaregraph, operations, pipeline, retrohunt, sector, system, knowledge
 from app.core.config import settings
 from app.core.database import async_session_factory, create_tables
 from app.core.logging_config import configure_logging
@@ -90,7 +90,8 @@ async def request_logging_middleware(request: Request, call_next):
         raise
     duration_ms = round((time.perf_counter() - started) * 1000, 2)
     response.headers["X-Request-ID"] = request_id
-    logger.info(
+    log = logger.error if response.status_code >= 500 else logger.warning if response.status_code >= 400 else logger.info
+    log(
         "request complete method=%s path=%s status=%s duration_ms=%s",
         request.method,
         request.url.path,
@@ -120,6 +121,7 @@ app.add_middleware(RateLimitMiddleware)
 app.include_router(attack.router,  prefix="/api")
 app.include_router(apt.router,     prefix="/api")
 app.include_router(analyze.router, prefix="/api")
+app.include_router(asset_surface.router, prefix="/api")
 app.include_router(sync.router,    prefix="/api")
 app.include_router(export.router,  prefix="/api")
 app.include_router(ioc.router, prefix="/api")

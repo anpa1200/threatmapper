@@ -26,6 +26,7 @@ import {
   statusColor,
   visibleJobs,
 } from '@/pages/malwareShared';
+import { IocLink } from '@/utils/ctiLinks';
 
 export function DynamicAnalysis() {
   const navigate = useNavigate();
@@ -889,7 +890,7 @@ function StepFindings({ findings, raw }: { findings: StepFindingsData; raw: Reco
       {findings.networkConns.slice(0, 40).map((n, i) => (
         <div key={i} className="flex items-center gap-2 rounded bg-gray-900/40 px-2 py-1.5">
           {n.protocol && <span className="shrink-0 text-[10px] text-gray-500 uppercase">{String(n.protocol)}</span>}
-          <span className="font-mono text-[10px] text-amber-300">{String(n.host ?? n.ip ?? JSON.stringify(n))}</span>
+          <IocLink value={String(n.host ?? n.ip ?? JSON.stringify(n))} source="DynamicAnalysis" className="font-mono text-[10px] text-amber-300 hover:underline" />
           {n.port != null && <span className="text-gray-600">:{String(n.port)}</span>}
         </div>
       ))}
@@ -899,7 +900,7 @@ function StepFindings({ findings, raw }: { findings: StepFindingsData; raw: Reco
       {findings.iocs.map((ioc, i) => (
         <div key={i} className="flex items-center gap-2 rounded bg-gray-900/40 px-2 py-1.5">
           {ioc.type && <span className="shrink-0 rounded bg-gray-800 px-1.5 py-0.5 text-[9px] text-gray-400">{String(ioc.type)}</span>}
-          <span className="break-all font-mono text-[10px] text-mitre-accent">{String(ioc.value ?? JSON.stringify(ioc))}</span>
+          <IocLink value={String(ioc.value ?? JSON.stringify(ioc))} type={String(ioc.type ?? '')} source="DynamicAnalysis" className="break-all font-mono text-[10px] text-mitre-accent hover:underline" />
         </div>
       ))}
     </FindingsGroup>}
@@ -949,9 +950,9 @@ function FindingsSummary({ findings }: { findings: AllFindings }) {
         <div className="mb-2 text-[10px] uppercase text-gray-500">IOC indicators</div>
         <div className="flex flex-wrap gap-1.5">
           {findings.iocs.map((ioc, i) => (
-            <span key={i} className="rounded border border-red-600/30 bg-red-950/20 px-2 py-0.5 font-mono text-[10px] text-red-300">
+            <IocLink key={i} value={String(ioc.value ?? JSON.stringify(ioc))} type={String(ioc.type ?? '')} source="DynamicAnalysis" className="rounded border border-red-600/30 bg-red-950/20 px-2 py-0.5 font-mono text-[10px] text-red-300 hover:border-red-400">
               {String(ioc.value ?? JSON.stringify(ioc))}
-            </span>
+            </IocLink>
           ))}
         </div>
       </div>

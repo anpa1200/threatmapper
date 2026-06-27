@@ -1,6 +1,6 @@
 # AdversaryGraph Platform Guide
 
-> Current v4 platform documentation. AdversaryGraph is an analyst-assistance
+> Current v4.1 platform documentation. AdversaryGraph is an analyst-assistance
 > system: AI mappings, similarity scores, IOC enrichment, malware-analysis
 > output, and generated detections require human validation before operational
 > use.
@@ -11,13 +11,16 @@
 2. [Core Workflow](#core-workflow)
 3. [Modules and Abilities](#modules-and-abilities)
 4. [Module Walkthrough](#module-walkthrough)
-5. [Malware Analysis Extension](#malware-analysis-extension)
-6. [Operating Notes](#operating-notes)
+5. [Asset Attack Surface Mapping](#asset-attack-surface-mapping)
+6. [Malware Analysis Extension](#malware-analysis-extension)
+7. [Operating Notes](#operating-notes)
 
 ## Visual Evidence
 
 Current v4 platform screenshots are stored in
 [`docs/assets/adversarygraph-v4-platform`](assets/adversarygraph-v4-platform/manifest.md).
+The v4.1 Asset Surface and Discover addendum is stored in
+[`docs/assets/adversarygraph-v4.1-platform`](assets/adversarygraph-v4.1-platform/manifest.md).
 The malware-analysis screenshot set is stored in
 [`docs/assets/malware-analysis-v4`](assets/malware-analysis-v4/manifest.md).
 
@@ -25,6 +28,10 @@ Both screenshot packs include validation metadata. The platform set records
 route load, expected page text, `1920x1200` dimensions, byte size, mean RGB, and
 nonblank image checks in
 [`validation.json`](assets/adversarygraph-v4-platform/validation.json).
+
+The v4.1 addendum validates the current Discover launcher layout, Asset Surface
+analysis output, saved analysis history, and the white Navigator layer created
+from asset-inventory TTP candidates.
 
 ## Core Workflow
 
@@ -55,6 +62,7 @@ AI assistant should remain traceable back to evidence.
 | Compare | Compare current TTP layers, reports, groups, and campaigns; inspect overlap, matrix diff, tactic breakdown, and gap analysis. |
 | Group vs Group | Select multiple actor profiles; compare shared and exclusive techniques; view overlap matrix, combined matrix, and technique table. |
 | Sector Intel | Rank actors by sector, geography, technology, recency, campaign evidence, and MISP Galaxy context. |
+| Asset Surface | Upload or paste asset inventories; normalize assets, exposure, ports, technologies, and owners; build an AI-assisted attack surface matrix with risk levels, entry points, ATT&CK candidates, priority actions, validation gaps, and cross-asset findings. |
 | RetroHunt | Search historical local intelligence, reports, indicators, techniques, and evidence for repeated patterns. |
 | Knowledge Library | Browse stored reports, references, entities, and investigation source material. |
 | IOC Library | Search observables, source attribution, freshness, enrichment fields, mapped TTPs, and actor links. |
@@ -222,6 +230,38 @@ techniques, intelligence notes, and recommended review paths.
 
 IOC Node Detail treats an observable as a graph entity and exposes enrichment,
 linked TTPs, source evidence, relationship context, and actions.
+
+## Asset Attack Surface Mapping
+
+Asset Surface maps CMDB exports, scanner output, cloud asset lists, and plain
+host/IP inventories into a defensive attack surface matrix. The workflow
+normalizes owners, environments, IPs, domains, ports, technologies, exposure,
+and criticality, then produces risk levels, likely entry points, ATT&CK
+technique candidates, priority actions, assumptions, validation gaps, and
+optional AI-enriched executive findings.
+
+The module is useful when the starting point is infrastructure rather than a
+report, IOC, actor, or malware sample. It helps answer:
+
+- Which assets appear internet-facing, internal, third-party, or unknown?
+- Which assets combine high business criticality with exposed administration,
+  web/API, database, identity, container, or remote-access surfaces?
+- Which likely ATT&CK techniques should be reviewed in Navigator and detection
+  planning?
+- Which facts must be validated with scanner, cloud firewall, WAF, CMDB, and
+  telemetry data before operational action?
+
+See the dedicated [Asset Attack Surface Mapping](asset-attack-surface.md)
+guide for accepted inventory fields and output semantics.
+
+Representative screenshots:
+
+| Workflow | Screenshot |
+|---|---|
+| Updated Discover launchers | ![Discover launchers](assets/adversarygraph-v4.1-platform/01-discover-launchers.png) |
+| Asset Surface analysis result | ![Asset Surface analysis result](assets/adversarygraph-v4.1-platform/02-asset-surface-analysis.png) |
+| Saved Asset Surface history | ![Saved Asset Surface history](assets/adversarygraph-v4.1-platform/03-asset-surface-history.png) |
+| White asset-surface Navigator layer | ![White asset-surface Navigator layer](assets/adversarygraph-v4.1-platform/04-asset-surface-white-matrix.png) |
 
 ## Malware Analysis Extension
 

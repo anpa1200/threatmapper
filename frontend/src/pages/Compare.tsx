@@ -9,6 +9,7 @@ import { TacticBreakdown } from '@/components/Compare/TacticBreakdown';
 import { Header } from '@/components/Layout/Header';
 import { TechniqueModal } from '@/components/TechniqueModal';
 import type { CampaignResult, CompareResult, OverlapExplanationRequest, ReportSession, TechniqueUsage } from '@/types/attack';
+import { TtpLink } from '@/utils/ctiLinks';
 
 type CompareMode = 'groups' | 'campaigns' | 'reports';
 type DetailTab   = 'overview' | 'tactic' | 'matrix' | 'gap' | 'explain';
@@ -263,7 +264,7 @@ export function Compare() {
         {selectedTechniques.size > 0 && (
           <div className="flex flex-wrap gap-1 flex-1 overflow-hidden max-h-8 min-w-0">
             {Array.from(selectedTechniques).slice(0, 18).map(id => (
-              <span key={id} className="text-[10px] font-mono bg-gray-800 text-gray-400 px-1.5 py-0.5 rounded">{id}</span>
+              <TtpLink key={id} id={id} className="text-[10px] font-mono bg-gray-800 text-gray-400 px-1.5 py-0.5 rounded hover:text-mitre-accent" />
             ))}
             {selectedTechniques.size > 18 && (
               <span className="text-[10px] text-gray-600">+{selectedTechniques.size - 18} more</span>
@@ -560,7 +561,7 @@ export function Compare() {
                           <div key={t.attack_id}
                             className={`flex items-center gap-3 py-1.5 px-3 rounded transition-colors ${isShared ? 'bg-purple-900/20' : 'hover:bg-gray-800/60'}`}
                           >
-                            <span className={`font-mono text-xs w-20 shrink-0 ${isShared ? 'text-purple-400' : 'text-gray-500'}`}>{t.attack_id}</span>
+                            <TtpLink id={t.attack_id} className={`font-mono text-xs w-20 shrink-0 ${isShared ? 'text-purple-400' : 'text-gray-500'} hover:text-mitre-accent`} />
                             <span className="text-sm text-gray-300 flex-1">{t.name}</span>
                             <span className="text-[10px] bg-gray-800 text-gray-500 px-1.5 py-0.5 rounded shrink-0">{t.tactics?.[0] ?? ''}</span>
                             {isShared && <span className="text-[10px] text-purple-500 shrink-0">✓ shared</span>}
