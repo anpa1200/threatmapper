@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 from datetime import datetime, timezone
 import hashlib
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -13,6 +14,7 @@ HOST = os.environ.get("ATTACK_LAB_WEB_HOST", "127.0.0.1")
 PORT = int(os.environ.get("ATTACK_LAB_WEB_PORT", "8081"))
 LOG_DIR = Path(os.environ.get("ATTACK_LAB_WEB_LOG_DIR", "/app/logs")) / "attack-simulation"
 LOG_DIR.mkdir(parents=True, exist_ok=True)
+ENDPOINT_CANARY_CATEGORIES = {"shadow_file_access", "mimikatz_lsass", "lsass_dump"}
 
 LAB_AUTH_USERS = {
     "admin": "CorrectHorseBattery1!",
@@ -27,6 +29,12 @@ class AttackLabWebHandler(BaseHTTPRequestHandler):
 
     def do_HEAD(self) -> None:
         self._handle_request(include_body=False)
+
+    def do_OPTIONS(self) -> None:
+        self._handle_request(include_body=True)
+
+    def do_TRACE(self) -> None:
+        self._handle_request(include_body=True)
 
     def do_GET(self) -> None:
         self._handle_request(include_body=True)
@@ -48,7 +56,8 @@ class AttackLabWebHandler(BaseHTTPRequestHandler):
             if include_body:
                 self.wfile.write(payload)
             return
-        auth_event = _auth_event_for_request(self.command, self.path, request_body)
+        headers = {key: value for key, value in self.headers.items()}
+        auth_event = _auth_event_for_request(self.command, self.path, request_body, headers)
         body = _response_body_for_path(self.path)
         status = 200 if body is not None else 404
         payload = body if body is not None else b"not found\n"
@@ -72,6 +81,8 @@ class AttackLabWebHandler(BaseHTTPRequestHandler):
             content_type = "application/json"
 
         self.send_response(status)
+        if self.command == "OPTIONS":
+            self.send_header("Allow", "GET, HEAD, POST, OPTIONS")
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(payload)))
         self.send_header("X-AdversaryGraph-Lab", "attack-simulation")
@@ -113,10 +124,10 @@ class AttackLabWebHandler(BaseHTTPRequestHandler):
             "clean_path": parsed.path,
             "query_keys": sorted(query.keys()),
             "protocol": self.request_version,
-            "headers": headers,
+            "headers": _redact_sensitive_headers(headers),
             "body_length": len(request_body),
             "body_sha256": hashlib.sha256(request_body).hexdigest() if request_body else "",
-            "body_preview": request_body[:160].decode("utf-8", errors="replace") if request_body else "",
+            "body_preview": request_body[:1024].decode("utf-8", errors="replace") if request_body else "",
             "matched_canaries": _classify_web_canaries(self.command, self.path, headers, request_body),
             "status": status,
             "response_bytes": response_bytes,
@@ -140,23 +151,31 @@ def _response_body_for_path(path: str) -> bytes | None:
         return b"Contact: mailto:security@example.test\nPolicy: https://example.test/security-policy\n"
     if clean_path == "/login":
         return b"login failed\n"
+    if clean_path == "/basic-auth":
+        return b"basic auth required\n"
     if clean_path == "/login/user-check":
         return b'{"status":"recorded","lab":"attack-simulation"}\n'
+    if clean_path == "/internal/activity":
+        return b'{"status":"recorded","lab":"attack-simulation","type":"internal_activity"}\n'
     if clean_path.startswith("/api/"):
         return b'{"status":"ok","lab":"attack-simulation"}\n'
     if clean_path in {"/admin", "/download", "/fetch", "/proxy", "/cgi-bin/status", "/shell.php"}:
         return b"lab canary recorded\n"
     if clean_path.startswith("/downloads/"):
         return b"AG_BENIGN_DOWNLOAD_CANARY\n"
+    if clean_path.startswith("/upload/"):
+        return b"upload canary recorded\n"
     return None
 
 
-def _auth_event_for_request(method: str, path: str, body: bytes) -> dict[str, object] | None:
+def _auth_event_for_request(method: str, path: str, body: bytes, headers: dict[str, str]) -> dict[str, object] | None:
     parsed = parse.urlparse(path)
     clean_path = parsed.path
     query = parse.parse_qs(parsed.query, keep_blank_values=True)
     body_fields = _parse_request_fields(body)
     fields = {**{key: values[-1] if values else "" for key, values in query.items()}, **body_fields}
+    header_lookup = {key.lower(): value for key, value in headers.items()}
+    fields["authorization"] = header_lookup.get("authorization", "")
     canary = str(fields.get("ag_canary") or "").lower()
 
     if method == "GET" and clean_path == "/login/user-check":
@@ -173,6 +192,26 @@ def _auth_event_for_request(method: str, path: str, body: bytes) -> dict[str, ob
             "password_length": 0,
             "password_sha256": "",
             "status": 200 if exists else 404,
+        }
+
+    if method == "GET" and clean_path == "/basic-auth":
+        auth_header = str(fields.get("authorization") or "")
+        if not auth_header:
+            auth_header = ""
+        username, password = _parse_basic_auth_header(auth_header)
+        exists = username in LAB_AUTH_USERS
+        success = exists and LAB_AUTH_USERS[username] == password
+        return {
+            "event_type": "lab_web_basic_auth",
+            "auth_username": username,
+            "auth_user_hash": _stable_hash(username) if username else "",
+            "auth_user_exists": exists,
+            "auth_outcome": "success" if success else "failure",
+            "auth_failure_reason": "" if success else ("bad_password" if exists else "unknown_user"),
+            "credential_attack_type": "basic_auth_bruteforce",
+            "password_length": len(password),
+            "password_sha256": _stable_hash(password) if password else "",
+            "status": 200 if success else 401,
         }
 
     if method == "POST" and clean_path == "/login":
@@ -194,6 +233,17 @@ def _auth_event_for_request(method: str, path: str, body: bytes) -> dict[str, ob
             "status": 200 if success else (404 if not exists else 401),
         }
     return None
+
+
+def _parse_basic_auth_header(header: str) -> tuple[str, str]:
+    if not header.lower().startswith("basic "):
+        return ("", "")
+    try:
+        decoded = base64.b64decode(header.split(" ", 1)[1], validate=True).decode("utf-8", errors="replace")
+    except Exception:
+        return ("", "")
+    username, _, password = decoded.partition(":")
+    return (username, password)
 
 
 def _parse_request_fields(body: bytes) -> dict[str, str]:
@@ -234,11 +284,14 @@ def _client_ip_from_headers(headers: dict[str, str], fallback: str) -> str:
 
 
 def _classify_web_canaries(method: str, path: str, headers: dict[str, str], body: bytes) -> list[str]:
+    user_agent = str(headers.get("User-Agent") or headers.get("user-agent") or "").lower()
+    method_override = str(headers.get("X-HTTP-Method-Override") or headers.get("x-http-method-override") or "").lower()
     haystack = " ".join(
         [
             method,
             parse.unquote_plus(path),
-            " ".join(f"{key}:{value}" for key, value in headers.items()),
+            user_agent,
+            method_override,
             body.decode("utf-8", errors="replace"),
         ]
     ).lower()
@@ -258,13 +311,34 @@ def _classify_web_canaries(method: str, path: str, headers: dict[str, str], body
         "beacon": ["ag_canary=beacon", "/api/ping", "/api/telemetry"],
         "exfil": ["ag_canary=exfil", "ag_exfil_canary", "/api/export", "/collect"],
         "admin_discovery": ["/admin", "/.git/config", "/backup.zip"],
+        "http_method_probe": ["ag_canary=http_method_probe", "options", "trace", "delete"],
+        "not_found_burst": ["ag_canary=not_found_burst", "/wp-admin", "/phpmyadmin", "/server-status", "/actuator/env", "/.svn/entries", "/owa/auth/logon.aspx"],
+        "tool_user_agent": ["ag_canary=tool_user_agent", "curl/", "python-requests", "sqlmap", "nmap scripting engine"],
+        "basic_auth_bruteforce": ["ag_canary=basic_auth_bruteforce", "/basic-auth"],
+        "suspicious_upload": ["ag_canary=suspicious_upload", "/upload/shell.php", "/upload/cmd.aspx", "/upload/agent.jsp"],
+        "shadow_file_access": ["ag_canary\":\"shadow_file_access", "ag_canary=shadow_file_access", "/etc/shadow"],
+        "mimikatz_lsass": ["ag_canary\":\"mimikatz_lsass", "mimikatz", "sekurlsa::logonpasswords"],
+        "lsass_dump": ["ag_canary\":\"lsass_minidump", "ag_canary\":\"procdump_lsass", "minidump", "procdump", "lsass.dmp"],
     }
     return [name for name, needles in indicators.items() if any(needle in haystack for needle in needles)]
 
 
+def _redact_sensitive_headers(headers: dict[str, str]) -> dict[str, str]:
+    redacted: dict[str, str] = {}
+    for key, value in headers.items():
+        if key.lower() in {"authorization", "proxy-authorization", "cookie", "set-cookie"}:
+            redacted[key] = "[redacted]"
+        else:
+            redacted[key] = value
+    return redacted
+
+
 def _append_operational_web_logs(event: dict[str, object]) -> None:
     for category in event.get("matched_canaries") or []:
-        _append_text_line(_web_security_log_path(), _format_web_security_line(event, str(category)))
+        if category in ENDPOINT_CANARY_CATEGORIES:
+            _append_text_line(_endpoint_log_path(), _format_internal_activity_line(event, str(category)))
+        else:
+            _append_text_line(_web_security_log_path(), _format_web_security_line(event, str(category)))
     if event.get("credential_attack_type") or str(event.get("event_type") or "").startswith("lab_web_auth"):
         _append_text_line(_web_auth_log_path(), _format_web_auth_line(event))
 
@@ -280,6 +354,74 @@ def _format_web_security_line(event: dict[str, object], category: str) -> str:
         f'simulation_id="{event.get("simulation_id") or "-"}" body_sha256="{event.get("body_sha256") or "-"}" '
         f'msg="Matched AdversaryGraph {category} canary in Docker lab web telemetry"'
     )
+
+
+def _format_internal_activity_line(event: dict[str, object], category: str) -> str:
+    body = _event_body(event)
+    process = _json_field(body, "process") or _process_for_category(category)
+    command = _json_field(body, "command") or " ".join(_json_array_field(body, "args"))
+    file_path = _json_field(body, "file_path") or _file_for_category(category)
+    target_process = _json_field(body, "target_process")
+    operation = _json_field(body, "operation") or category
+    safe_command = command.replace(chr(34), r"\"") or "-"
+    safe_uri = str(event.get("path") or "-").replace(chr(34), r"\"")
+    provider, event_id, event_name = _endpoint_provider_fields(category)
+    return (
+        f'{event.get("timestamp") or datetime.now(timezone.utc).isoformat()} attack-simulation-endpoint '
+        f'provider="{provider}" event_id="{event_id}" event_name="{event_name}" '
+        f'event="internal_activity" category="{category}" severity="{_security_severity(category)}" '
+        f'host="attack-lab-web" user="lab-user" process="{process}" '
+        f'command="{safe_command}" file_path="{file_path}" '
+        f'target_process="{target_process or "-"}" operation="{operation}" '
+        f'client="{event.get("client_ip") or "-"}" method="{event.get("method") or "-"}" '
+        f'uri="{safe_uri}" status={int(event.get("status") or 0)} '
+        f'run_id="{event.get("run_id") or "-"}" simulation_id="{event.get("simulation_id") or "-"}" '
+        f'msg="Matched AdversaryGraph internal activity canary: {category}"'
+    )
+
+
+def _event_body(event: dict[str, object]) -> str:
+    return str(event.get("body_preview") or "")
+
+
+def _json_field(body: str, field: str) -> str:
+    try:
+        value = json.loads(body).get(field, "")
+    except (json.JSONDecodeError, AttributeError):
+        return ""
+    return str(value) if value is not None and not isinstance(value, list) else ""
+
+
+def _endpoint_provider_fields(category: str) -> tuple[str, str, str]:
+    if category == "shadow_file_access":
+        return ("auditd", "SYSCALL", "FileAccess")
+    if category == "mimikatz_lsass":
+        return ("sysmon", "1", "ProcessCreate")
+    if category == "lsass_dump":
+        return ("sysmon", "10", "ProcessAccess")
+    return ("edr", "-", "EndpointActivity")
+
+
+def _json_array_field(body: str, field: str) -> list[str]:
+    try:
+        value = json.loads(body).get(field, [])
+    except (json.JSONDecodeError, AttributeError):
+        return []
+    if isinstance(value, list):
+        return [str(item) for item in value]
+    return []
+
+
+def _process_for_category(category: str) -> str:
+    return {
+        "shadow_file_access": "cat",
+        "mimikatz_lsass": "mimikatz.exe",
+        "lsass_dump": "procdump64.exe",
+    }.get(category, "-")
+
+
+def _file_for_category(category: str) -> str:
+    return "/etc/shadow" if category == "shadow_file_access" else "-"
 
 
 def _format_web_auth_line(event: dict[str, object]) -> str:
@@ -301,9 +443,9 @@ def _security_rule_id(category: str) -> str:
 
 
 def _security_severity(category: str) -> str:
-    if category in {"webshell", "command_injection", "exfil", "secret_exposure", "brute_force", "password_spray"}:
+    if category in {"webshell", "command_injection", "exfil", "secret_exposure", "brute_force", "password_spray", "basic_auth_bruteforce", "suspicious_upload", "shadow_file_access", "mimikatz_lsass", "lsass_dump"}:
         return "high"
-    if category in {"sqli", "xss", "ssrf", "path_traversal", "failed_login", "user_enumeration"}:
+    if category in {"sqli", "xss", "ssrf", "path_traversal", "failed_login", "user_enumeration", "http_method_probe", "not_found_burst", "tool_user_agent"}:
         return "medium"
     return "low"
 
@@ -322,6 +464,10 @@ def _web_security_log_path() -> Path:
 
 def _web_auth_log_path() -> Path:
     return LOG_DIR / "lab-web-auth.log"
+
+
+def _endpoint_log_path() -> Path:
+    return LOG_DIR / "lab-endpoint.log"
 
 
 def _append_jsonl(path: Path, event: dict[str, object]) -> None:

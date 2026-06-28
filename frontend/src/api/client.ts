@@ -1862,6 +1862,7 @@ export interface AttackSimulationRun {
     web_security_log_file?: string;
     web_error_log_file?: string;
     web_auth_log_file?: string;
+    endpoint_log_file?: string;
     request_count?: number;
     success_count?: number;
     events?: Array<{
@@ -1930,7 +1931,7 @@ export interface AttackSimulationForwardResult {
   response_headers: Record<string, string>;
 }
 
-export type AttackSimulationLogSource = 'web' | 'run' | 'access' | 'security' | 'error' | 'auth';
+export type AttackSimulationLogSource = 'attacked_server' | 'web' | 'run' | 'access' | 'security' | 'error' | 'auth' | 'endpoint';
 
 export interface AttackSimulationManualResult {
   result_id: string;

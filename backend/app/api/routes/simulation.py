@@ -29,7 +29,7 @@ class ManualResultRequest(BaseModel):
 
 
 class ForwardLogsRequest(BaseModel):
-    source: str = Field(default="access", pattern="^(web|run|access|security|error|auth)$")
+    source: str = Field(default="access", pattern="^(attacked_server|web|run|access|security|error|auth|endpoint)$")
     run_id: str = Field(default="", max_length=80)
     destination_url: str = Field(..., min_length=8, max_length=1000)
     limit: int = Field(default=100, ge=1, le=500)

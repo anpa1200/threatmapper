@@ -285,6 +285,18 @@ export function AttackSimulation() {
               <button type="button" className="secondary-action w-full" onClick={() => navigate('/attack-simulation')}>
                 Change TTP
               </button>
+              <label className="label">Simulation scenario</label>
+              <select
+                className="field text-xs"
+                value={simulationId}
+                onChange={event => navigate(`/attack-simulation/${event.target.value}`)}
+              >
+                {catalog.map(item => (
+                  <option key={item.id} value={item.id}>
+                    {item.technique_id} - {item.name}
+                  </option>
+                ))}
+              </select>
               {selectedSimulation && <SimulationSummary item={selectedSimulation} />}
             </div>
           </Panel>
@@ -361,6 +373,7 @@ export function AttackSimulation() {
             source={liveLogSource}
             onToggle={() => setLiveLogsEnabled(value => !value)}
             onClearFollow={() => {
+              setLiveLogSource('attacked_server');
               setShowAllLiveLogs(true);
               setLiveLogsEnabled(true);
             }}
@@ -444,19 +457,98 @@ export function AttackSimulation() {
 }
 
 function SimulationSummary({ item }: { item: AttackSimulationCatalogItem }) {
+  const context = simulationDetectionContext(item);
   return (
     <div className="rounded border border-gray-800 bg-gray-950 p-3 text-xs text-gray-400">
       <div className="mb-2 flex items-center justify-between gap-2">
         <TtpLink id={item.technique_id} />
         <span className={`rounded px-2 py-1 text-[10px] ${item.risk_level <= 1 ? 'bg-green-950 text-green-300' : 'bg-amber-950 text-amber-300'}`}>Risk {item.risk_level}</span>
       </div>
-      <p className="leading-5">{item.description}</p>
+      <p className="leading-5 text-gray-300">{item.description}</p>
       <div className="mt-2 flex flex-wrap gap-1">
         <Chip>{item.category}</Chip>
         {item.target_types.map(type => <Chip key={type}>{type}</Chip>)}
       </div>
+      <div className="mt-3 space-y-3 border-t border-gray-800 pt-3">
+        <InfoBlock title="What Happens" text={context.whatHappens} />
+        <InfoBlock title="Telemetry Source" text={context.telemetrySource} />
+        <InfoBlock title="System / Event Structure" text={context.eventStructure} />
+        <div>
+          <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-500">Detection Focus</div>
+          <ul className="space-y-1">
+            {context.detectionFocus.map(focus => (
+              <li key={focus} className="rounded border border-gray-800 bg-gray-900/40 px-2 py-1 leading-5 text-gray-300">
+                {focus}
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
     </div>
   );
+}
+
+function InfoBlock({ title, text }: { title: string; text: string }) {
+  return (
+    <div>
+      <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-500">{title}</div>
+      <p className="leading-5 text-gray-300">{text}</p>
+    </div>
+  );
+}
+
+function simulationDetectionContext(item: AttackSimulationCatalogItem) {
+  const isAtomic = item.category === 'atomic-event-artifact';
+  const isWeb = item.target_types.includes('web') || item.target_types.includes('http') || item.target_types.includes('https');
+  const isEndpoint = item.target_types.includes('endpoint') || item.target_types.includes('windows-endpoint') || item.target_types.includes('linux-endpoint');
+  const provider = item.expected_telemetry.find(value => / event$/i.test(value))?.replace(/ event$/i, '');
+  const eventId = item.expected_telemetry.find(value => value.startsWith('event_id='))?.replace('event_id=', '');
+  const eventName = item.expected_telemetry.find(value => value.startsWith('event_name='))?.replace('event_name=', '');
+
+  const telemetrySource = isAtomic
+    ? `${provider || 'Vendor'} telemetry fixture through the endpoint log source. Use the Endpoint EDR/Sysmon log or forward endpoint events to SIEM.`
+    : isWeb
+      ? 'Attacked lab web server telemetry: real NGINX access log, structured web JSONL, auth log, and WAF/security-style log when the request matches a canary.'
+      : isEndpoint
+        ? 'Endpoint lab telemetry: endpoint JSONL plus endpoint log source. Current non-atomic endpoint flows are safe telemetry fixtures, not OS command execution.'
+        : 'Approved lab target telemetry from the selected simulation target.';
+
+  const eventStructure = isAtomic
+    ? atomicEventStructure(provider, eventId, eventName)
+    : isWeb
+      ? 'Web events contain method, URI/path, status, client IP, user-agent, request length, response bytes, body hash/length, run_id, simulation_id, and canary classification. Auth scenarios also include username hash, user-exists flag, outcome, and failure reason.'
+      : isEndpoint
+        ? 'Endpoint events contain provider, event_id, event_name, process, command, file_path, target_process, operation, host, user, run_id, and simulation_id.'
+        : 'The simulation records a plan and expected evidence fields for the target telemetry owner.';
+
+  const firstSteps = item.steps.slice(0, 2).join(' ');
+  const whatHappens = isAtomic
+    ? `One high-signal event is emitted for ${item.technique_id}. No malware, exploit, command, registry write, file write, or cloud/identity action is executed.`
+    : firstSteps || item.description;
+
+  const detectionFocus = item.expected_telemetry.length
+    ? item.expected_telemetry.slice(0, 6)
+    : [
+        'Presence of the expected ATT&CK-shaped artifact',
+        'Correct source system and event type',
+        'Run correlation fields',
+      ];
+
+  return { whatHappens, telemetrySource, eventStructure, detectionFocus };
+}
+
+function atomicEventStructure(provider?: string, eventId?: string, eventName?: string) {
+  const normalized = (provider || '').toLowerCase();
+  if (['sysmon', 'windows_security', 'windows_system', 'windows_defender', 'windows_powershell'].includes(normalized)) {
+    return [
+      `Strict Windows Event Log shaped JSON${eventId ? ` for EventID ${eventId}` : ''}${eventName ? ` (${eventName})` : ''}.`,
+      'Includes Event.System.Provider, Event.System.EventID, Event.System.Channel, Event.System.Computer, Event.System.Security, Event.EventData.Data[], winlog.event_data, and event.original XML.',
+    ].join(' ');
+  }
+  return [
+    `Structured ${provider || 'vendor'} JSON${eventId ? ` with code ${eventId}` : ''}${eventName ? ` (${eventName})` : ''}.`,
+    'Includes observer/event metadata, host/process fields, source/destination or URL context when relevant, rule name, run_id, and simulation_id.',
+  ].join(' ');
 }
 
 function PlanView({ plan }: { plan: AttackSimulationPlan }) {
@@ -536,7 +628,8 @@ function LiveLogsView({
   onSourceChange: (value: AttackSimulationLogSource) => void;
 }) {
   const events = logs?.events ?? [];
-  const logScopeText = activeRunFilter ? `Filtering run ${activeRunFilter}` : `Showing all ${source} events`;
+  const sourceLabel = source === 'attacked_server' ? 'attacked-server' : source;
+  const logScopeText = activeRunFilter ? `Filtering run ${activeRunFilter}` : `Showing all ${sourceLabel} events`;
   const footerScopeText = activeRunFilter ? `filtered run ${shortRun(activeRunFilter)}` : 'all shared events';
   return (
     <Panel title="Real-Time Attack Logs">
@@ -550,8 +643,10 @@ function LiveLogsView({
           </div>
           <div className="flex flex-wrap gap-2">
             <select className="field w-56 py-1 text-xs" value={source} onChange={event => onSourceChange(event.target.value as AttackSimulationLogSource)}>
+              <option value="attacked_server">All attacked-server events</option>
               <option value="access">Real web access log</option>
               <option value="auth">Real auth log</option>
+              <option value="endpoint">Endpoint EDR/Sysmon log</option>
               <option value="security">Real WAF/security log</option>
               <option value="error">Real web error log</option>
               <option value="web">Structured web JSONL</option>
@@ -828,8 +923,10 @@ function SiemForwarder({
         <div className="space-y-3">
           <label className="label">Log source</label>
           <select className="field" value={source} onChange={event => onSourceChange(event.target.value as AttackSimulationLogSource)}>
+            <option value="attacked_server">All attacked-server events</option>
             <option value="access">Real web access log</option>
             <option value="auth">Real auth log</option>
+            <option value="endpoint">Endpoint EDR/Sysmon log</option>
             <option value="security">Real WAF/security log</option>
             <option value="error">Real web error log</option>
             <option value="web">Structured web JSONL</option>
@@ -869,6 +966,7 @@ function TelemetryView({ telemetry }: { telemetry: NonNullable<AttackSimulationR
           {telemetry.web_access_log_file && <Mini label="Structured web JSONL" value={telemetry.web_access_log_file} />}
           {telemetry.web_server_access_log_file && <Mini label="Real access log" value={telemetry.web_server_access_log_file} />}
           {telemetry.web_auth_log_file && <Mini label="Auth log" value={telemetry.web_auth_log_file} />}
+          {telemetry.endpoint_log_file && <Mini label="Endpoint log" value={telemetry.endpoint_log_file} />}
           {telemetry.web_security_log_file && <Mini label="Security log" value={telemetry.web_security_log_file} />}
           {telemetry.web_error_log_file && <Mini label="Error log" value={telemetry.web_error_log_file} />}
         </div>

