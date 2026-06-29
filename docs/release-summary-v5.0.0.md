@@ -56,6 +56,7 @@ explanation of the scenario logic.
 
 ## Documentation
 
+- Published Medium article: [AdversaryGraph v5.0: From CTI Mapping to Attack Simulation and SIEM Validation](https://medium.com/@1200km/adversarygraph-v5-0-from-cti-mapping-to-attack-simulation-and-siem-validation-21873b2a6c39)
 - Detailed module docs: [`docs/attack-simulation.md`](attack-simulation.md)
 - Screenshot manifest: [`docs/assets/attack-simulation-v5/manifest.md`](assets/attack-simulation-v5/manifest.md)
 - Release notes: [`docs/release-notes/v5.0.0.md`](release-notes/v5.0.0.md)
