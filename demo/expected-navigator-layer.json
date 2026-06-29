@@ -1,0 +1,15 @@
+{
+  "name": "AdversaryGraph demo expected ATT&CK layer",
+  "version": "4.5",
+  "domain": "enterprise-attack",
+  "description": "Expected demo technique layer for reviewer validation.",
+  "techniques": [
+    {"techniqueID": "T1110.003", "score": 80, "comment": "Password spraying against VPN"},
+    {"techniqueID": "T1078", "score": 75, "comment": "Valid account foothold"},
+    {"techniqueID": "T1190", "score": 55, "comment": "Web exploit canary"},
+    {"techniqueID": "T1059.001", "score": 70, "comment": "Encoded PowerShell"},
+    {"techniqueID": "T1482", "score": 60, "comment": "Domain trust discovery"},
+    {"techniqueID": "T1003.001", "score": 85, "comment": "LSASS process access"},
+    {"techniqueID": "T1218.011", "score": 65, "comment": "Rundll32 scriptlet proxy execution"}
+  ]
+}

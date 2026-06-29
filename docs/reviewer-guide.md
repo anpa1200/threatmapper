@@ -22,7 +22,7 @@ AdversaryGraph is a **self-hosted AI-assisted CTI workbench** for:
 - Uploading threat reports and extracting ATT&CK-mapped techniques with AI assistance
 - Reviewing, accepting, and rejecting extracted mappings as an analyst
 - Building detection coverage plans tied to specific TTPs
-- Running Attack Simulation scenarios against authorized lab targets and forwarding synthetic telemetry to a SIEM for rule validation
+- Running Attack Simulation scenarios against authorized lab targets, reviewing real lab-target telemetry, and forwarding either real lab logs or synthetic source-shaped telemetry to a SIEM for rule validation
 - Generating AI-assisted kill-chain scenarios for detection engineering exercises
 
 ## What this tool is NOT
@@ -34,7 +34,7 @@ AdversaryGraph is a **self-hosted AI-assisted CTI workbench** for:
 | Hardened internet-facing service | Not the default. Requires TLS, auth proxy, and network restrictions — documented in [SECURITY.md](../SECURITY.md). |
 | Automated threat actor attribution | Not claimed. TTP overlap is an investigation lead, not attribution proof. |
 | Replacement for analyst judgment | Not claimed. All AI outputs require analyst review before operational use. |
-| Live attack framework | Not implemented. Attack simulation produces synthetic telemetry; no exploit execution. |
+| Live attack framework | Not claimed. Attack Simulation uses approved lab fixtures and benign canaries; it is not a general exploit runner and does not target arbitrary systems. |
 
 ## Security posture
 
@@ -45,6 +45,7 @@ AdversaryGraph is a **self-hosted AI-assisted CTI workbench** for:
 - LLM outputs are treated as untrusted and require analyst review
 - Generated detection logic (Sigma/KQL/SPL/EQL) is a draft and must be reviewed before deployment
 - SIEM forwarding secret values (bearer tokens, passwords) are not stored server-side
+- Real lab telemetry and synthetic AI telemetry are labeled separately in documentation and UI copy
 
 See [SECURITY.md](../SECURITY.md) for the full policy and known limitations.
 
@@ -57,6 +58,7 @@ See [SECURITY.md](../SECURITY.md) for the full policy and known limitations.
 | Backend dependency audit (pip-audit) | ✅ GitHub Actions |
 | Frontend build | ✅ GitHub Actions |
 | Frontend dependency audit (npm audit) | ✅ GitHub Actions |
+| Docker Compose validation | ✅ GitHub Actions |
 | Docker build check | ✅ GitHub Actions |
 | Container scan (Trivy) | ✅ GitHub Actions |
 | Secret scan (gitleaks) | ✅ GitHub Actions |
@@ -74,8 +76,8 @@ A deterministic demo dataset is available in [`docs/demo-dataset/`](demo-dataset
 
 ## Known open items
 
-- Starlette transitive CVE: tracked, inherited from FastAPI pinned version — not directly exploitable in the self-hosted threat model
-- Route-level mutating endpoint test coverage is being expanded in the current hardening sprint
+- Starlette transitive CVE: tracked, inherited from FastAPI pinned version — mitigated by reverse-proxy host normalization for internet-facing deployments
+- Backend coverage gate is intentionally conservative while route-level coverage is expanded
 
 ## Contact
 

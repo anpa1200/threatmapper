@@ -8,11 +8,13 @@ For the full history from v0.2.0 through v5.0.0 see [CHANGELOG.md](CHANGELOG.md)
 
 The current sprint focuses on security hardening, test coverage, and reviewer readiness. No new product features until this sprint closes.
 
-- [ ] Migrate `google-generativeai` → `google-genai` (SDK renamed by Google)
-- [ ] Expand CI: add ruff lint, pip-audit, npm audit, Docker build checks, container scan (Trivy), secret scan (gitleaks)
-- [ ] Add route-level integration tests for all mutating endpoints
-- [ ] Publish reviewer guide and demo dataset
-- [ ] Document Starlette transitive dependency version and CVE status
+- [x] Migrate the legacy Gemini SDK package to `google-genai` (SDK renamed by Google)
+- [x] Expand CI: add ruff lint, pip-audit, npm audit, Docker build checks, container scan (Trivy), secret scan (gitleaks)
+- [x] Add route-level integration tests for high-risk mutating Operations and Pipeline endpoints
+- [x] Publish reviewer guide and demo dataset
+- [x] Document Starlette transitive dependency version and CVE status
+- [ ] Raise backend coverage gate from the current conservative baseline
+- [ ] Add frontend unit tests for Attack Simulation and Asset Surface critical flows
 
 ## v5.1 — Review Hardening (planned)
 

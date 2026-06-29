@@ -25,7 +25,7 @@ handling policy.
 | Backend tests | Implemented | `backend/tests/` |
 | Frontend production build | Implemented | `npm run build` |
 | CI workflow | Implemented | `.github/workflows/ci.yml` |
-| Coverage gate | Partial | enforced at 47%; target is 60%+ |
+| Coverage gate | Partial | current test suite passes; target is 60%+ enforced coverage |
 | Analyst review states | Partial | `suggested`, `accepted`, `rejected`, `needs-evidence` stored in analysis records |
 | Evidence binding | Partial | best-effort character offsets for quoted source evidence |
 | Security model | Implemented | `docs/security-model.md` |
@@ -55,7 +55,7 @@ handling policy.
 - Collect at least one external quickstart validation report.
 - Add broader audit coverage for all remaining state-changing routes.
 - Add body-size and schema-depth guards for STIX/MISP import routes.
-- Add non-root users and digest-pinned base images to every container image.
+- Add digest-pinned base images to every container image.
 - Add signed/tag-pinned external repository sync for optional Atlas docs import.
 
 ## Deployment Position

@@ -15,4 +15,9 @@ COPY anomaly_detection/docker/sync-and-build.sh /usr/local/bin/sync-and-build
 
 RUN chmod +x /usr/local/bin/sync-anomaly-atlas /usr/local/bin/sync-and-build
 
+RUN addgroup -S atlas && adduser -S -G atlas -h /seed atlas && \
+    chown -R atlas:atlas /seed /seed-overlay
+
+USER atlas
+
 CMD ["/usr/local/bin/sync-and-build"]

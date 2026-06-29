@@ -1,0 +1,11 @@
+{
+  "expected": [
+    {"attack_id": "T1110.003", "name": "Password Spraying", "evidence": "password spraying against a public VPN portal"},
+    {"attack_id": "T1078", "name": "Valid Accounts", "evidence": "authenticated successfully with a valid account"},
+    {"attack_id": "T1190", "name": "Exploit Public-Facing Application", "evidence": "SQL injection canaries against a legacy admin endpoint"},
+    {"attack_id": "T1059.001", "name": "PowerShell", "evidence": "PowerShell with encoded content"},
+    {"attack_id": "T1482", "name": "Domain Trust Discovery", "evidence": "queried domain trust relationships"},
+    {"attack_id": "T1003.001", "name": "LSASS Memory", "evidence": "opening LSASS with dump-capable access rights"},
+    {"attack_id": "T1218.011", "name": "Rundll32", "evidence": "rundll32.exe to proxy execution"}
+  ]
+}

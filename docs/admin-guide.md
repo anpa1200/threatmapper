@@ -4,9 +4,10 @@ This guide covers local and controlled self-hosted operation.
 
 Current public documentation bundle:
 
-- Current v4 platform guide: [`adversarygraph-platform-guide.md`](adversarygraph-platform-guide.md)
-- Current v4 platform screenshots: [`assets/adversarygraph-v4-platform/manifest.md`](assets/adversarygraph-v4-platform/manifest.md)
-- Current v4 malware screenshots: [`assets/malware-analysis-v4/manifest.md`](assets/malware-analysis-v4/manifest.md)
+- Current platform guide: [`adversarygraph-platform-guide.md`](adversarygraph-platform-guide.md)
+- v5 Attack Simulation screenshots: [`assets/attack-simulation-v5/manifest.md`](assets/attack-simulation-v5/manifest.md)
+- Platform screenshots: [`assets/adversarygraph-v4-platform/manifest.md`](assets/adversarygraph-v4-platform/manifest.md)
+- Malware screenshots: [`assets/malware-analysis-v4/manifest.md`](assets/malware-analysis-v4/manifest.md)
 - Published article mirror: <https://1200km.com/articles/adversarygraph-v2-self-hosted-ai-cti-platform.html>
 - Medium publication: <https://medium.com/@1200km/adversarygraph-v2-5-new-name-new-release-full-ai-cti-platform-capability-map-93cd9224127e>
 - Local visual appendix: [`full-guide-v2.md#24-visual-appendix`](full-guide-v2.md#24-visual-appendix)
@@ -155,7 +156,7 @@ docker compose up -d --build
 Review `CHANGELOG.md` before upgrading tagged releases.
 
 For the current feature scope, review
-[`docs/release-summary-v3.0.0.md`](release-summary-v3.0.0.md).
+[`docs/release-summary-v5.0.0.md`](release-summary-v5.0.0.md).
 
 ## Feeds Management
 

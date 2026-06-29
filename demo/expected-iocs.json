@@ -1,0 +1,6 @@
+{
+  "domains": ["login-gateway.demo.example", "updates-demo.example"],
+  "ips": ["198.51.100.42", "203.0.113.77"],
+  "urls": ["https://updates-demo.example/payload.dat"],
+  "hashes": ["5f6d7c8b9a00112233445566778899aabbccddeeff00112233445566778899aa"]
+}

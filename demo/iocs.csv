@@ -1,0 +1,7 @@
+type,value,source,confidence,notes
+domain,login-gateway.demo.example,demo-report,high,public VPN portal
+domain,updates-demo.example,demo-report,medium,payload hosting domain
+ip,198.51.100.42,demo-firewall,medium,external authentication source
+ip,203.0.113.77,demo-report,low,secondary infrastructure
+url,https://updates-demo.example/payload.dat,demo-report,medium,download URL
+sha256,5f6d7c8b9a00112233445566778899aabbccddeeff00112233445566778899aa,demo-report,medium,sample hash

@@ -8,3 +8,9 @@
 **/__pycache__
 **/.pytest_cache
 pg_data
+data
+logs
+backend/.pytest_cache
+frontend/dist
+adversarygraph_logs
+malwaregraph_storage

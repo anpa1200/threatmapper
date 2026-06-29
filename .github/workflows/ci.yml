@@ -2,11 +2,20 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, "release/**"]
   pull_request:
-    branches: [main]
+    branches: [main, "release/**"]
+  workflow_dispatch:
 
 jobs:
+  version-consistency:
+    name: Version consistency
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check release metadata
+        run: ./scripts/check-version-consistency.sh
+
   backend-tests:
     name: Backend tests
     runs-on: ubuntu-latest
@@ -103,6 +112,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Validate Compose config
+        run: |
+          docker compose config --quiet
+          docker compose -f docker-compose.yml -f docker-compose.dev.yml config --quiet
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
       - name: Build backend image
@@ -117,6 +130,20 @@ jobs:
           context: frontend
           push: false
           tags: adversarygraph-frontend:ci
+      - name: Build MalwareGraph service image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/malwaregraph/Dockerfile
+          push: false
+          tags: adversarygraph-malwaregraph:ci
+      - name: Build anomaly docs image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: anomaly_detection/docs-site/Dockerfile
+          push: false
+          tags: adversarygraph-anomaly-docs:ci
 
   container-scan:
     name: Container scan (Trivy)

@@ -1,6 +1,6 @@
 # AdversaryGraph Platform Guide
 
-> Current v4.1 platform documentation. AdversaryGraph is an analyst-assistance
+> Current v5.0.0 platform documentation. AdversaryGraph is an analyst-assistance
 > system: AI mappings, similarity scores, IOC enrichment, malware-analysis
 > output, and generated detections require human validation before operational
 > use.
@@ -18,9 +18,9 @@
 
 ## Visual Evidence
 
-Current v4 platform screenshots are stored in
+Platform screenshots are stored in
 [`docs/assets/adversarygraph-v4-platform`](assets/adversarygraph-v4-platform/manifest.md).
-The v4.1 Asset Surface and Discover addendum is stored in
+The Asset Surface and Discover addendum is stored in
 [`docs/assets/adversarygraph-v4.1-platform`](assets/adversarygraph-v4.1-platform/manifest.md).
 The malware-analysis screenshot set is stored in
 [`docs/assets/malware-analysis-v4`](assets/malware-analysis-v4/manifest.md).

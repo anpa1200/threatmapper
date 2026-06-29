@@ -38,4 +38,4 @@ services:
       VITE_API_URL: http://api:8000
       VITE_REFERENCE_URL: ${REFERENCE_URL:-http://localhost:3001/anomaly-detection-atlas}
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"

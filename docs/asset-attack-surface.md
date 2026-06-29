@@ -24,7 +24,7 @@ external scanner output, service inventories, and plain hostname/IP lists.
 
 ## Current Screenshots
 
-The current v4.1 screenshots are captured from the local Docker-served UI and
+The current screenshots are captured from the local Docker-served UI and
 listed in
 [`assets/adversarygraph-v4.1-platform/manifest.md`](assets/adversarygraph-v4.1-platform/manifest.md).
 

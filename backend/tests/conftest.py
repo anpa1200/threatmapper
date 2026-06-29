@@ -11,6 +11,7 @@ Integration  — FastAPI app with mocked lifespan (no DB startup) and mocked
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
+from uuid import uuid4
 from unittest.mock import MagicMock
 
 import pytest
@@ -57,17 +58,49 @@ class _MockScalarResult:
 class _MockSession:
     """Async SQLAlchemy session that always returns empty results."""
 
-    async def execute(self, *args, **kwargs):
-        return _MockScalarResult()
+    def __init__(self):
+        self._objects = {}
 
-    async def get(self, *args, **kwargs):
-        return None
+    async def execute(self, statement=None, *args, **kwargs):
+        try:
+            model = statement.column_descriptions[0].get("entity")
+        except (AttributeError, IndexError, TypeError):
+            model = None
+        if model is None:
+            return _MockScalarResult()
 
-    def add(self, obj):     pass
+        rows = [
+            obj
+            for (obj_model, _), obj in self._objects.items()
+            if obj_model is model
+        ]
+        params = statement.compile().params
+        for criterion in getattr(statement, "_where_criteria", ()):
+            left = getattr(criterion, "left", None)
+            right = getattr(criterion, "right", None)
+            column_name = getattr(left, "name", None)
+            bind_key = getattr(right, "key", None)
+            if column_name and bind_key in params:
+                rows = [row for row in rows if getattr(row, column_name, None) == params[bind_key]]
+
+        return _MockScalarResult(value=rows[0] if rows else None, rows=rows)
+
+    async def get(self, model, item_id, *args, **kwargs):
+        return self._objects.get((model, item_id))
+
+    def add(self, obj):
+        if hasattr(obj, "id") and getattr(obj, "id", None) is None:
+            obj.id = uuid4()
+        if hasattr(obj, "id"):
+            self._objects[(type(obj), obj.id)] = obj
+
     async def flush(self):  pass
     async def commit(self): pass
     async def rollback(self): pass
     async def refresh(self, obj): pass
+    async def delete(self, obj):
+        if hasattr(obj, "id"):
+            self._objects.pop((type(obj), obj.id), None)
 
     async def __aenter__(self):
         return self
@@ -76,9 +109,12 @@ class _MockSession:
         pass
 
 
+_mock_session = _MockSession()
+
+
 async def _mock_get_session():
     """Dependency override — yields the mock session."""
-    yield _MockSession()
+    yield _mock_session
 
 
 # ── No-op lifespan (skip DB startup in tests) ─────────────────────────────────
