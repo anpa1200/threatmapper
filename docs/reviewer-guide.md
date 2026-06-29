@@ -1,0 +1,82 @@
+# Reviewer Guide
+
+This guide is for security researchers, package curators, and tool evaluators who want to assess AdversaryGraph for inclusion in curated lists, publication roundups, or organizational adoption.
+
+## Quick orientation
+
+| Item | Location |
+|---|---|
+| Project overview | [README.md](../README.md) |
+| Full feature docs | [docs/adversarygraph-platform-guide.md](adversarygraph-platform-guide.md) |
+| Version history | [docs/version-matrix.md](version-matrix.md) |
+| Changelog | [CHANGELOG.md](../CHANGELOG.md) |
+| Security policy | [SECURITY.md](../SECURITY.md) |
+| Known limitations | [docs/limitations.md](limitations.md) |
+| Deployment boundary | [SECURITY.md — Deployment Boundary](../SECURITY.md#deployment-boundary) |
+| Attack Simulation safety model | [docs/attack-simulation.md — Safety Model](attack-simulation.md#safety-model) |
+
+## What this tool is
+
+AdversaryGraph is a **self-hosted AI-assisted CTI workbench** for:
+
+- Uploading threat reports and extracting ATT&CK-mapped techniques with AI assistance
+- Reviewing, accepting, and rejecting extracted mappings as an analyst
+- Building detection coverage plans tied to specific TTPs
+- Running Attack Simulation scenarios against authorized lab targets and forwarding synthetic telemetry to a SIEM for rule validation
+- Generating AI-assisted kill-chain scenarios for detection engineering exercises
+
+## What this tool is NOT
+
+| Claim | Status |
+|---|---|
+| Production SaaS | Not claimed. Default deployment is for local or controlled self-hosted use. |
+| Multi-tenant cloud product | Not implemented. No built-in authentication or tenant isolation. |
+| Hardened internet-facing service | Not the default. Requires TLS, auth proxy, and network restrictions — documented in [SECURITY.md](../SECURITY.md). |
+| Automated threat actor attribution | Not claimed. TTP overlap is an investigation lead, not attribution proof. |
+| Replacement for analyst judgment | Not claimed. All AI outputs require analyst review before operational use. |
+| Live attack framework | Not implemented. Attack simulation produces synthetic telemetry; no exploit execution. |
+
+## Security posture
+
+- All containers run as non-root users (verified in all Dockerfiles)
+- PostgreSQL bound to 127.0.0.1 in default Compose profile
+- All services have resource limits and `cap_drop: ALL` in Docker Compose
+- API keys are passed via environment variables, not embedded in code
+- LLM outputs are treated as untrusted and require analyst review
+- Generated detection logic (Sigma/KQL/SPL/EQL) is a draft and must be reviewed before deployment
+- SIEM forwarding secret values (bearer tokens, passwords) are not stored server-side
+
+See [SECURITY.md](../SECURITY.md) for the full policy and known limitations.
+
+## CI coverage
+
+| Check | Status |
+|---|---|
+| Backend unit + integration tests | ✅ GitHub Actions |
+| Backend lint (ruff) | ✅ GitHub Actions |
+| Backend dependency audit (pip-audit) | ✅ GitHub Actions |
+| Frontend build | ✅ GitHub Actions |
+| Frontend dependency audit (npm audit) | ✅ GitHub Actions |
+| Docker build check | ✅ GitHub Actions |
+| Container scan (Trivy) | ✅ GitHub Actions |
+| Secret scan (gitleaks) | ✅ GitHub Actions |
+
+## Test coverage
+
+26 test files covering:
+
+- Unit tests: API routes, ATT&CK mapping, report parsing, export formats, LLM provider selection, IOC extraction, YARA scanning
+- Integration tests: database operations, job pipeline, Celery worker, endpoint orchestration
+
+## Demo dataset
+
+A deterministic demo dataset is available in [`docs/demo-dataset/`](demo-dataset/) for evaluation without private data.
+
+## Known open items
+
+- Starlette transitive CVE: tracked, inherited from FastAPI pinned version — not directly exploitable in the self-hosted threat model
+- Route-level mutating endpoint test coverage is being expanded in the current hardening sprint
+
+## Contact
+
+Questions about security: [1200km@gmail.com](mailto:1200km@gmail.com) — see [SECURITY.md](../SECURITY.md) for responsible disclosure guidance.

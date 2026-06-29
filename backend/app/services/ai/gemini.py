@@ -1,4 +1,4 @@
-"""Google Gemini adapter."""
+"""Google Gemini adapter using the google-genai SDK."""
 
 from __future__ import annotations
 
@@ -13,9 +13,10 @@ DEFAULT_MODEL = "gemini-2.0-flash"
 class GeminiAdapter(LLMAdapter):
     def __init__(self, model: str = DEFAULT_MODEL) -> None:
         self._model_name = model
-        import google.generativeai as genai
-        genai.configure(api_key=settings.gemini_api_key)
-        self._genai = genai
+        import google.genai as genai
+        import google.genai.types as genai_types
+        self._client = genai.Client(api_key=settings.gemini_api_key)
+        self._genai_types = genai_types
 
     @property
     def provider(self) -> str:
@@ -25,27 +26,27 @@ class GeminiAdapter(LLMAdapter):
     def model(self) -> str:
         return self._model_name
 
-    def _build_model(self, system: str):
-        from google.generativeai.types import GenerationConfig
-        return self._genai.GenerativeModel(
-            model_name=self._model_name,
+    def _config(self, system: str):
+        return self._genai_types.GenerateContentConfig(
             system_instruction=system,
-            generation_config=GenerationConfig(
-                response_mime_type="application/json",
-                max_output_tokens=8192,
-                temperature=0.2,
-            ),
+            response_mime_type="application/json",
+            max_output_tokens=8192,
+            temperature=0.2,
         )
 
-    _TIMEOUT = {"timeout": 120}
-
     async def _raw_complete(self, system: str, user: str) -> str:
-        model = self._build_model(system)
-        response = await model.generate_content_async(user, request_options=self._TIMEOUT)
+        response = await self._client.aio.models.generate_content(
+            model=self._model_name,
+            contents=user,
+            config=self._config(system),
+        )
         return response.text
 
     async def _stream_complete(self, system: str, user: str) -> AsyncIterator[str]:
-        model = self._build_model(system)
-        async for chunk in await model.generate_content_async(user, stream=True, request_options=self._TIMEOUT):
+        async for chunk in await self._client.aio.models.generate_content_stream(
+            model=self._model_name,
+            contents=user,
+            config=self._config(system),
+        ):
             if chunk.text:
                 yield chunk.text

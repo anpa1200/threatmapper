@@ -24,7 +24,7 @@
 [![Awesome Threat Intelligence](https://img.shields.io/badge/awesome--threat--intelligence-submitted-yellow)](https://github.com/hslatman/awesome-threat-intelligence/pull/385)
 [![Threat Hunting](https://img.shields.io/badge/awesome--threat--hunting-submitted-yellow)](https://github.com/threat-hunting/awesome_Threat-Hunting/pull/5)
 
-**Current release: v5.0.0 · [Release Summary](docs/release-summary-v5.0.0.md) · [Attack Simulation](docs/attack-simulation.md) · [Malware Analysis Guide](docs/malware-analysis-guide.md) · [Official Platform Guide](https://1200km.com/adversarygraph-docs/platform-guide/) · [Official Malware Analysis Docs](https://1200km.com/adversarygraph-docs/malware-analysis/) · [Release Article Draft](docs/publication-drafts/adversarygraph-v4-malware-analysis.md) · [From Log to Report Workflow](docs/publication-drafts/medium-adversarygraph-from-log-to-report-ioc-investigation.md) · [Live Intelligence Workspace](https://1200km.com/threat-matrix/) · [Documentation & Usage Guide](https://1200km.com/adversarygraph-docs/) · [Capabilities](https://1200km.com/adversarygraph-docs/capabilities/) · [Use Cases](https://1200km.com/adversarygraph/use-cases.html) · [1200km Article](https://1200km.com/articles/adversarygraph-v2-self-hosted-ai-cti-platform.html) · [Published Medium Article](https://medium.com/@1200km/adversarygraph-v2-5-new-name-new-release-full-ai-cti-platform-capability-map-93cd9224127e)**
+**Current release: v5.0.0 · [Release Summary](docs/release-summary-v5.0.0.md) · [Attack Simulation](docs/attack-simulation.md) · [Published v5 Medium Article](https://medium.com/@1200km/adversarygraph-v5-0-from-cti-mapping-to-attack-simulation-and-siem-validation-21873b2a6c39) · [Malware Analysis Guide](docs/malware-analysis-guide.md) · [Official Platform Guide](https://1200km.com/adversarygraph-docs/platform-guide/) · [Official Malware Analysis Docs](https://1200km.com/adversarygraph-docs/malware-analysis/) · [Release Article Draft](docs/publication-drafts/adversarygraph-v4-malware-analysis.md) · [From Log to Report Workflow](docs/publication-drafts/medium-adversarygraph-from-log-to-report-ioc-investigation.md) · [Live Intelligence Workspace](https://1200km.com/threat-matrix/) · [Documentation & Usage Guide](https://1200km.com/adversarygraph-docs/) · [Capabilities](https://1200km.com/adversarygraph-docs/capabilities/) · [Use Cases](https://1200km.com/adversarygraph/use-cases.html) · [1200km Article](https://1200km.com/articles/adversarygraph-v2-self-hosted-ai-cti-platform.html)**
 
 **Current visual documentation:** [Platform Guide](docs/adversarygraph-platform-guide.md) · [v5 Attack Simulation Screenshot Manifest](docs/assets/attack-simulation-v5/manifest.md) · [v4.1 Screenshot Manifest](docs/assets/adversarygraph-v4.1-platform/manifest.md) · [v4 Platform Screenshot Manifest](docs/assets/adversarygraph-v4-platform/manifest.md) · [Malware Screenshot Manifest](docs/assets/malware-analysis-v4/manifest.md)
 
@@ -62,7 +62,9 @@ validation.
 
 **1200km Article:** https://1200km.com/articles/adversarygraph-v2-self-hosted-ai-cti-platform.html
 
-**Published Medium Article:** https://medium.com/@1200km/adversarygraph-v2-5-new-name-new-release-full-ai-cti-platform-capability-map-93cd9224127e
+**Published v5 Medium Article:** https://medium.com/@1200km/adversarygraph-v5-0-from-cti-mapping-to-attack-simulation-and-siem-validation-21873b2a6c39
+
+**Published v2.5 Medium Article:** https://medium.com/@1200km/adversarygraph-v2-5-new-name-new-release-full-ai-cti-platform-capability-map-93cd9224127e
 
 **Medium Archive:** https://medium.com/@1200km
 
@@ -202,7 +204,7 @@ The complete public walkthrough is mirrored in the 1200km ecosystem:
 
 ## Project Maturity Evidence
 
-AdversaryGraph v4.1.0 publishes the operational evidence expected from a serious self-hosted CTI tool:
+AdversaryGraph v5.0.0 publishes the operational evidence expected from a serious self-hosted CTI tool:
 
 | Area | Evidence |
 |---|---|
@@ -217,11 +219,11 @@ AdversaryGraph v4.1.0 publishes the operational evidence expected from a serious
 
 The current documentation is intended to make external review practical rather than promotional.
 
-For the current release scope, see the [v4.1.0 release summary](docs/release-summary-v4.1.0.md) and [release notes](docs/release-notes/v4.1.0.md).
+For the current release scope, see the [v5.0.0 release summary](docs/release-summary-v5.0.0.md) and [release notes](docs/release-notes/v5.0.0.md).
 
 ## Malware Analysis Mode
 
-AdversaryGraph v4 includes an integrated Malware Analysis workspace backed by a
+AdversaryGraph includes an integrated Malware Analysis workspace backed by a
 separate MalwareGraph service in the same Docker Compose stack. The workflow is
 case-based: create a malware-analysis case, upload a raw sample or
 password-protected ZIP, run first-pass static triage, and collect extracted IOCs,

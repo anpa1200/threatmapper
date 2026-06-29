@@ -14,6 +14,9 @@ The v5 workspace combines three related workflows:
 Screenshots for this release are stored in
 [`docs/assets/attack-simulation-v5`](assets/attack-simulation-v5/manifest.md).
 
+Published release article:
+[AdversaryGraph v5.0: From CTI Mapping to Attack Simulation and SIEM Validation](https://medium.com/@1200km/adversarygraph-v5-0-from-cti-mapping-to-attack-simulation-and-siem-validation-21873b2a6c39).
+
 ## Safety Model
 
 The MVP is intentionally conservative:
@@ -34,6 +37,23 @@ The MVP is intentionally conservative:
 The module creates dry-run plans, expected telemetry checklists, and manual
 validation records. Analysts must attach evidence from an authorized lab run
 before marking detection coverage as passed.
+
+## Real vs. Synthetic Telemetry
+
+AdversaryGraph produces two types of telemetry during attack simulation. Analysts must understand the difference before using simulation outputs for detection validation.
+
+| Property | Real lab telemetry | Synthetic (AI-generated) telemetry |
+|---|---|---|
+| Source | Actual lab target (endpoint, web server) | AdversaryGraph backend (AI or template) |
+| Execution | Runs predefined scenario against lab fixture | No execution — data only |
+| Required lab infra | Yes — configured and running lab target | No |
+| Validates rule fires on real behavior | Yes | No — validates rule syntax and field mapping only |
+| Analyst validation required | Yes | Yes — must cross-reference with a real lab run |
+| Safety | Isolated lab environment | Purely data forwarding; no code execution |
+
+**Synthetic telemetry validates rule syntax and field mapping. It does NOT confirm that a detection fires on real attack behavior.** Full detection validation requires a real lab run and analyst review of the captured telemetry.
+
+For SIEM forwarding security details see [attack-simulation-siem-forwarding-security.md](attack-simulation-siem-forwarding-security.md).
 
 ## Visual Walkthrough
 

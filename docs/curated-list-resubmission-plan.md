@@ -51,4 +51,4 @@ Avoid:
 
 ## Suggested Timing
 
-Target resubmission after `v1.0.0`, not before `v0.10`, unless maintainers explicitly invite an earlier update.
+Target resubmission at v5.0.0 or later. The project is now stable and past the initial public release maturity bar.
