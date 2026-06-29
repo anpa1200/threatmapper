@@ -95,7 +95,7 @@ Official public pages:
 React frontend
   -> FastAPI API
      -> PostgreSQL for stored analyses, cases, feeds, mappings, and operations
-     -> Redis/Celery for background sync and analysis jobs
+     -> Redis/Celery for background sync, feed collection, and RetroHunt jobs
      -> LLM providers selected by the operator
      -> MalwareGraph service for isolated malware-analysis workflows
      -> Attack lab fixtures for authorized simulation telemetry

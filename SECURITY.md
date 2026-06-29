@@ -2,7 +2,9 @@
 
 ## Supported Versions
 
-AdversaryGraph is at **v5.0.0**. Security fixes are applied to the latest release branch only.
+AdversaryGraph **v5.0.0** is the current feature milestone release.
+The project is a self-hosted/internal analyst workbench, not a hardened multi-tenant SaaS.
+Security fixes are applied to the latest `main` branch and the latest tagged release.
 
 | Version | Supported |
 |---|---|
@@ -52,4 +54,4 @@ The default Docker Compose profile is for local or controlled self-hosted use. I
 - LLM outputs are untrusted and require analyst review.
 - File parsing is bounded but should still be run in a controlled environment for untrusted documents.
 - Generated detection logic is a draft and must not be deployed without local review and testing.
-- Starlette transitive CVE (CVE-2026-48710, "BadHost"): inherited via FastAPI. The self-hosted threat model does not expose the affected host-header validation path by default. Operators who route public traffic through AdversaryGraph should ensure a trusted reverse proxy normalizes the `Host` header before it reaches the backend. Track at [fastapi/fastapi#13072](https://github.com/fastapi/fastapi/issues) and update `fastapi` when a patched version is available.
+- Starlette/FastAPI transitive dependencies are audited in CI with `pip-audit`. Operators who route public traffic through AdversaryGraph should still ensure a trusted reverse proxy normalizes the `Host` header before it reaches the backend.

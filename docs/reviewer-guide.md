@@ -68,7 +68,7 @@ See [SECURITY.md](../SECURITY.md) for the full policy and known limitations.
 26 test files covering:
 
 - Unit tests: API routes, ATT&CK mapping, report parsing, export formats, LLM provider selection, IOC extraction, YARA scanning
-- Integration tests: database operations, job pipeline, Celery worker, endpoint orchestration
+- Integration tests: database operations, job pipeline, Celery-backed sync/collection routes, endpoint orchestration
 
 ## Demo dataset
 
@@ -76,7 +76,7 @@ A deterministic demo dataset is available in [`docs/demo-dataset/`](demo-dataset
 
 ## Known open items
 
-- Starlette transitive CVE: tracked, inherited from FastAPI pinned version — mitigated by reverse-proxy host normalization for internet-facing deployments
+- Starlette/FastAPI transitive dependencies: audited in CI with `pip-audit`; internet-facing deployments should still normalize `Host` headers at a trusted reverse proxy
 - Backend coverage gate is intentionally conservative while route-level coverage is expanded
 
 ## Contact
