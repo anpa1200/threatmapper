@@ -1,10 +1,14 @@
 import { useMemo, useState } from 'react';
 import type React from 'react';
+import type { ColumnDef } from '@tanstack/react-table';
+import type { Edge, Node } from '@xyflow/react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { Header } from '@/components/Layout/Header';
 import { cveApi, type CVEDetail, type CVEItem } from '@/api/client';
 import { safeHref } from '@/utils/url';
+import { DataTable } from '@/components/ui/data-table';
+import { EntityGraph } from '@/components/ui/graph';
 
 const severities = ['', 'CRITICAL', 'HIGH', 'MEDIUM', 'LOW'];
 
@@ -59,6 +63,37 @@ export function CVEIntelligence() {
     [rows]
   );
   const enrichPageCvss = useMutation({ mutationFn: () => cveApi.syncNvdCveIds(missingCvssOnPage, missingCvssOnPage.length || 1), onSuccess: invalidate });
+  const cveColumns = useMemo<ColumnDef<CVEItem>[]>(() => [
+    {
+      header: 'CVE',
+      cell: ({ row }) => <span className="break-words font-mono text-mitre-accent">{row.original.cve_id}</span>,
+      size: 92,
+    },
+    {
+      header: 'CVSS',
+      cell: ({ row }) => <SeverityBadge severity={row.original.cvss.severity} score={row.original.cvss.score} />,
+      size: 92,
+    },
+    {
+      header: 'KEV',
+      cell: ({ row }) => row.original.known_exploited ? <span className="inline-flex rounded bg-red-900/50 px-2 py-1 text-red-200">KEV</span> : <span className="text-gray-600">no</span>,
+      size: 78,
+    },
+    {
+      header: 'Description',
+      cell: ({ row }) => <div className="max-h-[4.6em] overflow-hidden leading-relaxed text-gray-300">{row.original.description || '-'}</div>,
+    },
+    {
+      header: 'Weakness',
+      cell: ({ row }) => <span className="break-words font-mono text-gray-400">{row.original.cwe_ids.slice(0, 3).join(', ') || '-'}</span>,
+      size: 92,
+    },
+    {
+      header: 'Modified',
+      cell: ({ row }) => <span className="break-all text-gray-500">{row.original.last_modified || '-'}</span>,
+      size: 104,
+    },
+  ], []);
 
   const runSearch = () => {
     setSearch(searchDraft.trim());
@@ -140,32 +175,13 @@ export function CVEIntelligence() {
 
           <section className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1fr)_480px]">
             <Panel title={`CVE records (${total.toLocaleString()})`}>
-              <div className="overflow-hidden">
-                <table className="w-full table-fixed text-left text-xs">
-                  <colgroup>
-                    <col className="w-[92px]" />
-                    <col className="w-[92px]" />
-                    <col className="w-[78px]" />
-                    <col />
-                    <col className="w-[92px]" />
-                    <col className="w-[104px]" />
-                  </colgroup>
-                  <thead className="bg-gray-950 text-gray-500">
-                    <tr>
-                      <th className="px-3 py-2">CVE</th>
-                      <th className="px-3 py-2">CVSS</th>
-                      <th className="px-3 py-2">KEV</th>
-                      <th className="px-3 py-2">Description</th>
-                      <th className="px-3 py-2">Weakness</th>
-                      <th className="px-3 py-2">Modified</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {rows.map(item => <CVERow key={item.cve_id} item={item} selected={selectedCve === item.cve_id} onSelect={() => setSelectedCve(item.cve_id)} />)}
-                    {!rows.length && <tr><td colSpan={6} className="p-6 text-center text-gray-500">{library.isLoading ? 'Loading CVEs...' : 'No CVEs match this filter.'}</td></tr>}
-                  </tbody>
-                </table>
-              </div>
+              <DataTable
+                data={rows}
+                columns={cveColumns}
+                empty={library.isLoading ? 'Loading CVEs...' : 'No CVEs match this filter.'}
+                onRowClick={item => setSelectedCve(item.cve_id)}
+                rowClassName={item => selectedCve === item.cve_id ? 'bg-mitre-accent/10' : ''}
+              />
               <div className="flex items-center justify-between border-t border-gray-800 p-3 text-xs text-gray-400">
                 <span>Showing {offset + 1}-{Math.min(offset + limit, total)} of {total}</span>
                 <div className="flex gap-2">
@@ -180,21 +196,6 @@ export function CVEIntelligence() {
         </div>
       </div>
     </div>
-  );
-}
-
-function CVERow({ item, selected, onSelect }: { item: CVEItem; selected: boolean; onSelect: () => void }) {
-  return (
-    <tr onClick={onSelect} className={`cursor-pointer border-t border-gray-800 hover:bg-gray-900 ${selected ? 'bg-mitre-accent/10' : ''}`}>
-      <td className="px-3 py-3 align-top"><span className="break-words font-mono text-mitre-accent">{item.cve_id}</span></td>
-      <td className="px-3 py-3 align-top"><SeverityBadge severity={item.cvss.severity} score={item.cvss.score} /></td>
-      <td className="px-3 py-3 align-top">{item.known_exploited ? <span className="inline-flex rounded bg-red-900/50 px-2 py-1 text-red-200">KEV</span> : <span className="text-gray-600">no</span>}</td>
-      <td className="px-3 py-3 align-top text-gray-300">
-        <div className="max-h-[4.6em] overflow-hidden leading-relaxed">{item.description || '-'}</div>
-      </td>
-      <td className="px-3 py-3 align-top font-mono text-gray-400"><span className="break-words">{item.cwe_ids.slice(0, 3).join(', ') || '-'}</span></td>
-      <td className="px-3 py-3 align-top text-gray-500"><span className="break-all">{item.last_modified || '-'}</span></td>
-    </tr>
   );
 }
 
@@ -222,6 +223,7 @@ function CveDetailPanel({ detail, graph, loading }: { detail: CVEDetail | null; 
             <h3 className="mb-2 text-xs font-semibold uppercase text-gray-500">Correlation graph</h3>
             <div className="rounded border border-gray-800 bg-gray-950 p-3">
               <div className="mb-2 text-[11px] text-gray-500">{graph.nodes.length} nodes · {graph.edges.length} evidence edges</div>
+              {graph.nodes.length > 0 && <CveCorrelationGraph graph={graph} />}
               <div className="space-y-1">
                 {graph.edges.slice(0, 12).map((edge, index) => (
                   <div key={index} className="rounded bg-gray-900 p-2 text-[11px] text-gray-400">
@@ -263,6 +265,44 @@ function CveDetailPanel({ detail, graph, loading }: { detail: CVEDetail | null; 
       </div>
     </Panel>
   );
+}
+
+function CveCorrelationGraph({ graph }: { graph: { nodes: Array<Record<string, unknown>>; edges: Array<Record<string, unknown>> } }) {
+  const nodes = useMemo<Node[]>(() => {
+    const radius = 170;
+    const centerX = 320;
+    const centerY = 170;
+    return graph.nodes.map((node, index) => {
+      const id = String(node.id ?? node.value ?? `node-${index}`);
+      const type = String(node.type ?? 'entity');
+      const angle = (Math.PI * 2 * index) / Math.max(graph.nodes.length, 1);
+      const isRoot = index === 0 || type.toLowerCase() === 'cve';
+      return {
+        id,
+        position: isRoot ? { x: centerX - 75, y: centerY - 28 } : { x: centerX + Math.cos(angle) * radius, y: centerY + Math.sin(angle) * radius },
+        data: { label: `${type.toUpperCase()}\n${String(node.label ?? node.name ?? id)}` },
+        style: {
+          width: 150,
+          border: isRoot ? '1px solid #e94560' : '1px solid #374151',
+          background: isRoot ? '#4c1020' : '#020617',
+          color: '#e5e7eb',
+          fontSize: 11,
+          whiteSpace: 'pre-line',
+        },
+      };
+    });
+  }, [graph.nodes]);
+  const edges = useMemo<Edge[]>(() => graph.edges.map((edge, index) => ({
+    id: `edge-${index}`,
+    source: String(edge.source),
+    target: String(edge.target),
+    label: String(edge.relationship ?? ''),
+    animated: false,
+    style: { stroke: '#64748b' },
+    labelStyle: { fill: '#94a3b8', fontSize: 10 },
+  })), [graph.edges]);
+
+  return <div className="mb-3 h-[360px]"><EntityGraph nodes={nodes} edges={edges} /></div>;
 }
 
 function SeverityBadge({ severity, score }: { severity: string; score: string }) {

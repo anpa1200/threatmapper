@@ -11,6 +11,9 @@ import {
 } from '@/api/client';
 import { Header } from '@/components/Layout/Header';
 import { RUNTIME_DEBUG_DISCLAIMER, readHiddenCases, visibleJobs } from '@/pages/malwareShared';
+import { CodeEditor } from '@/components/ui/code-editor';
+import { VirtualList } from '@/components/ui/virtual-list';
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
 
 const input = 'w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-xs text-gray-200 outline-none focus:border-mitre-accent';
 
@@ -193,8 +196,9 @@ export function Debugger() {
   return <div className="flex h-full flex-col">
     <Header title="Decompilation & Debug IDE" />
     <div className="flex-1 overflow-y-auto p-6">
-      <div className="mx-auto grid max-w-[1800px] gap-4 xl:grid-cols-[360px_minmax(0,1fr)]">
-        <div className="space-y-4">
+      <ResizablePanelGroup orientation="horizontal" className="mx-auto max-w-[1800px] gap-4">
+        <ResizablePanel defaultSize={22} minSize={16} maxSize={34}>
+          <div className="space-y-4">
           <Panel title="Source">
             <div className="space-y-3 p-3">
               <label className="block text-[10px] uppercase text-gray-600">Analysis job</label>
@@ -246,9 +250,12 @@ export function Debugger() {
               </div>)}
             </div> : <Empty text="No breakpoints." />}
           </Panel>
-        </div>
+          </div>
+        </ResizablePanel>
 
-        <div className="space-y-4">
+        <ResizableHandle className="hidden xl:block" />
+        <ResizablePanel defaultSize={78} minSize={50}>
+          <div className="space-y-4">
           {workspace ? <>
             {workspace.warning && <div className="rounded border border-amber-500/40 bg-amber-950/30 p-3 text-sm font-semibold text-amber-100">{workspace.warning}</div>}
             <div className="grid gap-3 md:grid-cols-5">
@@ -306,7 +313,7 @@ export function Debugger() {
                 <Events workspace={workspace} />
               </Panel>
               <Panel title="AIDebug JSON Export">
-                <pre className="max-h-96 overflow-auto p-3 text-[10px] leading-relaxed text-gray-500">{JSON.stringify(workspace.export, null, 2)}</pre>
+                <CodeEditor value={JSON.stringify(workspace.export, null, 2)} language="json" height="360px" />
               </Panel>
             </div>
           </> : loadDecompilation.isPending ? <Panel title="Decompilation">
@@ -314,8 +321,9 @@ export function Debugger() {
           </Panel> : decompilation ? <Panel title="Decompilation">
             <DecompilationPane result={decompilation} />
           </Panel> : <Empty text="Select a MalwareGraph job and target to create a debugger workspace or load decompilation." />}
-        </div>
-      </div>
+          </div>
+        </ResizablePanel>
+      </ResizablePanelGroup>
     </div>
   </div>;
 }
@@ -491,7 +499,9 @@ function CurrentFunction({ trace, assistant }: { trace: DebugTrace; assistant: M
     </div>}
     <div className="p-3">
       <b className="text-gray-200">Disassembly</b>
-      <pre className="mt-2 max-h-[360px] overflow-auto rounded border border-gray-800 bg-gray-950 p-3 font-mono text-[10px] leading-relaxed text-gray-400">{trace.disassembly.map(row => field(row.text)).join('\n') || 'No disassembly recovered.'}</pre>
+      <div className="mt-2 overflow-hidden rounded border border-gray-800 bg-gray-950">
+        <CodeEditor value={trace.disassembly.map(row => field(row.text)).join('\n') || 'No disassembly recovered.'} language="asm" height="360px" />
+      </div>
     </div>
   </div>;
 }
@@ -850,15 +860,19 @@ function Leads({ workspace }: { workspace: MalwareGraphDebuggerWorkspace }) {
 }
 
 function Events({ workspace }: { workspace: MalwareGraphDebuggerWorkspace }) {
-  return <div className="max-h-96 overflow-y-auto divide-y divide-gray-800">
-    {workspace.events.slice().reverse().map((event, index) => <div key={`${field(event.timestamp)}-${index}`} className="p-3 text-xs">
+  const events = workspace.events.slice().reverse();
+  return <VirtualList
+    items={events}
+    height={384}
+    estimateSize={72}
+    renderItem={(event, index) => <div key={`${field(event.timestamp)}-${index}`} className="border-b border-gray-800 p-3 text-xs">
       <div className="flex items-center justify-between gap-2">
         <b className="text-gray-200">{field(event.type)}</b>
         <span style={{ color: statusColor(field(event.status)) }}>{field(event.status)}</span>
       </div>
       <p className="mt-1 text-gray-500">{field(event.message)}</p>
-    </div>)}
-  </div>;
+    </div>}
+  />;
 }
 
 function DecompilationPane({ result }: { result: MalwareGraphDecompilation }) {
@@ -887,16 +901,7 @@ function DecompilationPane({ result }: { result: MalwareGraphDecompilation }) {
         <Info label="Language" value={result.language ?? 'unknown'} />
         <Info label="Lines" value={String(pseudocode.length)} />
       </div>
-      <div className="max-h-[620px] overflow-auto">
-        <table className="w-full min-w-[760px] border-collapse font-mono text-[11px] leading-relaxed">
-          <tbody>
-            {pseudocode.map((line, index) => <tr key={`${index}-${line}`} className="border-b border-gray-900 hover:bg-gray-900/70">
-              <td className="sticky left-0 w-14 select-none bg-[#05070c] px-3 py-0.5 text-right text-gray-700">{index + 1}</td>
-              <td className={`break-words px-3 py-0.5 ${codeLineTone(line)}`}>{line || ' '}</td>
-            </tr>)}
-          </tbody>
-        </table>
-      </div>
+      <CodeEditor value={pseudocode.join('\n')} language="c" height="620px" />
     </div>
     <div className="space-y-3">
       {result.warnings.length > 0 && <div className="rounded border border-amber-500/30 bg-amber-950/20 p-3 text-xs text-amber-100">{result.warnings.join(' ')}</div>}
@@ -938,16 +943,6 @@ function DecompilationPane({ result }: { result: MalwareGraphDecompilation }) {
 
 function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {};
-}
-
-function codeLineTone(line: string) {
-  const trimmed = line.trim();
-  const lower = trimmed.toLowerCase();
-  if (trimmed.startsWith('//')) return 'text-slate-500';
-  if (lower.includes('createprocess') || lower.includes('writeprocessmemory') || lower.includes('virtualalloc') || lower.includes('connect') || lower.includes('regopenkey')) return 'text-amber-200';
-  if (/^(if|for|while|return|switch)\b/.test(lower) || lower.includes(' return ')) return 'text-sky-200';
-  if (lower.includes('observe_api') || lower.includes('analyze_section') || lower.includes('collect_')) return 'text-emerald-200';
-  return 'text-gray-300';
 }
 
 function instructionText(row: Record<string, unknown>) {

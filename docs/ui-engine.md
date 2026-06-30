@@ -29,9 +29,20 @@ Reusable wrappers live in `frontend/src/components/ui/`. New feature work should
 
 ## Current Status
 
-The foundation is installed and build-validated. Existing screens continue to work with their current components. Future work can migrate high-impact areas first:
+The foundation is installed and build-validated. Several high-impact areas now actively use the new layer:
 
-- CVE Library, IOC Library, Asset Surface, and Attack Simulation logs to `DataTable` and `VirtualList`.
-- Attack chain graph and CVE/APT/TTP/IOC correlation graph to `EntityGraph`.
-- Malware Debugger and Decompilation IDE to `ResizablePanelGroup` and `CodeEditor`.
+- CVE Library records use `DataTable`.
+- CVE correlation uses `EntityGraph`.
+- Attack Simulation live telemetry uses `VirtualList`.
+- Attack Simulation local telemetry summaries use `DataTable`.
+- AI attack chain visualization uses `EntityGraph`.
+- Malware Debugger debug events use `VirtualList`.
+- Malware Debugger JSON, pseudocode, and disassembly views use `CodeEditor`.
+- Malware Debugger source/workspace layout uses `ResizablePanelGroup`.
+
+Remaining migration targets:
+
+- IOC Library and Asset Surface result tables to `DataTable`.
+- Long IOC, CVE, and telemetry result sets to `VirtualList` where row counts can become large.
 - Global search and quick analyst actions to `CommandDialog`.
+- Dashboards and telemetry summaries to `ChartFrame` plus Recharts primitives.

@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { ColumnDef } from '@tanstack/react-table';
+import type { Edge, Node } from '@xyflow/react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Header } from '@/components/Layout/Header';
 import { simulationApi } from '@/api/client';
@@ -20,6 +22,9 @@ import type {
   AttackSimulationSiemDestination,
 } from '@/api/client';
 import { TtpLink } from '@/utils/ctiLinks';
+import { DataTable } from '@/components/ui/data-table';
+import { VirtualList } from '@/components/ui/virtual-list';
+import { EntityGraph } from '@/components/ui/graph';
 
 type DetectionResult = 'passed' | 'failed' | 'partial' | 'not_proven';
 type SiemAuthType = 'none' | 'bearer' | 'token' | 'basic' | 'custom_header';
@@ -846,52 +851,54 @@ function LiveLogsView({
           </div>
         </div>
 
-        <div className="max-h-[360px] overflow-auto rounded border border-gray-800 bg-black/40">
-          <table className="w-full min-w-[920px] text-left text-xs">
-            <thead className="sticky top-0 bg-gray-950 text-gray-500">
-              <tr>
-                <th className="border-b border-gray-800 px-2 py-2">Time</th>
-                <th className="border-b border-gray-800 px-2 py-2">Event</th>
-                <th className="border-b border-gray-800 px-2 py-2">Run</th>
-                <th className="border-b border-gray-800 px-2 py-2">Method</th>
-                <th className="border-b border-gray-800 px-2 py-2">Path</th>
-                <th className="border-b border-gray-800 px-2 py-2">Status</th>
-                <th className="border-b border-gray-800 px-2 py-2">Client</th>
-                <th className="border-b border-gray-800 px-2 py-2">Bytes</th>
-                <th className="border-b border-gray-800 px-2 py-2">Raw log</th>
-              </tr>
-            </thead>
-            <tbody>
-              {events.map((event, index) => (
-                <tr key={`${event.timestamp}-${event.run_id}-${event.request_index}-${index}`} className="text-gray-300">
-                  <td className="border-b border-gray-900 px-2 py-2 font-mono text-[11px] text-gray-500">{formatLogTime(event.timestamp)}</td>
-                  <td className="border-b border-gray-900 px-2 py-2">{String(event.event_type ?? '-')}</td>
-                  <td className="border-b border-gray-900 px-2 py-2 font-mono text-[11px]">{shortRun(event.run_id)}</td>
-                  <td className="border-b border-gray-900 px-2 py-2 font-mono">{String(event.method ?? '-')}</td>
-                  <td className="border-b border-gray-900 px-2 py-2 font-mono">{String(event.path ?? event.url ?? '-')}</td>
-                  <td className={Number(event.status) >= 200 && Number(event.status) < 400 ? 'border-b border-gray-900 px-2 py-2 text-green-300' : 'border-b border-gray-900 px-2 py-2 text-amber-300'}>{String(event.status ?? '-')}</td>
-                  <td className="border-b border-gray-900 px-2 py-2 font-mono">{String(event.client_ip ?? '-')}</td>
-                  <td className="border-b border-gray-900 px-2 py-2 font-mono">{String(event.response_bytes ?? '-')}</td>
-                  <td className="max-w-[520px] truncate border-b border-gray-900 px-2 py-2 font-mono text-[11px] text-gray-500" title={String(event.raw_line ?? event.message ?? '')}>
-                    {String(event.raw_line ?? event.message ?? '-')}
-                  </td>
-                </tr>
+        <div className="overflow-hidden rounded border border-gray-800 bg-black/40">
+          <div className="min-w-[920px]">
+            <div className="grid grid-cols-[82px_150px_110px_70px_210px_70px_120px_70px_minmax(260px,1fr)] bg-gray-950 text-xs text-gray-500">
+              {['Time', 'Event', 'Run', 'Method', 'Path', 'Status', 'Client', 'Bytes', 'Raw log'].map(label => (
+                <div key={label} className="border-b border-gray-800 px-2 py-2 font-semibold">{label}</div>
               ))}
-              {!events.length && (
-                <tr>
-                  <td colSpan={9} className="px-3 py-8 text-center text-gray-500">
-                    {isLoading || isFetching ? 'Waiting for live telemetry...' : 'No attack logs yet. Run a web simulation to generate telemetry.'}
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+            </div>
+            {events.length ? (
+              <VirtualList
+                items={events}
+                height={320}
+                estimateSize={36}
+                renderItem={(event, index) => <LogEventRow event={event} index={index} />}
+              />
+            ) : (
+              <div className="px-3 py-8 text-center text-xs text-gray-500">
+                {isLoading || isFetching ? 'Waiting for live telemetry...' : 'No attack logs yet. Run a web simulation to generate telemetry.'}
+              </div>
+            )}
+          </div>
         </div>
         <div className="text-[11px] text-gray-600">
           {logs?.returned_at ? `Last update ${formatLogTime(logs.returned_at)} · ${logs.line_count} ${footerScopeText} returned` : 'Live log source is the built-in lab web access JSONL file.'}
         </div>
       </div>
     </Panel>
+  );
+}
+
+function LogEventRow({ event, index }: { event: AttackSimulationLogs['events'][number]; index: number }) {
+  const status = Number(event.status);
+  return (
+    <div
+      className="grid grid-cols-[82px_150px_110px_70px_210px_70px_120px_70px_minmax(260px,1fr)] border-b border-gray-900 text-xs text-gray-300"
+      title={String(event.raw_line ?? event.message ?? '')}
+    >
+      <div className="px-2 py-2 font-mono text-[11px] text-gray-500">{formatLogTime(event.timestamp)}</div>
+      <div className="truncate px-2 py-2">{String(event.event_type ?? '-')}</div>
+      <div className="px-2 py-2 font-mono text-[11px]">{shortRun(event.run_id)}</div>
+      <div className="px-2 py-2 font-mono">{String(event.method ?? '-')}</div>
+      <div className="truncate px-2 py-2 font-mono">{String(event.path ?? event.url ?? '-')}</div>
+      <div className={status >= 200 && status < 400 ? 'px-2 py-2 text-green-300' : 'px-2 py-2 text-amber-300'}>{String(event.status ?? '-')}</div>
+      <div className="truncate px-2 py-2 font-mono">{String(event.client_ip ?? '-')}</div>
+      <div className="px-2 py-2 font-mono">{String(event.response_bytes ?? '-')}</div>
+      <div className="truncate px-2 py-2 font-mono text-[11px] text-gray-500">
+        {String(event.raw_line ?? event.message ?? `event-${index}`)}
+      </div>
+    </div>
   );
 }
 
@@ -1102,11 +1109,33 @@ function AiAttackAssistant({
 }
 
 function AttackChainGraph({ result }: { result: AttackSimulationAiAssistantResult }) {
+  const graphNodes = useMemo<Node[]>(() => result.attack_plan.kill_chain.map((step, index) => ({
+    id: `${step.step}-${step.technique_id}`,
+    position: { x: index * 230, y: 60 + (index % 2) * 80 },
+    data: { label: `${step.technique_id}\n${humanizePhase(step.flow_stage || 'activity')}\n${step.event_count ?? 1} events` },
+    style: {
+      width: 190,
+      border: '1px solid #374151',
+      background: '#020617',
+      color: '#e5e7eb',
+      fontSize: 11,
+      whiteSpace: 'pre-line',
+    },
+  })), [result.attack_plan.kill_chain]);
+  const graphEdges = useMemo<Edge[]>(() => result.attack_plan.kill_chain.slice(0, -1).map((step, index) => ({
+    id: `phase-${step.step}-to-${result.attack_plan.kill_chain[index + 1].step}`,
+    source: `${step.step}-${step.technique_id}`,
+    target: `${result.attack_plan.kill_chain[index + 1].step}-${result.attack_plan.kill_chain[index + 1].technique_id}`,
+    style: { stroke: '#64748b' },
+  })), [result.attack_plan.kill_chain]);
   return (
     <div className="mb-3 rounded border border-gray-800 bg-gray-950 p-3">
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
         <div className="text-xs font-semibold uppercase text-gray-400">Attack Chain Graph</div>
         <div className="text-[11px] text-gray-500">{result.attack_plan.kill_chain.length} phases · {result.events.length} events</div>
+      </div>
+      <div className="mb-3 h-[320px]">
+        <EntityGraph nodes={graphNodes} edges={graphEdges} />
       </div>
       <div className="space-y-0">
         {result.attack_plan.kill_chain.map((step, index) => (
@@ -1430,6 +1459,15 @@ function SiemForwarder({
 }
 
 function TelemetryView({ telemetry }: { telemetry: NonNullable<AttackSimulationRun['telemetry']> }) {
+  type TelemetryEvent = NonNullable<NonNullable<AttackSimulationRun['telemetry']>['events']>[number];
+  const telemetryColumns = useMemo<ColumnDef<TelemetryEvent>[]>(() => [
+    { header: '#', cell: ({ row }) => <span className="font-mono">{row.original.request_index}</span> },
+    { header: 'Method', cell: ({ row }) => <span className="font-mono">{row.original.method}</span> },
+    { header: 'Path', cell: ({ row }) => <span className="font-mono">{row.original.path}</span> },
+    { header: 'Status', cell: ({ row }) => <span className={row.original.ok ? 'text-green-300' : 'text-red-300'}>{row.original.status}</span> },
+    { header: 'Duration', cell: ({ row }) => <span className="font-mono">{row.original.duration_ms} ms</span> },
+    { header: 'Bytes', cell: ({ row }) => <span className="font-mono">{row.original.response_bytes}</span> },
+  ], []);
   return (
     <div className="mt-4 rounded border border-gray-800 bg-gray-950">
       <div className="border-b border-gray-800 px-3 py-2 text-xs font-semibold uppercase text-gray-500">Local Lab Telemetry</div>
@@ -1444,32 +1482,7 @@ function TelemetryView({ telemetry }: { telemetry: NonNullable<AttackSimulationR
           {telemetry.web_error_log_file && <Mini label="Error log" value={telemetry.web_error_log_file} />}
         </div>
         {telemetry.events?.length ? (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[680px] text-left text-xs">
-              <thead className="text-gray-500">
-                <tr>
-                  <th className="border-b border-gray-800 px-2 py-2">#</th>
-                  <th className="border-b border-gray-800 px-2 py-2">Method</th>
-                  <th className="border-b border-gray-800 px-2 py-2">Path</th>
-                  <th className="border-b border-gray-800 px-2 py-2">Status</th>
-                  <th className="border-b border-gray-800 px-2 py-2">Duration</th>
-                  <th className="border-b border-gray-800 px-2 py-2">Bytes</th>
-                </tr>
-              </thead>
-              <tbody>
-                {telemetry.events.map(event => (
-                  <tr key={`${event.request_index}-${event.method}-${event.path}`} className="text-gray-300">
-                    <td className="border-b border-gray-900 px-2 py-2 font-mono">{event.request_index}</td>
-                    <td className="border-b border-gray-900 px-2 py-2 font-mono">{event.method}</td>
-                    <td className="border-b border-gray-900 px-2 py-2 font-mono">{event.path}</td>
-                    <td className={event.ok ? 'border-b border-gray-900 px-2 py-2 text-green-300' : 'border-b border-gray-900 px-2 py-2 text-red-300'}>{event.status}</td>
-                    <td className="border-b border-gray-900 px-2 py-2 font-mono">{event.duration_ms} ms</td>
-                    <td className="border-b border-gray-900 px-2 py-2 font-mono">{event.response_bytes}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <DataTable data={telemetry.events} columns={telemetryColumns} />
         ) : (
           <div className="rounded border border-gray-800 p-3 text-gray-500">No local telemetry events returned.</div>
         )}

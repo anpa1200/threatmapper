@@ -5,6 +5,7 @@ import {
   getSortedRowModel,
   useReactTable,
   type ColumnDef,
+  type Row,
   type SortingState,
 } from '@tanstack/react-table';
 import { useState } from 'react';
@@ -15,11 +16,15 @@ export function DataTable<TData>({
   columns,
   empty = 'No records.',
   className,
+  onRowClick,
+  rowClassName,
 }: {
   data: TData[];
   columns: ColumnDef<TData>[];
   empty?: ReactNode;
   className?: string;
+  onRowClick?: (row: TData) => void;
+  rowClassName?: (row: TData) => string;
 }) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const table = useReactTable({
@@ -46,8 +51,16 @@ export function DataTable<TData>({
           ))}
         </thead>
         <tbody>
-          {table.getRowModel().rows.map(row => (
-            <tr key={row.id} className="border-b border-gray-900 hover:bg-gray-900/80">
+          {table.getRowModel().rows.map((row: Row<TData>) => (
+            <tr
+              key={row.id}
+              onClick={() => onRowClick?.(row.original)}
+              className={cn(
+                'border-b border-gray-900 hover:bg-gray-900/80',
+                onRowClick && 'cursor-pointer',
+                rowClassName?.(row.original)
+              )}
+            >
               {row.getVisibleCells().map(cell => (
                 <td key={cell.id} className="px-3 py-2 align-top text-gray-300">
                   {flexRender(cell.column.columnDef.cell, cell.getContext())}
