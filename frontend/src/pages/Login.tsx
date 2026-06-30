@@ -7,6 +7,7 @@ export function Login({ status }: { status?: AuthStatus }) {
   const qc = useQueryClient();
   const [username, setUsername] = useState('admin');
   const [password, setPassword] = useState('');
+  const [mfaCode, setMfaCode] = useState('');
   const login = useMutation({
     mutationFn: authApi.login,
     onSuccess: async () => {
@@ -16,7 +17,7 @@ export function Login({ status }: { status?: AuthStatus }) {
 
   function submit(event: FormEvent) {
     event.preventDefault();
-    login.mutate({ username, password });
+    login.mutate({ username, password, mfa_code: mfaCode || undefined });
   }
 
   return (
@@ -46,6 +47,10 @@ export function Login({ status }: { status?: AuthStatus }) {
           <label className="block">
             <span className="label">Password</span>
             <input className="field" type="password" value={password} onChange={event => setPassword(event.target.value)} autoComplete="current-password" />
+          </label>
+          <label className="block">
+            <span className="label">MFA code</span>
+            <input className="field" value={mfaCode} onChange={event => setMfaCode(event.target.value)} inputMode="numeric" autoComplete="one-time-code" placeholder="Required only when enabled" />
           </label>
           {login.error && <div className="rounded border border-red-500/40 bg-red-950/30 p-3 text-xs text-red-200">{login.error.message}</div>}
           <button className="primary w-full" disabled={login.isPending || !username || !password}>

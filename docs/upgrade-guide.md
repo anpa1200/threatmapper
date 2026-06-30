@@ -1,7 +1,7 @@
 # Upgrade Guide
 
 This guide covers the current Docker Compose upgrade path and the tested
-procedure for moving from v5.3 to v5.4 and later releases.
+procedure for moving from v5.4 to v5.5 and later releases.
 
 ## Current Migration Model
 
@@ -26,7 +26,7 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 ./scripts/selftest.sh
 ```
 
-## v5.3 To v5.4 Procedure
+## v5.4 To v5.5 Procedure
 
 1. Confirm the current app is healthy:
 
@@ -41,7 +41,7 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
    ./scripts/backup.sh
    ```
 
-3. Pull the v5.4 code:
+3. Pull the v5.5 code:
 
    ```bash
    git pull --ff-only
@@ -75,7 +75,7 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
    - Observability dashboard loads;
    - Attack Simulation loads.
 
-## v5.4 To Next Release Procedure
+## v5.5 To Next Release Procedure
 
 Use the same guarded path for the next release until formal migration tooling is
 introduced:

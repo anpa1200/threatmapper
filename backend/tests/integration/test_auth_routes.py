@@ -20,21 +20,40 @@ async def test_native_auth_login_and_admin_user_management(client: AsyncClient, 
     me = await client.get("/api/auth/me")
     assert me.status_code == 200
     assert "admin" in me.json()["roles"]
+    assert "manage_auth" in me.json()["permissions"]
 
     create_viewer = await client.post(
         "/api/auth/users",
-        json={"username": "auth-viewer", "password": "viewer-password-1", "role": "viewer", "enabled": True},
+        json={"username": "auth-viewer", "password": "viewer-password-1", "role": "detection_engineer", "permissions": ["view_audit"], "enabled": True},
     )
     assert create_viewer.status_code == 201
     viewer_id = create_viewer.json()["id"]
+    assert create_viewer.json()["role"] == "detection_engineer"
+    assert "view_audit" in create_viewer.json()["effective_permissions"]
 
-    update = await client.patch(f"/api/auth/users/{viewer_id}", json={"role": "analyst", "display_name": "Analyst User"})
+    update = await client.patch(f"/api/auth/users/{viewer_id}", json={"role": "analyst", "display_name": "Analyst User", "permissions": ["export_data"]})
     assert update.status_code == 200
     assert update.json()["role"] == "analyst"
     assert update.json()["display_name"] == "Analyst User"
+    assert update.json()["permissions"] == ["export_data"]
 
     reset = await client.post(f"/api/auth/users/{viewer_id}/password", json={"password": "new-viewer-password"})
     assert reset.status_code == 200
+
+    sessions = await client.get("/api/auth/sessions")
+    assert sessions.status_code == 200
+    assert any(item["username"] == "auth-admin" for item in sessions.json())
+
+    revoke = await client.post(f"/api/auth/users/{viewer_id}/sessions/revoke")
+    assert revoke.status_code == 200
+    assert "revoked" in revoke.json()
+
+    audit = await client.get("/api/auth/audit")
+    assert audit.status_code == 200
+    actions = {item["action"] for item in audit.json()}
+    assert "auth.login" in actions
+    assert "auth.user_create" in actions
+    assert "auth.password_reset" in actions
 
     logout = await client.post("/api/auth/logout")
     assert logout.status_code == 200
@@ -54,3 +73,7 @@ async def test_auth_status_shape(client: AsyncClient):
     assert "auth_enabled" in body
     assert "user_count" in body
     assert body["native_login_enabled"] is True
+    assert "roles" in body
+    assert "permissions" in body
+    assert "password_policy" in body
+    assert "detection_engineer" in body["roles"]

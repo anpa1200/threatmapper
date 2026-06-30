@@ -70,8 +70,15 @@ class Settings(BaseSettings):
 
     # Optional trusted-proxy team authentication. Keep disabled for local use.
     auth_enabled: bool = False
+    auth_sso_mode: str = "proxy"  # proxy, oidc-proxy, saml-proxy
     auth_default_role: str = "viewer"
     auth_session_minutes: int = 720
+    auth_password_min_length: int = 12
+    auth_password_require_upper: bool = False
+    auth_password_require_lower: bool = False
+    auth_password_require_number: bool = False
+    auth_password_require_special: bool = False
+    auth_mfa_enabled: bool = False
     auth_bootstrap_admin_username: str = "admin"
     auth_bootstrap_admin_password: str = ""
     # Secret shared between the reverse proxy and the API. When non-empty, every

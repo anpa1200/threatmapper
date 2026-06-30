@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text, func
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
@@ -16,6 +16,11 @@ class UserAccount(Base):
     display_name: Mapped[str] = mapped_column(String(255), default="")
     password_hash: Mapped[str] = mapped_column(Text)
     role: Mapped[str] = mapped_column(String(30), default="viewer", index=True)
+    permissions: Mapped[list] = mapped_column(JSONB, default=list)
+    auth_provider: Mapped[str] = mapped_column(String(50), default="local", index=True)
+    external_subject: Mapped[str] = mapped_column(String(255), default="", index=True)
+    mfa_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    mfa_secret: Mapped[str] = mapped_column(Text, default="")
     enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

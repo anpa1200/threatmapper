@@ -39,6 +39,11 @@ handling policy.
 | Configurable CORS | Implemented | `CORS_ALLOWED_ORIGINS`, wildcard rejection |
 | Native user authentication | Implemented | Username/password login, session cookie, roles, Admin Panel, and `/auth-guide` |
 | Trusted-header auth guard | Implemented | `PROXY_SECRET` and `X-Internal-Proxy-Secret` |
+| Enterprise SSO integration pattern | Implemented | OIDC/SAML via trusted reverse proxy, `AUTH_SSO_MODE`, `X-Auth-User`, `X-Auth-Roles` |
+| Expanded RBAC | Implemented | viewer, analyst, threat_intel, detection_engineer, incident_responder, auditor, security_admin, service_account, admin plus explicit permissions |
+| Auth audit trail | Implemented | login, logout, user changes, password reset, MFA, session review/revocation |
+| Session administration | Implemented | expiry, admin session list, user session revoke, own-session revoke |
+| Local MFA support | Implemented | TOTP setup/confirm/admin disable for native accounts |
 | SSRF-safe feed fetches | Implemented | `backend/app/core/safe_http.py` |
 | XML parser hardening | Implemented | `defusedxml` for RSS parsing |
 | Frontend URL scheme guard | Implemented | `frontend/src/utils/url.ts` |

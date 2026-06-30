@@ -4,6 +4,9 @@ import hashlib
 import hmac
 import os
 import secrets
+import base64
+import struct
+import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from uuid import UUID
@@ -17,9 +20,44 @@ from app.core.database import get_session
 from app.models.auth import AuthSession, UserAccount
 from app.models.pipeline import AuditEvent
 
-VALID_ROLES = {"viewer", "analyst", "admin"}
+VALID_ROLES = {
+    "viewer",
+    "analyst",
+    "admin",
+    "security_admin",
+    "threat_intel",
+    "detection_engineer",
+    "incident_responder",
+    "auditor",
+    "service_account",
+}
 SESSION_COOKIE = "ag_session"
 PBKDF2_ITERATIONS = 260_000
+ALL_PERMISSIONS = {
+    "read",
+    "run_analysis",
+    "manage_intel",
+    "manage_detections",
+    "run_attack_simulation",
+    "manage_feeds",
+    "forward_siem",
+    "upload_files",
+    "export_data",
+    "manage_users",
+    "manage_auth",
+    "view_audit",
+}
+ROLE_PERMISSIONS = {
+    "viewer": {"read"},
+    "auditor": {"read", "view_audit", "export_data"},
+    "analyst": {"read", "run_analysis", "manage_intel", "upload_files", "export_data"},
+    "threat_intel": {"read", "run_analysis", "manage_intel", "manage_feeds", "upload_files", "export_data"},
+    "detection_engineer": {"read", "run_analysis", "manage_detections", "run_attack_simulation", "forward_siem", "export_data"},
+    "incident_responder": {"read", "run_analysis", "manage_intel", "run_attack_simulation", "forward_siem", "upload_files", "export_data"},
+    "service_account": {"read", "run_analysis", "manage_feeds", "forward_siem", "export_data"},
+    "security_admin": {"read", "run_analysis", "manage_intel", "manage_detections", "run_attack_simulation", "manage_feeds", "forward_siem", "upload_files", "export_data", "manage_auth", "view_audit"},
+    "admin": set(ALL_PERMISSIONS),
+}
 
 
 @dataclass
@@ -28,6 +66,7 @@ class TeamUser:
     roles: list[str]
     user_id: str = ""
     auth_source: str = "local"
+    permissions: list[str] | None = None
 
 
 def normalize_role(role: str) -> str:
@@ -35,6 +74,14 @@ def normalize_role(role: str) -> str:
     if normalized not in VALID_ROLES:
         raise HTTPException(422, f"Role must be one of: {', '.join(sorted(VALID_ROLES))}")
     return normalized
+
+
+def normalize_permissions(permissions: list[str] | None) -> list[str]:
+    cleaned = sorted({item.strip() for item in permissions or [] if item and item.strip()})
+    invalid = [item for item in cleaned if item not in ALL_PERMISSIONS]
+    if invalid:
+        raise HTTPException(422, f"Unknown permissions: {', '.join(invalid)}")
+    return cleaned
 
 
 def hash_password(password: str, salt: bytes | None = None) -> str:
@@ -67,9 +114,22 @@ def roles_for(role: str) -> list[str]:
     role = normalize_role(role)
     if role == "admin":
         return ["admin", "analyst", "viewer"]
+    if role == "security_admin":
+        return ["security_admin", "analyst", "viewer"]
+    if role in {"threat_intel", "detection_engineer", "incident_responder", "service_account"}:
+        return [role, "analyst", "viewer"]
+    if role == "auditor":
+        return ["auditor", "viewer"]
     if role == "analyst":
         return ["analyst", "viewer"]
     return ["viewer"]
+
+
+def permissions_for(role: str, extra_permissions: list[str] | None = None) -> list[str]:
+    normalized = normalize_role(role)
+    permissions = set(ROLE_PERMISSIONS.get(normalized, {"read"}))
+    permissions.update(normalize_permissions(extra_permissions))
+    return sorted(permissions)
 
 
 def user_to_team_user(user: UserAccount, auth_source: str = "native") -> TeamUser:
@@ -78,7 +138,36 @@ def user_to_team_user(user: UserAccount, auth_source: str = "native") -> TeamUse
         roles=roles_for(user.role),
         user_id=str(user.id),
         auth_source=auth_source,
+        permissions=permissions_for(user.role, user.permissions),
     )
+
+
+def password_policy() -> dict:
+    return {
+        "min_length": settings.auth_password_min_length,
+        "require_upper": settings.auth_password_require_upper,
+        "require_lower": settings.auth_password_require_lower,
+        "require_number": settings.auth_password_require_number,
+        "require_special": settings.auth_password_require_special,
+        "mfa_available": True,
+        "mfa_required": settings.auth_mfa_enabled,
+    }
+
+
+def validate_password_policy(password: str) -> None:
+    errors: list[str] = []
+    if len(password) < settings.auth_password_min_length:
+        errors.append(f"at least {settings.auth_password_min_length} characters")
+    if settings.auth_password_require_upper and not any(ch.isupper() for ch in password):
+        errors.append("one uppercase letter")
+    if settings.auth_password_require_lower and not any(ch.islower() for ch in password):
+        errors.append("one lowercase letter")
+    if settings.auth_password_require_number and not any(ch.isdigit() for ch in password):
+        errors.append("one number")
+    if settings.auth_password_require_special and not any(not ch.isalnum() for ch in password):
+        errors.append("one special character")
+    if errors:
+        raise HTTPException(422, f"Password must contain {', '.join(errors)}")
 
 
 async def user_count(db: AsyncSession) -> int:
@@ -96,6 +185,7 @@ async def bootstrap_admin_if_configured(db: AsyncSession) -> bool:
         display_name="Bootstrap Administrator",
         password_hash=hash_password(settings.auth_bootstrap_admin_password),
         role="admin",
+        permissions=[],
         enabled=True,
     ))
     await db.commit()
@@ -108,6 +198,26 @@ async def authenticate_credentials(db: AsyncSession, username: str, password: st
         raise HTTPException(401, "Invalid username or password")
     row.last_login_at = datetime.now(timezone.utc)
     return row
+
+
+def new_totp_secret() -> str:
+    return base64.b32encode(os.urandom(20)).decode("ascii").rstrip("=")
+
+
+def _totp(secret: str, counter: int, digits: int = 6) -> str:
+    padded = secret.upper() + "=" * ((8 - len(secret) % 8) % 8)
+    key = base64.b32decode(padded)
+    digest = hmac.new(key, struct.pack(">Q", counter), hashlib.sha1).digest()
+    offset = digest[-1] & 0x0F
+    code = struct.unpack(">I", digest[offset:offset + 4])[0] & 0x7FFFFFFF
+    return str(code % (10 ** digits)).zfill(digits)
+
+
+def verify_totp(secret: str, code: str, window: int = 1) -> bool:
+    if not secret or not code or not code.isdigit():
+        return False
+    counter = int(time.time() // 30)
+    return any(hmac.compare_digest(_totp(secret, counter + shift), code.zfill(6)) for shift in range(-window, window + 1))
 
 
 async def create_session(db: AsyncSession, user: UserAccount, request: Request) -> tuple[str, AuthSession]:
@@ -153,6 +263,31 @@ async def revoke_session(db: AsyncSession, token: str) -> None:
         await db.commit()
 
 
+async def revoke_user_sessions(db: AsyncSession, user_id: UUID, keep_token: str = "") -> int:
+    keep_hash = hash_token(keep_token) if keep_token else ""
+    rows = await db.execute(select(AuthSession).where(AuthSession.user_id == user_id, AuthSession.revoked_at.is_(None)))
+    revoked_at = datetime.now(timezone.utc)
+    count = 0
+    for session in rows.scalars().all():
+        if keep_hash and session.token_hash == keep_hash:
+            continue
+        session.revoked_at = revoked_at
+        count += 1
+    await db.commit()
+    return count
+
+
+async def audit_event(
+    db: AsyncSession,
+    actor: str,
+    action: str,
+    object_type: str,
+    object_id: str = "",
+    details: dict | None = None,
+) -> None:
+    db.add(AuditEvent(actor=actor, action=action, object_type=object_type, object_id=object_id, details=details or {}))
+
+
 async def current_user(
     request: Request,
     db: AsyncSession = Depends(get_session),
@@ -172,10 +307,13 @@ async def current_user(
             x_auth_roles = None
 
     if x_auth_user:
+        roles = [role.strip() for role in (x_auth_roles or settings.auth_default_role).split(",") if role.strip()]
+        primary_role = roles[0] if roles else settings.auth_default_role
         return TeamUser(
             name=x_auth_user,
-            roles=[role.strip() for role in (x_auth_roles or settings.auth_default_role).split(",") if role.strip()],
-            auth_source="proxy",
+            roles=roles_for(primary_role),
+            auth_source=settings.auth_sso_mode,
+            permissions=permissions_for(primary_role),
         )
 
     token = ""
@@ -192,18 +330,32 @@ async def current_user(
         name="local",
         roles=roles_for(settings.auth_default_role),
         auth_source="local",
+        permissions=permissions_for(settings.auth_default_role),
     )
 
 
+def has_permission(user: TeamUser, permission: str) -> bool:
+    permissions = set(user.permissions or [])
+    return "admin" in user.roles or permission in permissions
+
+
+def require_permission(permission: str):
+    async def dependency(user: TeamUser = Depends(current_user)) -> TeamUser:
+        if settings.auth_enabled and not has_permission(user, permission):
+            raise HTTPException(403, f"Permission required: {permission}")
+        return user
+    return dependency
+
+
 async def analyst(user: TeamUser = Depends(current_user)) -> TeamUser:
-    if settings.auth_enabled and not {"admin", "analyst"}.intersection(user.roles):
+    if settings.auth_enabled and not ({"admin", "analyst"}.intersection(user.roles) or has_permission(user, "run_analysis")):
         raise HTTPException(403, "Analyst role required")
     return user
 
 
 async def admin(user: TeamUser = Depends(current_user)) -> TeamUser:
-    if settings.auth_enabled and "admin" not in user.roles:
-        raise HTTPException(403, "Admin role required")
+    if settings.auth_enabled and not has_permission(user, "manage_auth"):
+        raise HTTPException(403, "Auth administrator permission required")
     return user
 
 
@@ -215,4 +367,4 @@ async def audit(
     object_id: str = "",
     details: dict | None = None,
 ) -> None:
-    db.add(AuditEvent(actor=user.name, action=action, object_type=object_type, object_id=object_id, details=details or {}))
+    await audit_event(db, user.name, action, object_type, object_id, details)

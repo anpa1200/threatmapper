@@ -1,8 +1,8 @@
 # Roadmap
 
-Current release: **v5.4.0** — observability, security scanning, and screenshot-backed validation examples (2026-06-30)
+Current release: **v5.5.0** — enterprise access controls, RBAC, MFA workflow support, session administration, and audit history (2026-06-30)
 
-For the full history from v0.2.0 through v5.4.0 see [CHANGELOG.md](CHANGELOG.md).
+For the full history from v0.2.0 through v5.5.0 see [CHANGELOG.md](CHANGELOG.md).
 
 ## v5.x — Hardening Sprint (in progress)
 
@@ -44,6 +44,14 @@ The current sprint focuses on security hardening, test coverage, and reviewer re
 - [x] Add backend SAST coverage and local `make security-scan` helper
 - [x] Document observability, security scanning, and screenshot-backed validation examples
 - [x] Validate route tests, frontend build, docs build, lint, SAST, dependency audit, and Docker Compose config
+
+## v5.5 — Enterprise Access Controls
+
+- [x] Add expanded RBAC roles and per-user permissions for team deployments
+- [x] Add session inventory, revoke-all, and admin session revocation actions
+- [x] Add MFA setup/confirm/disable workflow support for local accounts
+- [x] Add trusted proxy SSO metadata and configuration guidance
+- [x] Add audit history for login, logout, user changes, session revocation, MFA, exports, feed sync, SIEM forwarding, and file uploads
 
 ## Backlog
 

@@ -1,5 +1,19 @@
 # Changelog
 
+## v5.5.0 - 2026-06-30
+
+- Promoted active release markers to v5.5.0 across backend, frontend, README,
+  roadmap, security policy, Helm metadata, and release consistency checks.
+- Added enterprise access controls with expanded RBAC roles, per-user
+  permissions, password policy settings, MFA workflow support, and trusted
+  proxy SSO metadata.
+- Added session administration, revoke-all controls, user-session revocation,
+  and authentication audit history in the backend and Admin Panel.
+- Updated Docker Compose, production overlay, Helm values, and `.env.example`
+  with the new auth policy controls.
+- Updated authentication, admin, and production-readiness documentation for
+  enterprise access operations.
+
 ## v5.4.0 - 2026-06-30
 
 - Promoted active release markers to v5.4.0 across backend, frontend,

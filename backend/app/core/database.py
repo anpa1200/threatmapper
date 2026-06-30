@@ -41,3 +41,8 @@ async def create_tables() -> None:
         await conn.execute(text("ALTER TABLE apt_groups ADD COLUMN IF NOT EXISTS contributors JSONB DEFAULT '[]'::jsonb"))
         await conn.execute(text("ALTER TABLE apt_groups ADD COLUMN IF NOT EXISTS external_references JSONB DEFAULT '[]'::jsonb"))
         await conn.execute(text("ALTER TABLE ioc_indicators ADD COLUMN IF NOT EXISTS technique_ids JSONB DEFAULT '[]'::jsonb"))
+        await conn.execute(text("ALTER TABLE user_accounts ADD COLUMN IF NOT EXISTS permissions JSONB DEFAULT '[]'::jsonb"))
+        await conn.execute(text("ALTER TABLE user_accounts ADD COLUMN IF NOT EXISTS auth_provider VARCHAR(50) DEFAULT 'local'"))
+        await conn.execute(text("ALTER TABLE user_accounts ADD COLUMN IF NOT EXISTS external_subject VARCHAR(255) DEFAULT ''"))
+        await conn.execute(text("ALTER TABLE user_accounts ADD COLUMN IF NOT EXISTS mfa_enabled BOOLEAN DEFAULT false"))
+        await conn.execute(text("ALTER TABLE user_accounts ADD COLUMN IF NOT EXISTS mfa_secret TEXT DEFAULT ''"))

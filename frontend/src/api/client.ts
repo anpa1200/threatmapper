@@ -50,6 +50,7 @@ http.interceptors.response.use(
 export interface CurrentUser {
   name: string;
   roles: string[];
+  permissions?: string[];
   auth_enabled: boolean;
   user_id?: string;
   auth_source?: string;
@@ -61,33 +62,83 @@ export interface AuthStatus {
   user_count: number;
   bootstrap_configured: boolean;
   bootstrap_required: boolean;
+  sso_mode?: string;
+  trusted_proxy_sso_enabled?: boolean;
+  roles?: string[];
+  permissions?: string[];
+  role_permissions?: Record<string, string[]>;
+  password_policy?: {
+    min_length: number;
+    require_upper: boolean;
+    require_lower: boolean;
+    require_number: boolean;
+    require_special: boolean;
+    mfa_available: boolean;
+    mfa_required: boolean;
+  };
 }
 
 export interface ManagedUser {
   id: string;
   username: string;
   display_name: string;
-  role: 'viewer' | 'analyst' | 'admin';
+  role: string;
+  permissions: string[];
+  effective_permissions: string[];
+  auth_provider: string;
+  external_subject: string;
+  mfa_enabled: boolean;
   enabled: boolean;
   last_login_at: string | null;
   created_at: string;
   updated_at: string;
 }
 
+export interface ManagedSession {
+  id: string;
+  user_id: string;
+  username: string;
+  auth_provider: string;
+  ip_address: string;
+  user_agent: string;
+  expires_at: string;
+  revoked_at: string | null;
+  created_at: string;
+  active: boolean;
+}
+
+export interface AuthAuditEvent {
+  id: string;
+  actor: string;
+  action: string;
+  object_type: string;
+  object_id: string;
+  details: Record<string, unknown>;
+  created_at: string;
+}
+
 export const authApi = {
   status: (): Promise<AuthStatus> => http.get('/auth/status', { skipGlobalError: true } as any).then(r => r.data),
   me: (): Promise<CurrentUser> => http.get('/auth/me', { skipGlobalError: true } as any).then(r => r.data),
-  login: (body: { username: string; password: string }): Promise<{ token: string; user: ManagedUser; expires_at: string }> =>
+  login: (body: { username: string; password: string; mfa_code?: string }): Promise<{ token: string; user: ManagedUser; expires_at: string }> =>
     http.post('/auth/login', body, { skipGlobalError: true } as any).then(r => r.data),
   logout: (): Promise<{ status: string }> => http.post('/auth/logout').then(r => r.data),
   users: (): Promise<ManagedUser[]> => http.get('/auth/users').then(r => r.data),
-  createUser: (body: { username: string; password: string; display_name?: string; role: string; enabled: boolean }): Promise<ManagedUser> =>
+  createUser: (body: { username: string; password: string; display_name?: string; role: string; permissions?: string[]; enabled: boolean }): Promise<ManagedUser> =>
     http.post('/auth/users', body).then(r => r.data),
-  updateUser: (id: string, body: { display_name?: string; role?: string; enabled?: boolean }): Promise<ManagedUser> =>
+  updateUser: (id: string, body: { display_name?: string; role?: string; permissions?: string[]; enabled?: boolean }): Promise<ManagedUser> =>
     http.patch(`/auth/users/${id}`, body).then(r => r.data),
   setPassword: (id: string, password: string): Promise<{ status: string }> =>
     http.post(`/auth/users/${id}/password`, { password }).then(r => r.data),
   disableUser: (id: string): Promise<void> => http.delete(`/auth/users/${id}`).then(() => {}),
+  sessions: (): Promise<ManagedSession[]> => http.get('/auth/sessions').then(r => r.data),
+  revokeUserSessions: (id: string): Promise<{ status: string; revoked: number }> =>
+    http.post(`/auth/users/${id}/sessions/revoke`).then(r => r.data),
+  revokeOwnSessions: (): Promise<{ status: string; revoked: number }> =>
+    http.post('/auth/sessions/revoke-all').then(r => r.data),
+  disableMfa: (id: string): Promise<{ status: string; mfa_enabled: boolean }> =>
+    http.post(`/auth/users/${id}/mfa/disable`).then(r => r.data),
+  audit: (): Promise<AuthAuditEvent[]> => http.get('/auth/audit').then(r => r.data),
 };
 
 export interface ObservabilityTrace {

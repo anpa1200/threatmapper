@@ -173,7 +173,7 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 ```
 
 For the current feature scope, review
-[`docs/release-summary-v5.4.0.md`](release-summary-v5.4.0.md).
+[`docs/release-summary-v5.5.0.md`](release-summary-v5.5.0.md).
 
 ## Feeds Management
 
@@ -327,8 +327,14 @@ The default Compose deployment is not a hardened public SaaS. If exposing Advers
 - Enable native authentication with `AUTH_ENABLED=true`, or use an
   authenticating reverse proxy or identity-aware gateway.
 - Use the local auth guide at <http://localhost:3000/auth-guide> during setup.
+- For OIDC/SAML SSO, terminate identity at a trusted reverse proxy, set
+  `AUTH_SSO_MODE=oidc-proxy` or `AUTH_SSO_MODE=saml-proxy`, configure
+  `PROXY_SECRET`, and forward only sanitized `X-Auth-User` / `X-Auth-Roles`
+  headers to the API.
 - Create permanent named admin accounts, then clear
   `AUTH_BOOTSTRAP_ADMIN_PASSWORD` and restart the API container.
+- Use Admin Panel to review sessions, revoke sessions, reset local MFA, and
+  inspect auth audit events.
 - Do not expose PostgreSQL or Redis publicly.
 - Rotate default secrets.
 - Restrict allowed upload size.

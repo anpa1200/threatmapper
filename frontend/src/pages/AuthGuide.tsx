@@ -3,15 +3,24 @@ import adversaryGraphIcon from '@/assets/adversarygraph-ai-icon-192.png';
 const roleRows = [
   ['viewer', 'Read-only workspace access: matrix navigation, libraries, reports, IOC/CVE views, and lookups.'],
   ['analyst', 'Viewer access plus operational workflows: AI analysis, feeds, pipeline, attack simulation, asset surface, and cases.'],
-  ['admin', 'Analyst access plus user creation, role changes, account enable/disable, and password reset.'],
+  ['threat_intel', 'Focused CTI role for reports, APT/IOC/CVE workflows, feeds, and intelligence exports.'],
+  ['detection_engineer', 'Detection-content role for rules, coverage, attack simulation, SIEM forwarding, and validation.'],
+  ['incident_responder', 'Response role for investigations, IOC pivots, uploads, attack simulation, and SIEM forwarding.'],
+  ['auditor', 'Read-only access plus audit trail and export review.'],
+  ['security_admin', 'Access-control operator for users, sessions, MFA resets, and audit review without full system ownership.'],
+  ['service_account', 'Automation role for API integrations, sync workflows, and SIEM forwarding.'],
+  ['admin', 'Full platform administration.'],
 ];
 
 const envLines = [
   'AUTH_ENABLED=true',
+  'AUTH_SSO_MODE=proxy',
   'AUTH_DEFAULT_ROLE=viewer',
   'AUTH_SESSION_MINUTES=720',
+  'AUTH_PASSWORD_MIN_LENGTH=12',
   'AUTH_BOOTSTRAP_ADMIN_USERNAME=admin',
   'AUTH_BOOTSTRAP_ADMIN_PASSWORD=<strong-temporary-password>',
+  'PROXY_SECRET=<strong-random-secret-for-sso-proxy>',
 ];
 
 export function AuthGuide() {
@@ -23,7 +32,7 @@ export function AuthGuide() {
             <img src={adversaryGraphIcon} alt="" className="h-10 w-10 rounded-lg object-cover" />
             <div>
               <h1 className="text-2xl font-bold text-white">Authentication Guide</h1>
-              <p className="text-sm text-gray-500">Native login, roles, bootstrap, and operator hardening.</p>
+              <p className="text-sm text-gray-500">Native login, SSO proxy mode, RBAC, audit, sessions, and MFA.</p>
             </div>
           </div>
           <a className="secondary-action" href="/">Back to sign in</a>
@@ -32,7 +41,7 @@ export function AuthGuide() {
         <section className="rounded border border-gray-700 bg-gray-900 p-5">
           <h2 className="text-lg font-semibold text-white">How access works</h2>
           <p className="mt-3 text-sm leading-6 text-gray-300">
-            AdversaryGraph supports native username/password login and trusted reverse-proxy header authentication.
+            AdversaryGraph supports native username/password login and trusted reverse-proxy SSO authentication for OIDC/SAML frontends.
             When native auth is enabled, the browser receives an HttpOnly session cookie named <code className="rounded bg-black/30 px-1">ag_session</code>.
             API clients can use the bearer token returned by the login endpoint.
           </p>
@@ -53,7 +62,7 @@ export function AuthGuide() {
               <li>Set the auth environment variables in <code className="rounded bg-black/30 px-1">.env</code>.</li>
               <li>Restart the API container. If no users exist, AdversaryGraph creates the bootstrap admin.</li>
               <li>Sign in with the bootstrap username and password.</li>
-              <li>Open <strong>Admin Panel</strong> and create named admin/analyst/viewer accounts.</li>
+              <li>Open <strong>Admin Panel</strong> and create named users with role defaults and extra permission grants.</li>
               <li>Clear <code className="rounded bg-black/30 px-1">AUTH_BOOTSTRAP_ADMIN_PASSWORD</code> and restart the API.</li>
             </ol>
             <div className="mt-4 rounded border border-amber-500/40 bg-amber-950/20 p-3 text-sm leading-6 text-amber-100">
@@ -70,12 +79,34 @@ export function AuthGuide() {
         </section>
 
         <section className="mt-6 rounded border border-gray-700 bg-gray-900 p-5">
-          <h2 className="text-lg font-semibold text-white">Reverse-proxy header authentication</h2>
+          <h2 className="text-lg font-semibold text-white">OIDC/SAML SSO through a trusted proxy</h2>
           <p className="mt-3 text-sm leading-6 text-gray-300">
-            For deployments behind an identity-aware proxy, configure the proxy to set <code className="rounded bg-black/30 px-1">X-Auth-User</code>,
+            For enterprise deployments, terminate OIDC or SAML at an identity-aware proxy such as oauth2-proxy, Pomerium, Authelia, Keycloak Gatekeeper-style middleware, or an ingress controller with external auth. Configure the proxy to set <code className="rounded bg-black/30 px-1">X-Auth-User</code>,
             <code className="mx-1 rounded bg-black/30 px-1">X-Auth-Roles</code>, and <code className="rounded bg-black/30 px-1">X-Internal-Proxy-Secret</code>.
             The proxy must strip any client-supplied identity headers before forwarding traffic to the API.
           </p>
+          <div className="mt-4 rounded border border-cyan-500/30 bg-cyan-950/20 p-3 text-sm leading-6 text-cyan-100">
+            Map IdP groups to AdversaryGraph roles or comma-separated role headers. The API trusts those headers only when <code className="rounded bg-black/30 px-1">PROXY_SECRET</code> matches.
+          </div>
+        </section>
+
+        <section className="mt-6 grid gap-6 lg:grid-cols-2">
+          <div className="rounded border border-gray-700 bg-gray-900 p-5">
+            <h2 className="text-lg font-semibold text-white">Session and MFA controls</h2>
+            <ul className="mt-3 space-y-2 text-sm leading-6 text-gray-300">
+              <li>Sessions expire after <code className="rounded bg-black/30 px-1">AUTH_SESSION_MINUTES</code>.</li>
+              <li>Admins can view active sessions and revoke all sessions for a user.</li>
+              <li>Users can revoke their other sessions through the API.</li>
+              <li>Local accounts support TOTP setup, confirmation, and admin MFA reset.</li>
+              <li>Password policy is controlled by length and optional uppercase, lowercase, number, and special-character requirements.</li>
+            </ul>
+          </div>
+          <div className="rounded border border-gray-700 bg-gray-900 p-5">
+            <h2 className="text-lg font-semibold text-white">Audit coverage</h2>
+            <p className="mt-3 text-sm leading-6 text-gray-300">
+              Auth audit events are written for login success/failure, logout, user creation/update/disable, password reset, MFA setup/change, session revocation, and admin session review. Existing platform audit events cover report analysis, imports, feed sync, CVE sync, IOC enrichment, exports, SIEM forwarding, attack simulation, asset-surface cases, saved layers, and operational objects.
+            </p>
+          </div>
         </section>
 
         <section className="mt-6 rounded border border-gray-700 bg-gray-900 p-5">
@@ -85,6 +116,9 @@ export function AuthGuide() {
               'Do not expose AUTH_ENABLED=false deployments to untrusted networks.',
               'Use TLS in production.',
               'Use named accounts instead of shared admin accounts.',
+              'Prefer OIDC/SAML SSO through a trusted reverse proxy for enterprise access.',
+              'Require MFA for local administrator accounts.',
+              'Review auth audit events after user, session, export, sync, and SIEM-forwarding activity.',
               'Store production secrets in a secret manager.',
               'Restrict direct access to API, Postgres, Redis, MalwareGraph, and lab fixtures.',
               'Rotate bootstrap credentials after setup.',

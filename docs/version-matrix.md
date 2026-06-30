@@ -6,15 +6,16 @@ This file is the canonical reference for AdversaryGraph release history and feat
 
 | Field | Value |
 |---|---|
-| Version | v5.4.0 |
+| Version | v5.5.0 |
 | Release date | 2026-06-30 |
-| Theme | Observability, security scanning, and screenshot-backed validation examples |
+| Theme | Enterprise access controls, RBAC, MFA workflow support, session administration, and audit history |
 | Status | Stable — hardening sprint in progress |
 
 ## Release History
 
 | Version | Theme | Key additions |
 |---|---|---|
+| v5.5.0 | Enterprise Access Controls | Expanded RBAC roles, per-user permissions, password policy settings, MFA workflow support, trusted proxy SSO metadata, session inventory and revocation, authentication audit history, Admin Panel updates, and deployment configuration coverage |
 | v5.4.0 | Observability and Validation Evidence | Authenticated Observability dashboard, request metrics, recent traces, redacted API log tail, Prometheus-compatible metrics endpoint, backend SAST CI coverage, security scan helper, and screenshot-backed validation examples |
 | v5.3.0 | Authentication and User Operations | Local `/auth-guide` page reachable before sign-in, login-page guide link, native auth bootstrap guidance, role model documentation, password reset/session behavior notes, and production/security docs for native auth plus optional identity-aware reverse proxy |
 | v5.2.0 | QA Hardening and Release Validation | Reproducible backend test environment defaults, frontend DOMPurify override for Monaco transitive audit cleanup, local lint/test/audit/build validation, and v5.2 release metadata |
@@ -29,7 +30,7 @@ This file is the canonical reference for AdversaryGraph release history and feat
 | v0.2.0–v1.x | Foundation | Initial FastAPI backend, React frontend, PostgreSQL, Redis, Celery, Docker Compose |
 
 For complete per-version changelogs see [CHANGELOG.md](../CHANGELOG.md).
-For the current release narrative, see [v5.4.0 release summary](release-summary-v5.4.0.md).
+For the current release narrative, see [v5.5.0 release summary](release-summary-v5.5.0.md).
 
 ## Feature Gate Legend
 
