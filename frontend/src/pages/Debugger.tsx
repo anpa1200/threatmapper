@@ -197,7 +197,13 @@ export function Debugger() {
     <Header title="Decompilation & Debug IDE" />
     <div className="flex-1 overflow-y-auto p-6">
       <ResizablePanelGroup orientation="horizontal" className="mx-auto max-w-[1800px] gap-4">
-        <ResizablePanel defaultSize={22} minSize={16} maxSize={34}>
+        <ResizablePanel
+          id="debugger-source-panel"
+          defaultSize="360px"
+          minSize="320px"
+          maxSize="520px"
+          groupResizeBehavior="preserve-pixel-size"
+        >
           <div className="space-y-4">
           <Panel title="Source">
             <div className="space-y-3 p-3">
@@ -254,7 +260,7 @@ export function Debugger() {
         </ResizablePanel>
 
         <ResizableHandle className="hidden xl:block" />
-        <ResizablePanel defaultSize={78} minSize={50}>
+        <ResizablePanel id="debugger-workspace-panel" defaultSize="75%" minSize="50%">
           <div className="space-y-4">
           {workspace ? <>
             {workspace.warning && <div className="rounded border border-amber-500/40 bg-amber-950/30 p-3 text-sm font-semibold text-amber-100">{workspace.warning}</div>}
