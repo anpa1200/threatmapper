@@ -70,7 +70,7 @@ export function CVEIntelligence() {
       <Header title="CVE Library" />
       <div className="flex-1 overflow-y-auto p-6">
         <div className="mx-auto max-w-7xl space-y-5">
-          <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_420px]">
+          <section className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1fr)_420px]">
             <Panel title="Search CVE Library">
               <div className="space-y-4 p-4">
                 <div className="flex flex-wrap gap-3">
@@ -138,15 +138,23 @@ export function CVEIntelligence() {
             </Panel>
           </section>
 
-          <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_420px]">
+          <section className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1fr)_480px]">
             <Panel title={`CVE records (${total.toLocaleString()})`}>
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
+              <div className="overflow-hidden">
+                <table className="w-full table-fixed text-left text-xs">
+                  <colgroup>
+                    <col className="w-[92px]" />
+                    <col className="w-[92px]" />
+                    <col className="w-[78px]" />
+                    <col />
+                    <col className="w-[92px]" />
+                    <col className="w-[104px]" />
+                  </colgroup>
                   <thead className="bg-gray-950 text-gray-500">
                     <tr>
                       <th className="px-3 py-2">CVE</th>
                       <th className="px-3 py-2">CVSS</th>
-                      <th className="px-3 py-2">Known exploited</th>
+                      <th className="px-3 py-2">KEV</th>
                       <th className="px-3 py-2">Description</th>
                       <th className="px-3 py-2">Weakness</th>
                       <th className="px-3 py-2">Modified</th>
@@ -178,12 +186,14 @@ export function CVEIntelligence() {
 function CVERow({ item, selected, onSelect }: { item: CVEItem; selected: boolean; onSelect: () => void }) {
   return (
     <tr onClick={onSelect} className={`cursor-pointer border-t border-gray-800 hover:bg-gray-900 ${selected ? 'bg-mitre-accent/10' : ''}`}>
-      <td className="px-3 py-3 align-top"><span className="font-mono text-mitre-accent">{item.cve_id}</span></td>
+      <td className="px-3 py-3 align-top"><span className="break-words font-mono text-mitre-accent">{item.cve_id}</span></td>
       <td className="px-3 py-3 align-top"><SeverityBadge severity={item.cvss.severity} score={item.cvss.score} /></td>
-      <td className="px-3 py-3 align-top">{item.known_exploited ? <span className="rounded bg-red-900/50 px-2 py-1 text-red-200">KEV</span> : <span className="text-gray-600">no</span>}</td>
-      <td className="max-w-xl px-3 py-3 align-top text-gray-300">{item.description || '-'}</td>
-      <td className="px-3 py-3 align-top font-mono text-gray-400">{item.cwe_ids.slice(0, 3).join(', ') || '-'}</td>
-      <td className="px-3 py-3 align-top text-gray-500">{item.last_modified || '-'}</td>
+      <td className="px-3 py-3 align-top">{item.known_exploited ? <span className="inline-flex rounded bg-red-900/50 px-2 py-1 text-red-200">KEV</span> : <span className="text-gray-600">no</span>}</td>
+      <td className="px-3 py-3 align-top text-gray-300">
+        <div className="max-h-[4.6em] overflow-hidden leading-relaxed">{item.description || '-'}</div>
+      </td>
+      <td className="px-3 py-3 align-top font-mono text-gray-400"><span className="break-words">{item.cwe_ids.slice(0, 3).join(', ') || '-'}</span></td>
+      <td className="px-3 py-3 align-top text-gray-500"><span className="break-all">{item.last_modified || '-'}</span></td>
     </tr>
   );
 }
@@ -257,7 +267,7 @@ function CveDetailPanel({ detail, graph, loading }: { detail: CVEDetail | null; 
 
 function SeverityBadge({ severity, score }: { severity: string; score: string }) {
   const tone = severity === 'CRITICAL' ? 'bg-red-900/60 text-red-100' : severity === 'HIGH' ? 'bg-orange-900/60 text-orange-100' : severity === 'MEDIUM' ? 'bg-amber-900/50 text-amber-100' : 'bg-gray-800 text-gray-300';
-  return <span className={`inline-flex rounded px-2 py-1 text-xs font-semibold ${tone}`}>{score ? `${severity || 'SCORED'} ${score}` : 'NO NVD SCORE'}</span>;
+  return <span className={`inline-flex max-w-full flex-wrap rounded px-2 py-1 text-xs font-semibold leading-tight ${tone}`}>{score ? `${severity || 'SCORED'} ${score}` : 'NO NVD SCORE'}</span>;
 }
 
 function Metric({ label, value, tone = 'default' }: { label: string; value: string; tone?: 'default' | 'bad' | 'warn' }) {
