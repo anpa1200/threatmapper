@@ -28,6 +28,7 @@ Published walkthrough and visual reference:
 | Sector relevance | Local score explaining why an actor matters to selected sectors, regions, technologies, and activity windows |
 | IOC | Source-backed observable linked to an actor only when the feed, import, or uploaded report provides actor evidence |
 | Detection gap | A mapped behavior without sufficient local telemetry, detection, or validation |
+| Telemetry Readiness Score | Per-technique score that compares required telemetry to available logs and highlights missing data components before detection engineering starts |
 
 ## Public Web Workspace
 
@@ -128,6 +129,17 @@ For each accepted technique, record:
 - Candidate logic.
 - Validation environment.
 - Triage guidance.
+
+Every TTP detail panel includes a **Telemetry Coverage Matrix**:
+
+| Technique | Required Data Components | Available Logs | Missing Telemetry | Detection Feasibility |
+|---|---|---|---|---|
+| T1059.001 PowerShell | Process Creation, Command Execution, Script Block Logging, Module Load | Sysmon Event ID 1, Windows Security 4688, EDR command-line telemetry | PowerShell Script Block Logging 4104 | Medium |
+
+The **Telemetry Readiness Score** turns CTI into an engineering question: do we
+have the logs needed to prove or disprove the behavior? If a technique is mapped
+but required telemetry is missing, the panel shows the gap, for example
+`Enable Script Block Logging`.
 
 ### 6. Use Sector Intelligence
 

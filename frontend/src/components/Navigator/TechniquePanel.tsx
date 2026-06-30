@@ -130,6 +130,48 @@ export function TechniquePanel({ attackId, onClose }: Props) {
               ) : <Guidance>Baseline {tech.name} activity and alert on rare, unauthorized, or contextually inconsistent behavior.</Guidance>}
             </Section>
 
+            {tech.telemetry_readiness && (
+              <Section title="Telemetry Readiness Score">
+                <div className="rounded border border-cyan-900/60 bg-cyan-950/10">
+                  <div className="flex items-center justify-between border-b border-cyan-900/50 px-2.5 py-2">
+                    <div>
+                      <div className="text-xs font-semibold text-cyan-100">{tech.telemetry_readiness.readiness_score}/100</div>
+                      <div className="text-[10px] uppercase text-cyan-500">Detection feasibility</div>
+                    </div>
+                    <span className={`rounded px-2 py-1 text-[10px] font-semibold ${feasibilityClass(tech.telemetry_readiness.detection_feasibility)}`}>
+                      {tech.telemetry_readiness.detection_feasibility}
+                    </span>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[520px] text-left text-[10px]">
+                      <thead className="bg-gray-950/60 text-gray-500 uppercase">
+                        <tr>
+                          <th className="px-2 py-1.5 font-semibold">Technique</th>
+                          <th className="px-2 py-1.5 font-semibold">Required Data Components</th>
+                          <th className="px-2 py-1.5 font-semibold">Available Logs</th>
+                          <th className="px-2 py-1.5 font-semibold">Missing Telemetry</th>
+                          <th className="px-2 py-1.5 font-semibold">Detection Feasibility</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr className="align-top text-gray-300">
+                          <td className="px-2 py-2 font-mono text-cyan-200">{tech.attack_id}<br /><span className="font-sans text-gray-400">{tech.name}</span></td>
+                          <td className="px-2 py-2">{renderList(tech.telemetry_readiness.required_data_components)}</td>
+                          <td className="px-2 py-2">{renderList(tech.telemetry_readiness.available_logs)}</td>
+                          <td className="px-2 py-2">{renderList(tech.telemetry_readiness.missing_telemetry.length ? tech.telemetry_readiness.missing_telemetry : ['None inferred'])}</td>
+                          <td className="px-2 py-2">{tech.telemetry_readiness.detection_feasibility}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="border-t border-cyan-900/50 px-2.5 py-2">
+                    <div className="mb-1 text-[10px] uppercase text-cyan-500">Gap / Next Action</div>
+                    {renderList(tech.telemetry_readiness.gaps)}
+                  </div>
+                </div>
+              </Section>
+            )}
+
             <Section title="Mitigation">
               <Guidance>Reduce exposure through least privilege, hardened configuration, restricted execution paths, and control validation against realistic attempts to perform this technique.</Guidance>
             </Section>
@@ -238,6 +280,14 @@ export function TechniquePanel({ attackId, onClose }: Props) {
 }
 
 function Guidance({ children }: { children: React.ReactNode }) { return <p className="text-xs text-gray-400 leading-relaxed">{children}</p>; }
+function renderList(items: string[]) {
+  return <ul className="space-y-1">{items.map(item => <li key={item} className="leading-snug">- {item}</li>)}</ul>;
+}
+function feasibilityClass(value: string) {
+  if (value === 'High') return 'bg-green-900/60 text-green-200 border border-green-700';
+  if (value === 'Medium') return 'bg-amber-900/60 text-amber-200 border border-amber-700';
+  return 'bg-red-900/60 text-red-200 border border-red-700';
+}
 function AssessmentSelect({ value, values, onChange }: { value: string; values: string[]; onChange: (value: string) => void }) {
   return <select value={value} onChange={event => onChange(event.target.value)} className="bg-gray-800 text-[10px] text-gray-300 px-1 py-1 rounded border border-gray-700">{values.map(item => <option key={item}>{item}</option>)}</select>;
 }

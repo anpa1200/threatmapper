@@ -7,6 +7,7 @@ from sqlalchemy.orm import selectinload
 from app.core.database import get_session
 from app.models.attack import AttackVersion, Tactic, Technique
 from app.services.auth import TeamUser, current_user
+from app.services.telemetry_readiness import build_telemetry_readiness
 
 router = APIRouter(prefix="/attack", tags=["ATT&CK"])
 
@@ -121,12 +122,22 @@ class TechniqueListItem(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class TelemetryReadinessOut(BaseModel):
+    required_data_components: list[str]
+    available_logs: list[str]
+    missing_telemetry: list[str]
+    detection_feasibility: str
+    readiness_score: int
+    gaps: list[str]
+
+
 class TechniqueDetail(TechniqueListItem):
     stix_id: str
     description: str
     url: str
     data_sources: list[str]
     detection: str
+    telemetry_readiness: TelemetryReadinessOut
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
@@ -240,6 +251,17 @@ async def get_technique(
     if not tech:
         raise HTTPException(404, f"Technique {attack_id} not found")
 
+    tactics = [t.shortname for t in tech.tactics]
+    platforms = tech.platforms or []
+    data_sources = tech.data_sources or []
+    readiness = build_telemetry_readiness(
+        tech.attack_id,
+        tech.name,
+        tactics,
+        platforms,
+        data_sources,
+    )
+
     return TechniqueDetail(
         attack_id=tech.attack_id,
         stix_id=tech.stix_id,
@@ -248,11 +270,19 @@ async def get_technique(
         url=tech.url,
         is_subtechnique=tech.is_subtechnique,
         parent_attack_id=tech.parent_attack_id,
-        tactics=[t.shortname for t in tech.tactics],
-        platforms=tech.platforms or [],
-        data_sources=tech.data_sources or [],
+        tactics=tactics,
+        platforms=platforms,
+        data_sources=data_sources,
         detection=tech.detection or "",
         domain=tech.domain,
+        telemetry_readiness=TelemetryReadinessOut(
+            required_data_components=readiness.required_data_components,
+            available_logs=readiness.available_logs,
+            missing_telemetry=readiness.missing_telemetry,
+            detection_feasibility=readiness.detection_feasibility,
+            readiness_score=readiness.readiness_score,
+            gaps=readiness.gaps,
+        ),
     )
 
 

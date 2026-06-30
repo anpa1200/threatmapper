@@ -30,6 +30,16 @@ export interface TechniqueDetail extends TechniqueListItem {
   url: string;
   data_sources: string[];
   detection: string;
+  telemetry_readiness: TelemetryReadiness;
+}
+
+export interface TelemetryReadiness {
+  required_data_components: string[];
+  available_logs: string[];
+  missing_telemetry: string[];
+  detection_feasibility: 'High' | 'Medium' | 'Low' | string;
+  readiness_score: number;
+  gaps: string[];
 }
 
 export interface GroupListItem {
