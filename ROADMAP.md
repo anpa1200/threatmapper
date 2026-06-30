@@ -1,8 +1,8 @@
 # Roadmap
 
-Current release: **v5.2.0** — QA hardening, reproducible tests, and frontend dependency audit cleanup (2026-06-30)
+Current release: **v5.3.0** — native authentication guidance, local auth setup page, and user-management documentation (2026-06-30)
 
-For the full history from v0.2.0 through v5.2.0 see [CHANGELOG.md](CHANGELOG.md).
+For the full history from v0.2.0 through v5.3.0 see [CHANGELOG.md](CHANGELOG.md).
 
 ## v5.x — Hardening Sprint (in progress)
 
@@ -30,6 +30,13 @@ The current sprint focuses on security hardening, test coverage, and reviewer re
 - [x] Make backend tests reproducible without requiring a developer shell `DB_PASS`
 - [x] Clear frontend npm audit findings by overriding Monaco's transitive DOMPurify dependency to the current patched release
 - [x] Revalidate backend lint, backend tests with coverage, frontend audit, and frontend production build
+
+## v5.3 — Authentication and User Operations
+
+- [x] Add native authentication setup guide available from the running local instance at `/auth-guide`
+- [x] Link the login page directly to the authentication guide before sign-in
+- [x] Document bootstrap admin creation, permanent named accounts, role model, password reset behavior, and bootstrap secret cleanup
+- [x] Update production, security, quickstart, and privacy guidance for native auth plus optional identity-aware reverse-proxy deployments
 
 ## Backlog
 

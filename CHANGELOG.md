@@ -1,5 +1,19 @@
 # Changelog
 
+## v5.3.0 - 2026-06-30
+
+- Promoted active release markers to v5.3.0 across backend, frontend,
+  README, roadmap, security policy, version matrix, and release metadata checks.
+- Added a local authentication guide page at `/auth-guide` that remains
+  reachable before sign-in when native auth is enabled.
+- Linked the login page directly to the authentication setup guide.
+- Updated authentication, quickstart, admin, security, production-readiness,
+  and public-demo privacy documentation for native username/password auth,
+  roles, bootstrap admin cleanup, session behavior, and optional
+  identity-aware reverse-proxy deployments.
+- Revalidated frontend production build, backend lint, and the full GitHub CI
+  workflow during the release update.
+
 ## v5.2.0 - 2026-06-30
 
 - Promoted active release markers to v5.2.0 across backend, frontend,

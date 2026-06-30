@@ -6,15 +6,16 @@ This file is the canonical reference for AdversaryGraph release history and feat
 
 | Field | Value |
 |---|---|
-| Version | v5.2.0 |
+| Version | v5.3.0 |
 | Release date | 2026-06-30 |
-| Theme | QA hardening, reproducible tests, and frontend dependency audit cleanup |
+| Theme | Native authentication guidance and user-management documentation |
 | Status | Stable — hardening sprint in progress |
 
 ## Release History
 
 | Version | Theme | Key additions |
 |---|---|---|
+| v5.3.0 | Authentication and User Operations | Local `/auth-guide` page reachable before sign-in, login-page guide link, native auth bootstrap guidance, role model documentation, password reset/session behavior notes, and production/security docs for native auth plus optional identity-aware reverse proxy |
 | v5.2.0 | QA Hardening and Release Validation | Reproducible backend test environment defaults, frontend DOMPurify override for Monaco transitive audit cleanup, local lint/test/audit/build validation, and v5.2 release metadata |
 | v5.1.0 | Telemetry Fidelity, Raw STIX, and CVE Library Correlation | Source-correct telemetry policy for Attack Simulation, raw STIX object/relationship preservation, CVE Library with NVD/CISA KEV sync, CVSS score fields, and strict APT-TTP-IOC-CVE links, AI assistant prompt guardrails, updated architecture documentation, CI-validated release metadata |
 | v5.0.0 | Attack Simulation and SIEM Validation | TTP-first simulation matrix, real lab-target attack flows, AI kill-chain telemetry generation, SIEM forwarding with authentication, Scenario Library, attack-chain graph view |
@@ -27,6 +28,7 @@ This file is the canonical reference for AdversaryGraph release history and feat
 | v0.2.0–v1.x | Foundation | Initial FastAPI backend, React frontend, PostgreSQL, Redis, Celery, Docker Compose |
 
 For complete per-version changelogs see [CHANGELOG.md](../CHANGELOG.md).
+For the current release narrative, see [v5.3.0 release summary](release-summary-v5.3.0.md).
 
 ## Feature Gate Legend
 
