@@ -11,6 +11,10 @@ from app.core.database import get_session
 from app.services.auth import TeamUser, analyst, audit, current_user
 from app.services.cve_intel import (
     correlate_cves,
+    cve_correlation_graph,
+    cves_for_actor,
+    cves_for_ioc,
+    cves_for_technique,
     enrich_missing_cvss,
     get_cve_detail,
     list_cve_library,
@@ -100,6 +104,21 @@ class CVEDetailOut(CVEItemOut):
     raw: dict[str, Any] = Field(default_factory=dict)
 
 
+class CVECorrelationOut(BaseModel):
+    cve: CVEItemOut
+    relationship: str
+    confidence: int
+    evidence: str
+    source: str
+    path: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class CVECorrelationGraphOut(BaseModel):
+    cve_id: str
+    nodes: list[dict[str, Any]] = Field(default_factory=list)
+    edges: list[dict[str, Any]] = Field(default_factory=list)
+
+
 class CVESyncOut(BaseModel):
     totals: dict[str, int] | None = None
     sources: list[dict[str, Any]] | None = None
@@ -150,6 +169,44 @@ async def cve_detail(cve_id: str, session: AsyncSession = Depends(get_session), 
     if detail is None:
         raise HTTPException(404, "CVE not found")
     return detail
+
+
+@router.get("/{cve_id}/graph", response_model=CVECorrelationGraphOut)
+async def cve_graph(cve_id: str, session: AsyncSession = Depends(get_session), _: TeamUser = Depends(current_user)):
+    graph = await cve_correlation_graph(session, cve_id)
+    if graph is None:
+        raise HTTPException(404, "CVE not found")
+    return graph
+
+
+@router.get("/related/technique/{attack_id}", response_model=list[CVECorrelationOut])
+async def related_cves_for_technique(
+    attack_id: str,
+    limit: int = Query(100, ge=1, le=500),
+    session: AsyncSession = Depends(get_session),
+    _: TeamUser = Depends(current_user),
+):
+    return await cves_for_technique(session, attack_id, limit=limit)
+
+
+@router.get("/related/actor/{actor_attack_id}", response_model=list[CVECorrelationOut])
+async def related_cves_for_actor(
+    actor_attack_id: str,
+    limit: int = Query(100, ge=1, le=500),
+    session: AsyncSession = Depends(get_session),
+    _: TeamUser = Depends(current_user),
+):
+    return await cves_for_actor(session, actor_attack_id, limit=limit)
+
+
+@router.get("/related/ioc/{indicator_id}", response_model=list[CVECorrelationOut])
+async def related_cves_for_ioc(
+    indicator_id: int,
+    limit: int = Query(100, ge=1, le=500),
+    session: AsyncSession = Depends(get_session),
+    _: TeamUser = Depends(current_user),
+):
+    return await cves_for_ioc(session, indicator_id, limit=limit)
 
 
 @router.post("/sync/all", response_model=CVESyncOut)

@@ -260,6 +260,21 @@ export interface CVEDetail extends CVEItem {
   raw: Record<string, unknown>;
 }
 
+export interface CVECorrelation {
+  cve: CVEItem;
+  relationship: string;
+  confidence: number;
+  evidence: string;
+  source: string;
+  path: Array<Record<string, unknown>>;
+}
+
+export interface CVECorrelationGraph {
+  cve_id: string;
+  nodes: Array<Record<string, unknown>>;
+  edges: Array<Record<string, unknown>>;
+}
+
 export interface CVELibraryResult {
   total: number;
   limit: number;
@@ -274,6 +289,14 @@ export const cveApi = {
     http.get('/cve/library', { params }).then(r => r.data),
   detail: (cveId: string): Promise<CVEDetail> =>
     http.get(`/cve/${encodeURIComponent(cveId)}`).then(r => r.data),
+  graph: (cveId: string): Promise<CVECorrelationGraph> =>
+    http.get(`/cve/${encodeURIComponent(cveId)}/graph`).then(r => r.data),
+  relatedToTechnique: (attackId: string, limit = 100): Promise<CVECorrelation[]> =>
+    http.get(`/cve/related/technique/${encodeURIComponent(attackId)}`, { params: { limit } }).then(r => r.data),
+  relatedToActor: (actorAttackId: string, limit = 100): Promise<CVECorrelation[]> =>
+    http.get(`/cve/related/actor/${encodeURIComponent(actorAttackId)}`, { params: { limit } }).then(r => r.data),
+  relatedToIoc: (indicatorId: number | string, limit = 100): Promise<CVECorrelation[]> =>
+    http.get(`/cve/related/ioc/${encodeURIComponent(String(indicatorId))}`, { params: { limit } }).then(r => r.data),
   syncAll: (days = 7): Promise<{ totals: { inserted: number; updated: number }; sources: Array<Record<string, unknown>>; correlations: Record<string, number> }> =>
     http.post('/cve/sync/all', null, { params: { days } }).then(r => r.data),
   syncNvd: (days = 7, limit = 2000): Promise<Record<string, unknown>> =>

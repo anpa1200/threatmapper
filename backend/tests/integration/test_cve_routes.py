@@ -89,3 +89,68 @@ async def test_nvd_cve_id_enrichment_route(client: AsyncClient, monkeypatch):
     body = resp.json()
     assert body["requested"] == 1
     assert body["updated"] == 1
+
+
+@pytest.mark.asyncio
+async def test_related_cve_routes(client: AsyncClient, monkeypatch):
+    from app.api.routes import cve as cve_routes
+
+    sample = [{
+        "cve": {
+            "id": 1,
+            "cve_id": "CVE-2026-12345",
+            "source": "nvd-cve-2.0",
+            "description": "Test vulnerability",
+            "published": None,
+            "last_modified": None,
+            "vuln_status": "Analyzed",
+            "cvss": {"version": "3.1", "score": "9.8", "severity": "CRITICAL", "vector": "CVSS:3.1/AV:N"},
+            "cwe_ids": ["CWE-78"],
+            "cpe_matches": [],
+            "references": [],
+            "tags": ["nvd"],
+            "known_exploited": False,
+            "kev_due_date": "",
+            "kev_required_action": "",
+        },
+        "relationship": "exploitation-enables",
+        "confidence": 85,
+        "evidence": "explicit mapping",
+        "source": "unit-test",
+        "path": [{"type": "cve", "id": "CVE-2026-12345"}, {"type": "technique", "id": "T1190"}],
+    }]
+
+    async def fake_for_technique(session, attack_id, *, limit=100):
+        return sample
+
+    async def fake_for_actor(session, actor_attack_id, *, limit=100):
+        return sample
+
+    async def fake_for_ioc(session, indicator_id, *, limit=100):
+        return sample
+
+    monkeypatch.setattr(cve_routes, "cves_for_technique", fake_for_technique)
+    monkeypatch.setattr(cve_routes, "cves_for_actor", fake_for_actor)
+    monkeypatch.setattr(cve_routes, "cves_for_ioc", fake_for_ioc)
+
+    for path in ["/api/cve/related/technique/T1190", "/api/cve/related/actor/G0007", "/api/cve/related/ioc/1"]:
+        resp = await client.get(path)
+        assert resp.status_code == 200
+        assert resp.json()[0]["cve"]["cve_id"] == "CVE-2026-12345"
+
+
+@pytest.mark.asyncio
+async def test_cve_graph_route(client: AsyncClient, monkeypatch):
+    from app.api.routes import cve as cve_routes
+
+    async def fake_graph(session, cve_id):
+        return {
+            "cve_id": cve_id.upper(),
+            "nodes": [{"id": cve_id.upper(), "type": "cve", "label": cve_id.upper()}],
+            "edges": [],
+        }
+
+    monkeypatch.setattr(cve_routes, "cve_correlation_graph", fake_graph)
+    resp = await client.get("/api/cve/CVE-2026-12345/graph")
+    assert resp.status_code == 200
+    assert resp.json()["cve_id"] == "CVE-2026-12345"

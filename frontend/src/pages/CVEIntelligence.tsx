@@ -28,6 +28,11 @@ export function CVEIntelligence() {
     queryFn: () => cveApi.detail(selectedCve!),
     enabled: Boolean(selectedCve),
   });
+  const graph = useQuery({
+    queryKey: ['cve-graph', selectedCve],
+    queryFn: () => cveApi.graph(selectedCve!),
+    enabled: Boolean(selectedCve),
+  });
 
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ['cve-library'] });
@@ -162,7 +167,7 @@ export function CVEIntelligence() {
               </div>
             </Panel>
 
-            <CveDetailPanel detail={detail.data ?? null} loading={detail.isLoading} />
+            <CveDetailPanel detail={detail.data ?? null} graph={graph.data ?? null} loading={detail.isLoading} />
           </section>
         </div>
       </div>
@@ -183,7 +188,7 @@ function CVERow({ item, selected, onSelect }: { item: CVEItem; selected: boolean
   );
 }
 
-function CveDetailPanel({ detail, loading }: { detail: CVEDetail | null; loading: boolean }) {
+function CveDetailPanel({ detail, graph, loading }: { detail: CVEDetail | null; graph: { nodes: Array<Record<string, unknown>>; edges: Array<Record<string, unknown>> } | null; loading: boolean }) {
   if (loading) return <Panel title="CVE detail"><div className="p-4 text-sm text-gray-500">Loading detail...</div></Panel>;
   if (!detail) return <Panel title="CVE detail"><div className="p-4 text-sm text-gray-500">Select a CVE to review score, references, and strict APT-TTP-IOC-CVE links.</div></Panel>;
   return (
@@ -202,6 +207,25 @@ function CveDetailPanel({ detail, loading }: { detail: CVEDetail | null; loading
           ['KEV due date', detail.kev_due_date || '-'],
         ]} />
         {detail.kev_required_action && <div className="rounded border border-red-800 bg-red-950/20 p-3 text-xs text-red-100">{detail.kev_required_action}</div>}
+        {graph && (
+          <section>
+            <h3 className="mb-2 text-xs font-semibold uppercase text-gray-500">Correlation graph</h3>
+            <div className="rounded border border-gray-800 bg-gray-950 p-3">
+              <div className="mb-2 text-[11px] text-gray-500">{graph.nodes.length} nodes · {graph.edges.length} evidence edges</div>
+              <div className="space-y-1">
+                {graph.edges.slice(0, 12).map((edge, index) => (
+                  <div key={index} className="rounded bg-gray-900 p-2 text-[11px] text-gray-400">
+                    <span className="font-mono text-mitre-accent">{String(edge.source)}</span>
+                    <span className="mx-1 text-gray-600">{'->'}</span>
+                    <span className="font-mono text-mitre-accent">{String(edge.target)}</span>
+                    <span className="ml-2 text-gray-500">{String(edge.relationship)} · confidence {String(edge.confidence)}</span>
+                  </div>
+                ))}
+                {graph.edges.length === 0 && <div className="text-xs text-gray-600">No graph edges are stored yet.</div>}
+              </div>
+            </div>
+          </section>
+        )}
         <LinkGroup title="ATT&CK technique links" empty="No strict CVE-to-TTP link is stored yet.">
           {detail.techniques.map(link => <Link key={`${link.attack_id}:${link.source}`} to={`/navigator?technique=${encodeURIComponent(link.attack_id)}`} className="block rounded border border-gray-800 p-2 hover:border-mitre-accent">
             <b className="font-mono text-mitre-accent">{link.attack_id}</b> <span className="text-gray-300">{link.name}</span>

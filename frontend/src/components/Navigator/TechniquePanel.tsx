@@ -5,13 +5,14 @@
  */
 
 import { useQuery } from '@tanstack/react-query';
-import { attackApi, simulationApi } from '@/api/client';
+import { attackApi, cveApi, simulationApi } from '@/api/client';
 import { loadTechniqueReferenceIndex, techniqueReferenceUrl, getEcosystemLinks } from '@/config/references';
 import { useAppStore } from '@/store';
 import { LLMChat } from './LLMChat';
 import { getTechniqueReports, getTechniqueResources } from '@/config/intelligence';
 import { ReportReferences } from '@/components/ReportReferences';
 import { safeHref } from '@/utils/url';
+import { RelatedCvesPanel } from '@/components/CVE/RelatedCvesPanel';
 
 interface Props {
   attackId: string;
@@ -38,6 +39,11 @@ export function TechniquePanel({ attackId, onClose }: Props) {
   const { data: simulationCatalog = [] } = useQuery({
     queryKey: ['simulation-catalog'],
     queryFn: simulationApi.catalog,
+    staleTime: 5 * 60 * 1000,
+  });
+  const { data: relatedCves = [], isLoading: relatedCvesLoading } = useQuery({
+    queryKey: ['related-cves-technique', attackId],
+    queryFn: () => cveApi.relatedToTechnique(attackId, 50),
     staleTime: 5 * 60 * 1000,
   });
   const simulation = simulationCatalog.find(item => item.technique_id === attackId);
@@ -183,6 +189,15 @@ export function TechniquePanel({ attackId, onClose }: Props) {
               </div>
               <button onClick={() => downloadHuntPlan(tech.attack_id, tech.name, tech.tactics, tech.data_sources, resources.map(item => item.url))}
                 className="mt-2 text-xs border border-amber-800 text-amber-400 px-2 py-1 rounded">Export hunt plan</button>
+            </Section>
+
+            <Section title="CVE Crosslinks">
+              <RelatedCvesPanel
+                title="CVE -> TTP / IOC -> TTP"
+                items={relatedCves}
+                loading={relatedCvesLoading}
+                empty="No strict CVE evidence or CVE-tagged IOC is currently linked to this technique."
+              />
             </Section>
 
             <Section title="Investigation Evidence">

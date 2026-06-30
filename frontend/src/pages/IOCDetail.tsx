@@ -3,8 +3,9 @@ import type { ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Header } from '@/components/Layout/Header';
-import { iocApi, type IOCDetail as IOCDetailType } from '@/api/client';
+import { cveApi, iocApi, type IOCDetail as IOCDetailType } from '@/api/client';
 import { useAppStore } from '@/store';
+import { RelatedCvesPanel } from '@/components/CVE/RelatedCvesPanel';
 
 export function IOCDetail() {
   const navigate = useNavigate();
@@ -15,6 +16,12 @@ export function IOCDetail() {
     queryKey: ['ioc-detail', numericId, domain],
     queryFn: () => iocApi.detail(numericId, domain),
     enabled: Number.isFinite(numericId) && numericId > 0,
+  });
+  const relatedCves = useQuery({
+    queryKey: ['ioc-related-cves', numericId],
+    queryFn: () => cveApi.relatedToIoc(numericId, 100),
+    enabled: Number.isFinite(numericId) && numericId > 0,
+    staleTime: 5 * 60 * 1000,
   });
   const item = detail.data;
   const techniqueIds = useMemo(() => item?.techniques.map(technique => technique.attack_id) ?? [], [item]);
@@ -104,6 +111,16 @@ export function IOCDetail() {
                   )}
                 </Panel>
               </section>
+
+              <Panel title="CVE Crosslinks">
+                <RelatedCvesPanel
+                  title="CVE -> IOC evidence"
+                  items={relatedCves.data ?? []}
+                  loading={relatedCves.isLoading}
+                  empty="No CVE relationship is stored for this IOC. Links appear when the IOC source fields, tags, or raw enrichment explicitly mention a CVE ID."
+                  limit={50}
+                />
+              </Panel>
 
               <Panel title={`Enrichment Sources (${item.enrichments.length})`}>
                 <div className="grid gap-4 lg:grid-cols-2">

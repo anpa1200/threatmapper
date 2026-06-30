@@ -357,6 +357,167 @@ async def get_cve_detail(session: AsyncSession, cve_id: str) -> dict[str, Any] |
     return {**_cve_row(cve), "techniques": techniques, "iocs": iocs, "actors": actors, "raw": cve.raw or {}}
 
 
+async def cves_for_technique(session: AsyncSession, attack_id: str, *, limit: int = 100) -> list[dict[str, Any]]:
+    """Return direct and IOC-derived CVE links for a technique."""
+    attack_id = attack_id.upper().strip()
+    limit = max(1, min(limit, 500))
+    output: list[dict[str, Any]] = []
+    seen: set[tuple[str, str, str]] = set()
+
+    direct_rows = await session.execute(
+        select(CVETechniqueLink, CVERecord)
+        .join(CVERecord, CVERecord.cve_id == CVETechniqueLink.cve_id)
+        .where(CVETechniqueLink.attack_id == attack_id)
+        .order_by(CVERecord.known_exploited.desc(), CVERecord.cvss_score.desc().nulls_last(), CVERecord.cve_id)
+        .limit(limit)
+    )
+    for link, cve in direct_rows.all():
+        key = (cve.cve_id, "direct", link.source_id)
+        seen.add(key)
+        output.append(_correlation_row(
+            cve,
+            relationship=link.relationship_type,
+            confidence=link.confidence,
+            evidence=link.evidence,
+            source=link.source_id,
+            path=[{"type": "cve", "id": cve.cve_id}, {"type": "technique", "id": attack_id}],
+        ))
+
+    remaining = max(0, limit - len(output))
+    if remaining:
+        ioc_rows = await session.execute(
+            select(CVEIOCLink, CVERecord, IOCIndicator)
+            .join(CVERecord, CVERecord.cve_id == CVEIOCLink.cve_id)
+            .join(IOCIndicator, IOCIndicator.id == CVEIOCLink.indicator_id)
+            .where(IOCIndicator.technique_ids.contains([attack_id]))
+            .order_by(CVERecord.known_exploited.desc(), CVERecord.cvss_score.desc().nulls_last(), CVERecord.cve_id)
+            .limit(remaining * 2)
+        )
+        for link, cve, indicator in ioc_rows.all():
+            key = (cve.cve_id, "via-ioc-technique", str(indicator.id))
+            if key in seen:
+                continue
+            seen.add(key)
+            output.append(_correlation_row(
+                cve,
+                relationship="observed-with-ioc-mapped-to-technique",
+                confidence=min(link.confidence, int(indicator.confidence or 0), 70),
+                evidence=f"{link.evidence}; IOC {indicator.value!r} is mapped to {attack_id}.",
+                source=link.source_id,
+                path=[
+                    {"type": "cve", "id": cve.cve_id},
+                    {"type": "ioc", "id": indicator.id, "value": indicator.value},
+                    {"type": "technique", "id": attack_id},
+                ],
+            ))
+            if len(output) >= limit:
+                break
+    return output
+
+
+async def cves_for_actor(session: AsyncSession, actor_attack_id: str, *, limit: int = 100) -> list[dict[str, Any]]:
+    """Return direct and IOC-derived CVE links for an ATT&CK actor/group."""
+    actor_attack_id = actor_attack_id.upper().strip()
+    limit = max(1, min(limit, 500))
+    output: list[dict[str, Any]] = []
+    seen: set[tuple[str, str, str]] = set()
+
+    direct_rows = await session.execute(
+        select(CVEActorLink, CVERecord)
+        .join(CVERecord, CVERecord.cve_id == CVEActorLink.cve_id)
+        .where(CVEActorLink.actor_attack_id == actor_attack_id)
+        .order_by(CVERecord.known_exploited.desc(), CVERecord.cvss_score.desc().nulls_last(), CVERecord.cve_id)
+        .limit(limit)
+    )
+    for link, cve in direct_rows.all():
+        key = (cve.cve_id, "direct", link.source_id)
+        seen.add(key)
+        output.append(_correlation_row(
+            cve,
+            relationship=link.relationship_type,
+            confidence=link.confidence,
+            evidence=link.evidence,
+            source=link.source_id,
+            path=[{"type": "cve", "id": cve.cve_id}, {"type": "actor", "id": actor_attack_id, "name": link.actor_name}],
+        ))
+
+    remaining = max(0, limit - len(output))
+    if remaining:
+        ioc_rows = await session.execute(
+            select(CVEIOCLink, CVERecord, IOCIndicator, IOCActorLink)
+            .join(CVERecord, CVERecord.cve_id == CVEIOCLink.cve_id)
+            .join(IOCIndicator, IOCIndicator.id == CVEIOCLink.indicator_id)
+            .join(IOCActorLink, IOCActorLink.indicator_id == IOCIndicator.id)
+            .where(IOCActorLink.actor_attack_id == actor_attack_id)
+            .order_by(CVERecord.known_exploited.desc(), CVERecord.cvss_score.desc().nulls_last(), CVERecord.cve_id)
+            .limit(remaining * 2)
+        )
+        for cve_link, cve, indicator, actor_link in ioc_rows.all():
+            key = (cve.cve_id, "via-ioc-actor", str(indicator.id))
+            if key in seen:
+                continue
+            seen.add(key)
+            output.append(_correlation_row(
+                cve,
+                relationship="observed-with-actor-linked-ioc",
+                confidence=min(cve_link.confidence, actor_link.confidence, 75),
+                evidence=f"{cve_link.evidence}; IOC actor evidence: {actor_link.evidence}",
+                source=cve_link.source_id,
+                path=[
+                    {"type": "cve", "id": cve.cve_id},
+                    {"type": "ioc", "id": indicator.id, "value": indicator.value},
+                    {"type": "actor", "id": actor_attack_id, "name": actor_link.actor_name},
+                ],
+            ))
+            if len(output) >= limit:
+                break
+    return output
+
+
+async def cves_for_ioc(session: AsyncSession, indicator_id: int, *, limit: int = 100) -> list[dict[str, Any]]:
+    limit = max(1, min(limit, 500))
+    rows = await session.execute(
+        select(CVEIOCLink, CVERecord, IOCIndicator)
+        .join(CVERecord, CVERecord.cve_id == CVEIOCLink.cve_id)
+        .join(IOCIndicator, IOCIndicator.id == CVEIOCLink.indicator_id)
+        .where(CVEIOCLink.indicator_id == indicator_id)
+        .order_by(CVERecord.known_exploited.desc(), CVERecord.cvss_score.desc().nulls_last(), CVERecord.cve_id)
+        .limit(limit)
+    )
+    return [
+        _correlation_row(
+            cve,
+            relationship=link.relationship_type,
+            confidence=link.confidence,
+            evidence=link.evidence,
+            source=link.source_id,
+            path=[{"type": "cve", "id": cve.cve_id}, {"type": "ioc", "id": indicator.id, "value": indicator.value}],
+        )
+        for link, cve, indicator in rows.all()
+    ]
+
+
+async def cve_correlation_graph(session: AsyncSession, cve_id: str) -> dict[str, Any] | None:
+    """Return a compact graph for one CVE with direct TTP/IOC/APT evidence edges."""
+    detail = await get_cve_detail(session, cve_id)
+    if detail is None:
+        return None
+    nodes: list[dict[str, Any]] = [{"id": detail["cve_id"], "type": "cve", "label": detail["cve_id"], "severity": detail["cvss"]["severity"], "score": detail["cvss"]["score"]}]
+    edges: list[dict[str, Any]] = []
+    for link in detail["techniques"]:
+        nodes.append({"id": link["attack_id"], "type": "technique", "label": f"{link['attack_id']} {link['name']}".strip()})
+        edges.append({"source": detail["cve_id"], "target": link["attack_id"], "relationship": link["relationship"], "confidence": link["confidence"], "evidence": link["evidence"], "source_id": link["source"]})
+    for link in detail["iocs"]:
+        node_id = f"ioc:{link['indicator_id']}"
+        nodes.append({"id": node_id, "type": "ioc", "label": link["value"], "ioc_type": link["type"]})
+        edges.append({"source": detail["cve_id"], "target": node_id, "relationship": link["relationship"], "confidence": link["confidence"], "evidence": link["evidence"], "source_id": link["source"]})
+    for link in detail["actors"]:
+        nodes.append({"id": link["actor_attack_id"], "type": "actor", "label": f"{link['actor_attack_id']} {link['actor_name']}".strip()})
+        edges.append({"source": detail["cve_id"], "target": link["actor_attack_id"], "relationship": link["relationship"], "confidence": link["confidence"], "evidence": link["evidence"], "source_id": link["source"]})
+    deduped_nodes = {node["id"]: node for node in nodes}
+    return {"cve_id": detail["cve_id"], "nodes": list(deduped_nodes.values()), "edges": edges}
+
+
 async def correlate_cves(session: AsyncSession) -> dict[str, int]:
     """Create strict links where local source fields explicitly mention CVE/TTP/actor evidence."""
     await ensure_cve_sources(session)
@@ -589,4 +750,23 @@ def _cve_row(cve: CVERecord) -> dict[str, Any]:
         "known_exploited": cve.known_exploited,
         "kev_due_date": cve.kev_due_date,
         "kev_required_action": cve.kev_required_action,
+    }
+
+
+def _correlation_row(
+    cve: CVERecord,
+    *,
+    relationship: str,
+    confidence: int,
+    evidence: str,
+    source: str,
+    path: list[dict[str, Any]],
+) -> dict[str, Any]:
+    return {
+        "cve": _cve_row(cve),
+        "relationship": relationship,
+        "confidence": confidence,
+        "evidence": evidence,
+        "source": source,
+        "path": path,
     }

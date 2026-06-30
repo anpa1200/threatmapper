@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAppStore } from '@/store';
-import { aptApi, iocApi, operationsApi } from '@/api/client';
+import { aptApi, cveApi, iocApi, operationsApi } from '@/api/client';
 import { Header } from '@/components/Layout/Header';
 import { TechniqueModal } from '@/components/TechniqueModal';
 import type { CampaignListItem } from '@/types/attack';
@@ -10,8 +10,9 @@ import { getActorReports } from '@/config/intelligence';
 import { ReportReferences } from '@/components/ReportReferences';
 import { safeHref } from '@/utils/url';
 import { TtpLink } from '@/utils/ctiLinks';
+import { RelatedCvesPanel } from '@/components/CVE/RelatedCvesPanel';
 
-type GroupTab = 'overview' | 'techniques' | 'campaigns' | 'reports' | 'iocs';
+type GroupTab = 'overview' | 'techniques' | 'campaigns' | 'reports' | 'iocs' | 'cves';
 
 export function APTLibrary() {
   const qc = useQueryClient();
@@ -28,7 +29,7 @@ export function APTLibrary() {
     const tab = params.get('tab') as GroupTab | null;
     const searchParam = params.get('search');
     if (id) setSelectedGroupId(id);
-    if (tab && ['overview', 'techniques', 'campaigns', 'reports', 'iocs'].includes(tab)) setGroupTab(tab);
+    if (tab && ['overview', 'techniques', 'campaigns', 'reports', 'iocs', 'cves'].includes(tab)) setGroupTab(tab);
     if (searchParam) setSearch(searchParam);
   }, [params]);
 
@@ -73,6 +74,12 @@ export function APTLibrary() {
     queryKey: ['actor-iocs', selectedGroupId],
     queryFn: () => iocApi.actor(selectedGroupId!, { days: 180, active_only: true, limit: 250 }),
     enabled: !!selectedGroupId && groupTab === 'iocs',
+  });
+  const { data: relatedCves = [], isLoading: cvesLoading } = useQuery({
+    queryKey: ['actor-related-cves', selectedGroupId],
+    queryFn: () => cveApi.relatedToActor(selectedGroupId!, 100),
+    enabled: !!selectedGroupId && groupTab === 'cves',
+    staleTime: 5 * 60 * 1000,
   });
   const { data: iocSources = [] } = useQuery({
     queryKey: ['ioc-sources'],
@@ -251,6 +258,7 @@ export function APTLibrary() {
                   ['campaigns',  `Campaigns (${groupDetail.campaign_count})`],
                   ['reports', `CTI / IR Reports (${reports.length})`],
                   ['iocs', `IOCs (${iocSummary?.count ?? 0})`],
+                  ['cves', `CVEs (${relatedCves.length})`],
                 ] as [GroupTab, string][]).map(([id, label]) => (
                   <button
                     key={id}
@@ -351,6 +359,18 @@ export function APTLibrary() {
                     </InfoPanel>
                   </div>
                 </div>
+              )}
+
+              {groupTab === 'cves' && (
+                <InfoPanel title="CVE / IOC / Actor Crosslinks">
+                  <RelatedCvesPanel
+                    title={`Related CVEs for ${groupDetail.name}`}
+                    items={relatedCves}
+                    loading={cvesLoading}
+                    empty="No source-backed CVE link is stored for this actor. Links appear when a CVE is directly actor-linked or when a CVE-tagged IOC is linked to the actor."
+                    limit={50}
+                  />
+                </InfoPanel>
               )}
 
               {/* ── Techniques tab ─────────────────────────────────────────── */}
