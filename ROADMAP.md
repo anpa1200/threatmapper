@@ -1,8 +1,8 @@
 # Roadmap
 
-Current release: **v5.0.0** — Attack Simulation and SIEM Validation (2026-06-29)
+Current release: **v5.1.0** — Attack Simulation telemetry fidelity and review hardening (2026-06-30)
 
-For the full history from v0.2.0 through v5.0.0 see [CHANGELOG.md](CHANGELOG.md).
+For the full history from v0.2.0 through v5.1.0 see [CHANGELOG.md](CHANGELOG.md).
 
 ## v5.x — Hardening Sprint (in progress)
 
@@ -16,12 +16,14 @@ The current sprint focuses on security hardening, test coverage, and reviewer re
 - [ ] Raise backend coverage gate from the current conservative baseline
 - [ ] Add frontend unit tests for Attack Simulation and Asset Surface critical flows
 
-## v5.1 — Review Hardening (planned)
+## v5.1 — Review Hardening
 
-- Enforced backend coverage gate at 70%
-- Frontend unit tests with Vitest
-- Authentication hardening guide for reverse-proxy deployments
-- `.env.example` credential rotation documentation
+- [x] Enforce source-correct telemetry policy for Attack Simulation and AI-assisted scenarios
+- [x] Document telemetry fidelity architecture and SIEM validation boundaries
+- [ ] Enforced backend coverage gate at 70%
+- [ ] Frontend unit tests with Vitest
+- [ ] Authentication hardening guide for reverse-proxy deployments
+- [ ] `.env.example` credential rotation documentation
 
 ## Backlog
 

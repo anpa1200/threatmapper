@@ -6,15 +6,16 @@ This file is the canonical reference for AdversaryGraph release history and feat
 
 | Field | Value |
 |---|---|
-| Version | v5.0.0 |
-| Release date | 2026-06-29 |
-| Theme | Attack Simulation and SIEM Validation |
+| Version | v5.1.0 |
+| Release date | 2026-06-30 |
+| Theme | Attack Simulation telemetry fidelity and review hardening |
 | Status | Stable — hardening sprint in progress |
 
 ## Release History
 
 | Version | Theme | Key additions |
 |---|---|---|
+| v5.1.0 | Telemetry Fidelity and Review Hardening | Source-correct telemetry policy for Attack Simulation, AI assistant prompt guardrails, updated architecture documentation, CI-validated release metadata |
 | v5.0.0 | Attack Simulation and SIEM Validation | TTP-first simulation matrix, real lab-target attack flows, AI kill-chain telemetry generation, SIEM forwarding with authentication, Scenario Library, attack-chain graph view |
 | v4.1.0 | Detection Coverage | Detection coverage states per technique, Sigma/KQL/SPL/EQL skeleton export, telemetry source tracking, coverage summaries by tactic and platform |
 | v4.0.0 | Detection Engineering Workflow | Detection backlog export, detection coverage tracking, production-readiness hardening |

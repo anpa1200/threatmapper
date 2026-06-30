@@ -1,5 +1,16 @@
 # Changelog
 
+## v5.1.0 - 2026-06-30
+
+- Promoted the active release marker to v5.1.0 across backend, frontend,
+  README, roadmap, security policy, and release metadata checks.
+- Added the Attack Simulation telemetry fidelity policy: scenarios and
+  AI-assisted simulations must use source-correct telemetry and
+  vendor/source-shaped event structures, and unsupported TTPs must be reported
+  as telemetry gaps instead of generic fake logs.
+- Documented the Attack Simulation telemetry architecture rule for detection
+  engineering and SIEM validation review.
+
 ## v4.1.0 - 2026-06-27
 
 - Added Asset Attack Surface Mapping for uploaded or pasted CSV/JSON/TXT asset
