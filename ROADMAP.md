@@ -1,8 +1,8 @@
 # Roadmap
 
-Current release: **v5.3.0** — native authentication guidance, local auth setup page, and user-management documentation (2026-06-30)
+Current release: **v5.4.0** — observability, security scanning, and screenshot-backed validation examples (2026-06-30)
 
-For the full history from v0.2.0 through v5.3.0 see [CHANGELOG.md](CHANGELOG.md).
+For the full history from v0.2.0 through v5.4.0 see [CHANGELOG.md](CHANGELOG.md).
 
 ## v5.x — Hardening Sprint (in progress)
 
@@ -37,6 +37,13 @@ The current sprint focuses on security hardening, test coverage, and reviewer re
 - [x] Link the login page directly to the authentication guide before sign-in
 - [x] Document bootstrap admin creation, permanent named accounts, role model, password reset behavior, and bootstrap secret cleanup
 - [x] Update production, security, quickstart, and privacy guidance for native auth plus optional identity-aware reverse-proxy deployments
+
+## v5.4 — Observability and Validation Evidence
+
+- [x] Add authenticated Observability dashboard with API health, request metrics, recent traces, redacted log tail, and Prometheus-compatible metrics
+- [x] Add backend SAST coverage and local `make security-scan` helper
+- [x] Document observability, security scanning, and screenshot-backed validation examples
+- [x] Validate route tests, frontend build, docs build, lint, SAST, dependency audit, and Docker Compose config
 
 ## Backlog
 

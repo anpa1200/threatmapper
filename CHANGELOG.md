@@ -1,5 +1,23 @@
 # Changelog
 
+## v5.4.0 - 2026-06-30
+
+- Promoted active release markers to v5.4.0 across backend, frontend,
+  README, roadmap, security policy, version matrix, and release metadata.
+- Added authenticated Observability dashboard coverage for API uptime,
+  request metrics, recent traces, top routes, redacted API log tails, and
+  Prometheus-compatible metrics.
+- Added backend observability API routes for summary, traces, logs, and
+  metrics.
+- Added `make security-scan` and `scripts/security-scan.sh` for local
+  validation of lint, SAST, dependency audit, secret scan, Docker config, and
+  container scan where tools are installed.
+- Added Bandit backend SAST coverage to CI and fixed SAST findings around weak
+  hashes and XML parsing.
+- Added screenshot-backed observability, security scanning, and validation
+  documentation, including Attack Simulation, CVE correlation, authentication,
+  and malware-analysis validation examples.
+
 ## v5.3.0 - 2026-06-30
 
 - Promoted active release markers to v5.3.0 across backend, frontend,

@@ -5,12 +5,12 @@
 **Self-hosted AI-assisted CTI-to-detection workbench for ATT&CK mapping, IOC enrichment, CVE Library correlation, malware-analysis triage, asset attack-surface review, Attack Simulation, and SIEM validation.**
 
 [![CI](https://github.com/anpa1200/adversarygraph/actions/workflows/ci.yml/badge.svg)](https://github.com/anpa1200/adversarygraph/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/badge/release-v5.3.0-blue)](VERSION)
+[![Release](https://img.shields.io/badge/release-v5.4.0-blue)](VERSION)
 [![Security policy](https://img.shields.io/badge/security-policy-blue)](SECURITY.md)
 [![Roadmap](https://img.shields.io/badge/roadmap-public-blue)](ROADMAP.md)
 [![License](https://img.shields.io/badge/license-personal%20use%20only-orange)](LICENSE)
 
-Current release: **v5.3.0**. This release promotes native authentication guidance, the local `/auth-guide` setup page, and updated user-management documentation. See the [version matrix](docs/version-matrix.md), [v5.3 release summary](docs/release-summary-v5.3.0.md), [v5.0 release summary](docs/release-summary-v5.0.0.md), and [published v5 article](https://medium.com/@1200km/adversarygraph-v5-0-from-cti-mapping-to-attack-simulation-and-siem-validation-21873b2a6c39).
+Current release: **v5.4.0**. This release adds operator observability, request metrics, recent traces, redacted log tails, Prometheus-compatible metrics, backend SAST coverage, and screenshot-backed validation documentation. See the [version matrix](docs/version-matrix.md), [v5.4 release summary](docs/release-summary-v5.4.0.md), [v5.3 release summary](docs/release-summary-v5.3.0.md), and [published v5 article](https://medium.com/@1200km/adversarygraph-v5-0-from-cti-mapping-to-attack-simulation-and-siem-validation-21873b2a6c39).
 
 ## What It Does
 
