@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-expected="5.1.0"
+expected="5.2.0"
 version="$(tr -d '[:space:]' < VERSION)"
 
 if [[ "$version" != "$expected" ]]; then
@@ -51,13 +51,13 @@ for file in "${required_files[@]}"; do
   fi
 done
 
-if ! grep -Eq "Current release: \\*\\*v5\\.1\\.0\\*\\*" README.md; then
-  echo "README.md must state the current release as v5.1.0." >&2
+if ! grep -Eq "Current release: \\*\\*v5\\.2\\.0\\*\\*" README.md; then
+  echo "README.md must state the current release as v5.2.0." >&2
   exit 1
 fi
 
-if ! grep -Eq "Current release: \\*\\*v5\\.1\\.0\\*\\*" ROADMAP.md; then
-  echo "ROADMAP.md must state the current release as v5.1.0." >&2
+if ! grep -Eq "Current release: \\*\\*v5\\.2\\.0\\*\\*" ROADMAP.md; then
+  echo "ROADMAP.md must state the current release as v5.2.0." >&2
   exit 1
 fi
 

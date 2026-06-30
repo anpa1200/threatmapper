@@ -11,6 +11,7 @@ Integration  — FastAPI app with mocked lifespan (no DB startup) and mocked
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
+import os
 from uuid import uuid4
 from unittest.mock import MagicMock
 
@@ -19,6 +20,8 @@ import pytest_asyncio
 from httpx import AsyncClient, ASGITransport
 
 
+os.environ.setdefault("DB_PASS", "test-db-password")
+os.environ.setdefault("LOG_DIR", "/tmp/adversarygraph-test-logs")
 
 # ── DB mock: returns None / empty for every query ─────────────────────────────
 

@@ -1,5 +1,17 @@
 # Changelog
 
+## v5.2.0 - 2026-06-30
+
+- Promoted active release markers to v5.2.0 across backend, frontend,
+  README, roadmap, security policy, version matrix, and release metadata checks.
+- Made backend tests reproducible in a clean local shell by seeding explicit
+  test-safe `DB_PASS` and `LOG_DIR` defaults before app settings are imported.
+- Added a frontend npm override for Monaco's transitive DOMPurify dependency,
+  clearing the frontend audit finding while preserving the decompilation/debug
+  editor integration.
+- Revalidated backend lint, backend tests with coverage, frontend dependency
+  audit, and frontend production build during the release QA pass.
+
 ## v5.1.0 - 2026-06-30
 
 - Promoted the active release marker to v5.1.0 across backend, frontend,

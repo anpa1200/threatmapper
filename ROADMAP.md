@@ -1,8 +1,8 @@
 # Roadmap
 
-Current release: **v5.1.0** — Attack Simulation telemetry fidelity and review hardening (2026-06-30)
+Current release: **v5.2.0** — QA hardening, reproducible tests, and frontend dependency audit cleanup (2026-06-30)
 
-For the full history from v0.2.0 through v5.1.0 see [CHANGELOG.md](CHANGELOG.md).
+For the full history from v0.2.0 through v5.2.0 see [CHANGELOG.md](CHANGELOG.md).
 
 ## v5.x — Hardening Sprint (in progress)
 
@@ -24,6 +24,12 @@ The current sprint focuses on security hardening, test coverage, and reviewer re
 - [ ] Frontend unit tests with Vitest
 - [ ] Authentication hardening guide for reverse-proxy deployments
 - [ ] `.env.example` credential rotation documentation
+
+## v5.2 — QA Hardening
+
+- [x] Make backend tests reproducible without requiring a developer shell `DB_PASS`
+- [x] Clear frontend npm audit findings by overriding Monaco's transitive DOMPurify dependency to the current patched release
+- [x] Revalidate backend lint, backend tests with coverage, frontend audit, and frontend production build
 
 ## Backlog
 
