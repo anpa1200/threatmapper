@@ -42,7 +42,7 @@ Include:
 The default Docker Compose profile is for local or controlled self-hosted use. Internet-facing deployments require:
 
 - TLS termination.
-- Authentication at a reverse proxy or identity-aware gateway.
+- Native authentication enabled or identity-aware reverse-proxy authentication.
 - Network restrictions for PostgreSQL, Redis, API, and worker services.
 - Secret rotation and non-default database credentials.
 - Backups, retention policy, and restore testing.

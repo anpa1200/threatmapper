@@ -22,7 +22,7 @@ The current sprint focuses on security hardening, test coverage, and reviewer re
 - [x] Document telemetry fidelity architecture and SIEM validation boundaries
 - [ ] Enforced backend coverage gate at 70%
 - [ ] Frontend unit tests with Vitest
-- [ ] Authentication hardening guide for reverse-proxy deployments
+- [x] Authentication hardening guide for native auth and reverse-proxy deployments
 - [ ] `.env.example` credential rotation documentation
 
 ## v5.2 — QA Hardening

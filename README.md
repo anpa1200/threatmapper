@@ -87,6 +87,7 @@ The default Compose deployment binds the public UI and reference docs to localho
 | Platform guide | [docs/adversarygraph-platform-guide.md](docs/adversarygraph-platform-guide.md) |
 | User guide | [docs/user-guide.md](docs/user-guide.md) |
 | Admin guide | [docs/admin-guide.md](docs/admin-guide.md) |
+| Authentication and user management | [docs/authentication-and-users.md](docs/authentication-and-users.md) |
 | Observability and security validation | [docs/observability-security-validation.md](docs/observability-security-validation.md) |
 | Attack Simulation | [docs/attack-simulation.md](docs/attack-simulation.md) |
 | SIEM forwarding security | [docs/attack-simulation-siem-forwarding-security.md](docs/attack-simulation-siem-forwarding-security.md) |

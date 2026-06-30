@@ -70,7 +70,7 @@ export function Sidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto px-3 py-4 pr-2">
+      <nav className="sidebar-scroll min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain px-3 py-4">
         <div className="sticky top-0 z-10 -mx-3 -mt-4 bg-mitre-navy px-3 pb-3 pt-4"><GlobalSearch /></div>
         {nav.filter(item => item.to !== '/admin' || hasRole(user, 'admin')).map(({ to, label, icon }) => (
           <NavLink
@@ -101,7 +101,7 @@ export function Sidebar() {
       </nav>
 
       {/* Ecosystem links */}
-      <div className="max-h-[30vh] shrink-0 space-y-1 overflow-y-auto border-t border-gray-800 px-3 py-3">
+      <div className="sidebar-scroll max-h-[30vh] shrink-0 space-y-1 overflow-y-auto overscroll-contain border-t border-gray-800 px-3 py-3">
         <button onClick={() => setShowWorkspaces(value => !value)} className="w-full flex items-center px-3 py-1.5 rounded-lg text-[11px] text-gray-500 hover:text-gray-300 hover:bg-gray-700/40">
           Workspaces ({workspaces.length})
         </button>
