@@ -328,7 +328,41 @@ docker compose ps
 docker compose logs -f api
 docker compose logs -f worker
 curl http://localhost:8000/api/health
+curl http://localhost:8000/api/system/selftest | jq
 ```
+
+Open **Observability** in the sidebar, or browse directly to:
+
+```text
+http://localhost:3000/observability
+```
+
+The dashboard shows API uptime, request status counters, average and maximum API
+latency, top routes, recent request traces with `X-Request-ID`, the redacted API
+log tail, and a Prometheus-compatible metrics preview.
+
+Automation endpoints:
+
+```bash
+curl http://localhost:3000/api/observability/summary | jq
+curl http://localhost:3000/api/observability/traces | jq
+curl http://localhost:3000/api/observability/logs | jq
+curl http://localhost:3000/api/observability/metrics
+```
+
+For cloud deployments, scrape `/api/observability/metrics` through an
+authenticated reverse proxy or a trusted service identity. Do not expose raw API
+telemetry endpoints to the public internet.
+
+Security validation:
+
+```bash
+make security-scan
+```
+
+This runs backend lint/SAST, dependency audits, frontend audit, Compose
+validation, and host-installed secret/container scanners where available. CI also
+runs gitleaks and Trivy.
 
 ## Data Retention
 

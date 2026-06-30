@@ -16,10 +16,11 @@ import app.models.asset_surface  # noqa: F401 — registers AssetSurfaceCase wit
 import app.models.simulation     # noqa: F401 — registers simulation persistence tables
 import app.models.cve            # noqa: F401 — registers CVE intelligence tables
 import app.models.auth           # noqa: F401 — registers native user/session tables
-from app.api.routes import asset_surface, attack, apt, analyze, auth, sync, export, ioc, cve, layers, malwaregraph, operations, pipeline, retrohunt, sector, simulation, system, knowledge
+from app.api.routes import asset_surface, attack, apt, analyze, auth, sync, export, ioc, cve, layers, malwaregraph, observability, operations, pipeline, retrohunt, sector, simulation, system, knowledge
 from app.core.config import settings
 from app.core.database import async_session_factory, create_tables
 from app.core.logging_config import configure_logging
+from app.core.observability import monotonic_ms_since, observability_state
 from app.core.version import APP_VERSION
 from app.services.auth import bootstrap_admin_if_configured, current_user
 
@@ -83,10 +84,20 @@ app = FastAPI(
 async def request_logging_middleware(request: Request, call_next):
     request_id = request.headers.get("X-Request-ID") or str(uuid4())
     started = time.perf_counter()
+    client = request.client.host if request.client else "-"
     try:
         response = await call_next(request)
     except Exception as exc:
-        duration_ms = round((time.perf_counter() - started) * 1000, 2)
+        duration_ms = round(monotonic_ms_since(started), 2)
+        observability_state.record_request(
+            request_id=request_id,
+            method=request.method,
+            path=request.url.path,
+            status_code=500,
+            duration_ms=duration_ms,
+            client=client,
+            error=type(exc).__name__,
+        )
         logger.exception(
             "request failed method=%s path=%s duration_ms=%s error=%r",
             request.method,
@@ -96,8 +107,16 @@ async def request_logging_middleware(request: Request, call_next):
             extra={"request_id": request_id},
         )
         raise
-    duration_ms = round((time.perf_counter() - started) * 1000, 2)
+    duration_ms = round(monotonic_ms_since(started), 2)
     response.headers["X-Request-ID"] = request_id
+    observability_state.record_request(
+        request_id=request_id,
+        method=request.method,
+        path=request.url.path,
+        status_code=response.status_code,
+        duration_ms=duration_ms,
+        client=client,
+    )
     log = logger.error if response.status_code >= 500 else logger.warning if response.status_code >= 400 else logger.info
     log(
         "request complete method=%s path=%s status=%s duration_ms=%s",
@@ -146,6 +165,7 @@ app.include_router(knowledge.router, prefix="/api", dependencies=_auth_required)
 app.include_router(sector.router, prefix="/api", dependencies=_auth_required)
 app.include_router(simulation.router, prefix="/api", dependencies=_auth_required)
 app.include_router(system.router, prefix="/api", dependencies=_auth_required)
+app.include_router(observability.router, prefix="/api", dependencies=_auth_required)
 
 
 @app.get("/api/health")

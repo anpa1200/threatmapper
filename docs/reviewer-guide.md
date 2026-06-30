@@ -12,6 +12,7 @@ This guide is for security researchers, package curators, and tool evaluators wh
 | Changelog | [CHANGELOG.md](../CHANGELOG.md) |
 | Security policy | [SECURITY.md](../SECURITY.md) |
 | Known limitations | [docs/limitations.md](limitations.md) |
+| Observability and security validation | [docs/observability-security-validation.md](observability-security-validation.md) |
 | Deployment boundary | [SECURITY.md — Deployment Boundary](../SECURITY.md#deployment-boundary) |
 | Attack Simulation safety model | [docs/attack-simulation.md — Safety Model](attack-simulation.md#safety-model) |
 
@@ -24,6 +25,7 @@ AdversaryGraph is a **self-hosted AI-assisted CTI workbench** for:
 - Building detection coverage plans tied to specific TTPs
 - Running Attack Simulation scenarios against authorized lab targets, reviewing real lab-target telemetry, and forwarding either real lab logs or synthetic source-shaped telemetry to a SIEM for rule validation
 - Generating AI-assisted kill-chain scenarios for detection engineering exercises
+- Reviewing platform health through self-test, API request metrics, recent traces, redacted log tails, and Prometheus-compatible metrics
 
 ## What this tool is NOT
 
@@ -55,6 +57,7 @@ See [SECURITY.md](../SECURITY.md) for the full policy and known limitations.
 |---|---|
 | Backend unit + integration tests | ✅ GitHub Actions |
 | Backend lint (ruff) | ✅ GitHub Actions |
+| Backend SAST (bandit, medium/high) | ✅ GitHub Actions |
 | Backend dependency audit (pip-audit) | ✅ GitHub Actions |
 | Frontend build | ✅ GitHub Actions |
 | Frontend dependency audit (npm audit) | ✅ GitHub Actions |

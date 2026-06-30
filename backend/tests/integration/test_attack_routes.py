@@ -22,6 +22,22 @@ async def test_health(client: AsyncClient):
     assert body["version"] == app.version
 
 
+@pytest.mark.asyncio
+async def test_observability_summary_and_metrics(client: AsyncClient):
+    await client.get("/api/health")
+
+    summary = await client.get("/api/observability/summary")
+    assert summary.status_code == 200
+    body = summary.json()
+    assert body["requests_total"] >= 1
+    assert "latency" in body
+    assert isinstance(body["recent_traces"], list)
+
+    metrics = await client.get("/api/observability/metrics")
+    assert metrics.status_code == 200
+    assert "adversarygraph_requests_total" in metrics.text
+
+
 # ── /api/attack/versions ───────────────────────────────────────────────────────
 
 @pytest.mark.asyncio

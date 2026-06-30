@@ -37,6 +37,7 @@ import { UIProvider } from '@/components/ui/provider';
 import { Login } from '@/pages/Login';
 import { AdminUsers } from '@/pages/AdminUsers';
 import { AuthGuide } from '@/pages/AuthGuide';
+import { Observability } from '@/pages/Observability';
 
 const AttackSimulation = lazy(() => import('@/pages/AttackSimulation').then(module => ({ default: module.AttackSimulation })));
 const CVEIntelligence = lazy(() => import('@/pages/CVEIntelligence').then(module => ({ default: module.CVEIntelligence })));
@@ -93,6 +94,7 @@ function AppShell() {
               <Route path="/report" element={<InvestigationReport />} />
               <Route path="/operations" element={<RoleGate require="analyst"><Operations /></RoleGate>} />
               <Route path="/pipeline" element={<RoleGate require="analyst"><Pipeline /></RoleGate>} />
+              <Route path="/observability" element={<RoleGate require="analyst"><Observability /></RoleGate>} />
               <Route path="/admin" element={<RoleGate require="admin"><AdminUsers /></RoleGate>} />
               <Route path="/auth-guide" element={<AuthGuide />} />
               <Route path="/examples" element={<Examples />} />

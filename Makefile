@@ -1,4 +1,4 @@
-.PHONY: up down build logs shell-api shell-db ingest reset sync-atlas
+.PHONY: up down build logs shell-api shell-db ingest reset sync-atlas security-scan
 
 up:
 	docker compose up
@@ -27,3 +27,6 @@ reset:
 
 sync-atlas:
 	./scripts/sync-anomaly-atlas.sh
+
+security-scan:
+	./scripts/security-scan.sh

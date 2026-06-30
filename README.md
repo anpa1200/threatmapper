@@ -25,6 +25,7 @@ Core capabilities:
 - Asset Attack Surface Mapping from CMDB, scanner, cloud, CSV, JSON, and hostname/IP inventories.
 - Malware Analysis workflow backed by the isolated MalwareGraph service for static triage, strings, unpacking/deobfuscation support, debugger-style review, and AI summaries.
 - Attack Simulation for TTP-first lab scenarios, real attacked-server telemetry, SIEM forwarding, coherent AI-assisted kill-chain drills, and attack-chain graph review.
+- Observability dashboard with API request metrics, recent traces, redacted log tails, Prometheus-compatible metrics, and health/self-test views.
 - Operations, Pipeline, detection backlog, investigation reports, exports, and API workflows.
 
 ## What It Is Not
@@ -77,6 +78,7 @@ The default Compose deployment binds the public UI and reference docs to localho
 | Platform guide | [docs/adversarygraph-platform-guide.md](docs/adversarygraph-platform-guide.md) |
 | User guide | [docs/user-guide.md](docs/user-guide.md) |
 | Admin guide | [docs/admin-guide.md](docs/admin-guide.md) |
+| Observability and security validation | [docs/observability-security-validation.md](docs/observability-security-validation.md) |
 | Attack Simulation | [docs/attack-simulation.md](docs/attack-simulation.md) |
 | SIEM forwarding security | [docs/attack-simulation-siem-forwarding-security.md](docs/attack-simulation-siem-forwarding-security.md) |
 | Asset Attack Surface Mapping | [docs/asset-attack-surface.md](docs/asset-attack-surface.md) |
@@ -126,9 +128,10 @@ docker compose config --quiet
 docker compose -f docker-compose.yml -f docker-compose.dev.yml config --quiet
 cd backend && PYTHONPATH=. DB_PASS=ci_test_password LOG_DIR=/tmp/adversarygraph-test-logs python -m pytest
 cd frontend && npm ci && npm run build && npm audit --audit-level=high
+make security-scan
 ```
 
-CI runs backend tests, backend lint, backend dependency audit, frontend build, frontend dependency audit, Docker Compose validation, Docker image builds, container scanning, secret scanning, and version consistency checks.
+CI runs backend tests, backend lint, backend SAST, backend dependency audit, frontend build, frontend dependency audit, Docker Compose validation, Docker image builds, container scanning, secret scanning, and version consistency checks.
 
 ## License
 

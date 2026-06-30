@@ -90,6 +90,40 @@ export const authApi = {
   disableUser: (id: string): Promise<void> => http.delete(`/auth/users/${id}`).then(() => {}),
 };
 
+export interface ObservabilityTrace {
+  request_id: string;
+  method: string;
+  path: string;
+  status_code: number;
+  duration_ms: number;
+  timestamp: string;
+  client: string;
+  error?: string;
+}
+
+export interface ObservabilitySummary {
+  started_at: string;
+  uptime_seconds: number;
+  requests_total: number;
+  requests_by_status: Record<string, number>;
+  top_routes: Array<{ route: string; count: number }>;
+  latency: { avg_ms: number; max_ms: number };
+  last_error: ObservabilityTrace | null;
+  recent_traces: ObservabilityTrace[];
+  log_file: { path: string; exists: boolean; size_bytes: number };
+}
+
+export const observabilityApi = {
+  summary: (): Promise<ObservabilitySummary> =>
+    http.get('/observability/summary').then(r => r.data),
+  traces: (limit = 100): Promise<{ items: ObservabilityTrace[]; limit: number }> =>
+    http.get('/observability/traces', { params: { limit } }).then(r => r.data),
+  logs: (limit = 200): Promise<{ path: string; exists: boolean; limit: number; lines: string[] }> =>
+    http.get('/observability/logs', { params: { limit } }).then(r => r.data),
+  metrics: (): Promise<string> =>
+    http.get('/observability/metrics', { responseType: 'text' }).then(r => r.data),
+};
+
 export const attackApi = {
   versions: (): Promise<AttackVersion[]> =>
     http.get('/attack/versions').then(r => r.data),

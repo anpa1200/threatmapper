@@ -30,6 +30,7 @@ const nav = [
   { to: '/report',        label: 'Investigation', icon: '▤' },
   { to: '/operations',    label: 'Operations', icon: '◆' },
   { to: '/pipeline',      label: 'Pipeline', icon: '⇄' },
+  { to: '/observability', label: 'Observability', icon: '◌' },
   { to: '/admin',         label: 'Admin Panel', icon: '⚙' },
   { to: '/examples',      label: 'DFIR Examples', icon: '▦' },
   { to: '/troubleshooting', label: 'Troubleshooting', icon: '!' },

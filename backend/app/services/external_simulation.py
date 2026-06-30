@@ -1492,7 +1492,8 @@ def _send_lab_web_request(
         headers.setdefault("Content-Type", "application/json" if body.strip().startswith(("{", "[")) else "application/x-www-form-urlencoded")
     req = request.Request(url, data=data, method=method, headers=headers)
     try:
-        with request.urlopen(req, timeout=5) as response:
+        # URL is the fixed internal lab target URL controlled by the simulator.
+        with request.urlopen(req, timeout=5) as response:  # nosec B310
             body = response.read(4096)
             status = response.status
             response_headers = dict(response.headers.items())
@@ -2090,7 +2091,7 @@ def _format_web_auth_line(event: dict[str, Any]) -> str:
 
 
 def _security_rule_id(category: str) -> str:
-    digest = hashlib.sha1(category.encode("utf-8")).hexdigest()[:6].upper()
+    digest = hashlib.sha256(category.encode("utf-8")).hexdigest()[:6].upper()
     return f"AG-WEB-{digest}"
 
 
@@ -3274,7 +3275,7 @@ def _assistant_vendor_raw_line(event: dict[str, Any]) -> str:
     if source_format == "modsecurity_waf":
         return (
             f'{timestamp} ModSecurity: Warning. Matched "{event.get("canary_classification", "attack")}" at REQUEST_URI. '
-            f'[id "9{hashlib.sha1(str(event.get("rule_name")).encode()).hexdigest()[:6]}"] [severity "{event.get("severity", "high")}"] '
+            f'[id "9{hashlib.sha256(str(event.get("rule_name")).encode()).hexdigest()[:6]}"] [severity "{event.get("severity", "high")}"] '
             f'[msg "{event.get("rule_name")}"] [client "{event.get("src_ip", "-")}"] [uri "{event.get("url", "-")}"] '
             f'[unique_id "{event.get("run_id")}"] [tag "{event.get("technique_id")}"]'
         )
@@ -3658,7 +3659,8 @@ def _post_siem_payload_once(
 ) -> dict[str, Any]:
     req = request.Request(destination, data=body, method="POST", headers=headers)
     try:
-        with request.urlopen(req, timeout=10) as response:
+        # Destination is constrained by _validate_siem_destination before posting.
+        with request.urlopen(req, timeout=10) as response:  # nosec B310
             response_body = response.read(2048).decode("utf-8", errors="replace")
             status = response.status
             ok = 200 <= status < 300
@@ -3924,7 +3926,7 @@ def _validate_siem_destination(destination_url: str, connection_mode: str = "aut
 
     hostname = parsed.hostname.lower()
     use_docker_host = connection_mode == "docker_host" or (connection_mode == "auto" and _running_in_container())
-    if hostname in {"0.0.0.0", "::"}:
+    if hostname in {"0.0.0.0", "::"}:  # nosec B104
         replacement_host = "host.docker.internal" if use_docker_host else "127.0.0.1"
         netloc = replacement_host
         if parsed.port:
