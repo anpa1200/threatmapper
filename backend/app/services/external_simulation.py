@@ -61,6 +61,23 @@ LAB_AUTH_USERS = {
     "service": "Service-Token-2026!",
 }
 
+TELEMETRY_FIDELITY_POLICY = [
+    "All Attack Simulation output must be based on correct telemetry for the selected target and TTP.",
+    "Choose the telemetry source before generating events: Windows Security, Sysmon, PowerShell 4104, EDR, "
+    "NGINX/Apache/IIS, WAF, firewall, DNS, proxy, cloud audit, Linux auditd, database audit, or IdP logs.",
+    "Event fields and raw lines must match the real source/vendor structure as closely as the simulator supports.",
+    "Do not use generic fake events or normalized-only JSON as the primary evidence when a source-specific format exists.",
+    "Web attacks must use web-server, application-auth, WAF, proxy, or DNS telemetry; endpoint/internal TTPs must use "
+    "endpoint, Windows, Sysmon, PowerShell, Linux auditd, or EDR-style telemetry.",
+    "If the simulator lacks the right lab target or source-realistic event template, mark the TTP as a telemetry gap "
+    "instead of inventing misleading logs.",
+]
+
+TELEMETRY_FIDELITY_NOTE = (
+    "Telemetry fidelity rule: simulations must use source-correct telemetry and vendor/source-shaped event structures. "
+    "Unsupported TTPs or missing lab targets must be reported as telemetry gaps, not represented with generic fake logs."
+)
+
 
 WEB_SIMULATION_REQUESTS: dict[str, list[dict[str, Any]]] = {
     "sim-t1595-http-fingerprint": [
@@ -2787,7 +2804,9 @@ async def _assistant_llm_plan(
     system = (
         "You are an expert detection engineering exercise designer. "
         "Return only JSON. Design a defensive SIEM telemetry simulation plan, not exploit instructions. "
-        "Use ATT&CK technique IDs only. Prefer diverse telemetry: web, WAF, auth, Windows Security, Sysmon, EDR, firewall, DNS, proxy."
+        "Use ATT&CK technique IDs only. Prefer diverse telemetry: web, WAF, auth, Windows Security, Sysmon, "
+        "PowerShell 4104, EDR, firewall, DNS, proxy, Linux auditd, cloud audit, database audit, and IdP logs. "
+        f"{TELEMETRY_FIDELITY_NOTE}"
     )
     user = json.dumps(
         {
@@ -2803,6 +2822,7 @@ async def _assistant_llm_plan(
                 "phases": [{"name": "recon", "technique_id": "T1595", "telemetry_sources": ["nginx"]}],
             },
             "rules": [
+                *TELEMETRY_FIDELITY_POLICY,
                 "For complicated_attack=true, return 10-16 technique IDs.",
                 "Include high-volume recon, public web exploit attempts, user enumeration or brute force, valid account, execution, credential access, transfer, persistence, C2, and exfiltration where appropriate.",
                 "Do not include instructions to exploit real systems.",
@@ -3475,7 +3495,11 @@ def _assistant_attack_plan(
         "actor_profile": actor_profile,
         "analyst_goal": analyst_goal,
         "kill_chain": list(grouped.values()),
-        "validation_note": "Generated telemetry is for SIEM rule validation and detection engineering drills. It is not proof of real compromise.",
+        "validation_note": (
+            "Generated telemetry is for SIEM rule validation and detection engineering drills. "
+            "It is not proof of real compromise. "
+            f"{TELEMETRY_FIDELITY_NOTE}"
+        ),
     }
 
 

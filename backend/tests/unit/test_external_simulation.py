@@ -4,7 +4,10 @@ from pathlib import Path
 import threading
 
 from app.services.external_simulation import (
+    TELEMETRY_FIDELITY_NOTE,
+    TELEMETRY_FIDELITY_POLICY,
     WEB_SIMULATION_IDS,
+    _assistant_attack_plan,
     _redact_siem_destination,
     _validate_siem_destination,
     build_plan,
@@ -14,6 +17,41 @@ from app.services.external_simulation import (
     run_controlled_record,
     tail_telemetry_logs,
 )
+
+
+def test_ai_assistant_prompt_policy_requires_source_correct_telemetry():
+    policy = " ".join(TELEMETRY_FIDELITY_POLICY)
+
+    assert "correct telemetry" in policy
+    assert "Windows Security" in policy
+    assert "Sysmon" in policy
+    assert "PowerShell 4104" in policy
+    assert "NGINX/Apache/IIS" in policy
+    assert "generic fake events" in policy
+    assert "telemetry gap" in policy
+
+
+def test_ai_attack_plan_exposes_telemetry_fidelity_note():
+    plan = _assistant_attack_plan(
+        [
+            {
+                "technique_id": "T1059.001",
+                "provider": "sysmon",
+                "event_id": "1",
+                "rule_name": "PowerShell process creation",
+                "detection_focus": ["process command line"],
+                "flow_stage": "execution",
+            }
+        ],
+        mode="challenge",
+        actor_profile="generic-intrusion",
+        analyst_goal="validate telemetry",
+        ai_provider="local",
+        complicated_attack=True,
+    )
+
+    assert TELEMETRY_FIDELITY_NOTE in plan["validation_note"]
+    assert "source-correct telemetry" in plan["validation_note"]
 
 
 def test_catalog_contains_safe_external_ttp_simulations():

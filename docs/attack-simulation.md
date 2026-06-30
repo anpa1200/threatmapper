@@ -38,6 +38,32 @@ The module creates dry-run plans, expected telemetry checklists, and manual
 validation records. Analysts must attach evidence from an authorized lab run
 before marking detection coverage as passed.
 
+## Telemetry Fidelity Architecture Rule
+
+Every Attack Simulation scenario must be designed from the telemetry source
+backward. CTI-to-detection validation is only useful when the emitted evidence
+matches the system that would observe the behavior.
+
+- Select the telemetry source before generating events: Windows Security,
+  Sysmon, PowerShell 4104, EDR, NGINX/Apache/IIS, WAF, firewall, DNS, proxy,
+  cloud audit, Linux auditd, database audit, IdP, or application logs.
+- Use source/vendor-shaped event structures wherever the simulator supports
+  them. Examples include Windows Event XML, Sysmon XML, NGINX access lines,
+  ModSecurity-style WAF alerts, Palo Alto traffic logs, BIND DNS query logs,
+  BlueCoat-style proxy lines, and EDR JSON.
+- Do not treat generic fake events or normalized-only JSON as primary evidence
+  when a source-specific format exists.
+- Web attacks must use web-server, application-auth, WAF, proxy, or DNS
+  telemetry. Endpoint/internal TTPs must use endpoint, Windows, Sysmon,
+  PowerShell, Linux auditd, or EDR-style telemetry.
+- If a TTP cannot be represented by the currently deployed lab target or by a
+  source-realistic event template, the simulator must mark it as a telemetry
+  gap instead of producing misleading logs.
+
+The AI Attack Assistant receives this rule in its system prompt. In complicated
+attack mode it should build a coherent kill chain from supported telemetry
+families and report unsupported coverage as a gap.
+
 ## Real vs. Synthetic Telemetry
 
 AdversaryGraph produces two types of telemetry during attack simulation. Analysts must understand the difference before using simulation outputs for detection validation.
