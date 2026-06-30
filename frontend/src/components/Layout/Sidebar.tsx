@@ -22,6 +22,7 @@ const nav = [
   { to: '/knowledge',     label: 'Knowledge Library', icon: '◎' },
   { to: '/ioc-library',   label: 'IOC Library', icon: '▣' },
   { to: '/ioc-investigation', label: 'IOC Investigation', icon: '⌬' },
+  { to: '/cve',           label: 'CVE / CVSS', icon: '▨' },
   { to: '/feeds',         label: 'Feeds Management', icon: '≋' },
   { to: '/malware-analysis', label: 'Malware Analysis', icon: '▧' },
   { to: '/virustotal',    label: 'VirusTotal Lookup', icon: '◇' },
@@ -126,7 +127,7 @@ export function Sidebar() {
             <NavLink to="/feeds" className="text-[10px] text-gray-500 hover:text-gray-300">ATT&CK up to date</NavLink>
           </div>
         )}
-        <div className="text-[10px] text-gray-600 mt-0.5">AdversaryGraph v5.0.0</div>
+        <div className="text-[10px] text-gray-600 mt-0.5">AdversaryGraph v5.1.0</div>
       </div>
     </aside>
   );

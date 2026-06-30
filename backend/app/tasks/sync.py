@@ -46,7 +46,8 @@ def dynamic_reference_db(days: int = 7, force_attack: bool = False) -> dict:
     Refresh the dynamic public CTI database.
 
     This updates reference/public data only: ATT&CK/ATLAS bundles, MISP Galaxy
-    sector observations, ThreatFox/Malpedia/OTX/custom public IOC sources. Private
+    sector observations, ThreatFox/Malpedia/OTX/custom public IOC sources, and
+    NVD/CISA CVE intelligence. Private
     report sessions and manually imported/custom records remain in the persistent
     external Postgres data directory.
     """
@@ -63,13 +64,14 @@ async def run_dynamic_reference_db_async(days: int = 7, force_attack: bool = Fal
     """
     from app.core.database import async_session_factory
     from app.services.attck.version_checker import sync_outdated_domains
+    from app.services.cve_intel import sync_all_cve_sources
     from app.services.ioc_intel import sync_all_ioc_sources
     from app.services.sector_intel import sync_misp_galaxy
 
     logger.info("Dynamic reference DB sync started")
     actions = await asyncio.to_thread(sync_outdated_domains, force=force_attack)
 
-    results: dict = {"sector": None, "ioc": None}
+    results: dict = {"sector": None, "ioc": None, "cve": None}
     async with async_session_factory() as session:
         try:
             results["sector"] = await sync_misp_galaxy(session)
@@ -79,6 +81,10 @@ async def run_dynamic_reference_db_async(days: int = 7, force_attack: bool = Fal
             results["ioc"] = await sync_all_ioc_sources(session, days=days, domain="enterprise-attack")
         except Exception as exc:
             results["ioc"] = {"status": "error", "error": str(exc)}
+        try:
+            results["cve"] = await sync_all_cve_sources(session, days=days)
+        except Exception as exc:
+            results["cve"] = {"status": "error", "error": str(exc)}
 
     logger.info("Dynamic reference DB sync done: attack=%s feeds=%s", actions, results)
     return {"attack": actions, **results}

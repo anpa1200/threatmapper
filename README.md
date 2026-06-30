@@ -2,7 +2,7 @@
 
 ![AdversaryGraph AI banner](docs/assets/adversarygraph-ai-banner.png)
 
-**Self-hosted AI-assisted CTI-to-detection workbench for ATT&CK mapping, IOC enrichment, malware-analysis triage, asset attack-surface review, Attack Simulation, and SIEM validation.**
+**Self-hosted AI-assisted CTI-to-detection workbench for ATT&CK mapping, IOC enrichment, CVE/CVSS correlation, malware-analysis triage, asset attack-surface review, Attack Simulation, and SIEM validation.**
 
 [![CI](https://github.com/anpa1200/adversarygraph/actions/workflows/ci.yml/badge.svg)](https://github.com/anpa1200/adversarygraph/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/badge/release-v5.1.0-blue)](VERSION)
@@ -14,13 +14,14 @@ Current release: **v5.1.0**. See the [version matrix](docs/version-matrix.md), [
 
 ## What It Does
 
-AdversaryGraph helps analysts turn threat reports, IOC evidence, malware-analysis leads, asset inventories, and validation telemetry into reviewed ATT&CK/ATLAS mappings and detection engineering work items.
+AdversaryGraph helps analysts turn threat reports, IOC evidence, CVE/CVSS vulnerability context, malware-analysis leads, asset inventories, and validation telemetry into reviewed ATT&CK/ATLAS mappings and detection engineering work items.
 
 Core capabilities:
 
 - AI-assisted report ingestion from text, PDF, DOCX, and TXT.
 - ATT&CK/ATLAS Navigator with actor, campaign, sector, and comparison overlays.
 - IOC Library, IOC Investigation pivots, VirusTotal lookup, and feed management.
+- CVE/CVSS Intelligence with NVD and CISA KEV sync, CVSS/CWE/CPE storage, and strict APT-TTP-IOC-CVE correlations.
 - Asset Attack Surface Mapping from CMDB, scanner, cloud, CSV, JSON, and hostname/IP inventories.
 - Malware Analysis workflow backed by the isolated MalwareGraph service for static triage, strings, unpacking/deobfuscation support, debugger-style review, and AI summaries.
 - Attack Simulation for TTP-first lab scenarios, real attacked-server telemetry, SIEM forwarding, coherent AI-assisted kill-chain drills, and attack-chain graph review.
@@ -67,6 +68,7 @@ The default Compose deployment binds the public UI and reference docs to localho
 | Reviewer orientation | [docs/reviewer-guide.md](docs/reviewer-guide.md) |
 | Version history | [docs/version-matrix.md](docs/version-matrix.md) |
 | ATT&CK/STIX data model | [docs/attack-data-model.md](docs/attack-data-model.md) |
+| CVE / CVSS Intelligence | [docs/cve-cvss-intelligence.md](docs/cve-cvss-intelligence.md) |
 | Security policy | [SECURITY.md](SECURITY.md) |
 | Security threat model | [docs/security-threat-model.md](docs/security-threat-model.md) |
 | Production readiness | [docs/production-readiness.md](docs/production-readiness.md) |
@@ -95,7 +97,7 @@ Official public pages:
 ```text
 React frontend
   -> FastAPI API
-     -> PostgreSQL for stored analyses, cases, feeds, mappings, and operations
+     -> PostgreSQL for stored analyses, cases, feeds, CVEs, mappings, and operations
      -> Redis/Celery for background sync, feed collection, and RetroHunt jobs
      -> LLM providers selected by the operator
      -> MalwareGraph service for isolated malware-analysis workflows

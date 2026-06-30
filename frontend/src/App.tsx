@@ -23,6 +23,7 @@ import { IOCInvestigation } from '@/pages/IOCInvestigation';
 import { IOCLibrary } from '@/pages/IOCLibrary';
 import { IOCDetail } from '@/pages/IOCDetail';
 import { IOCNodeDetail } from '@/pages/IOCNodeDetail';
+import { CVEIntelligence } from '@/pages/CVEIntelligence';
 import { FeedsManagement } from '@/pages/FeedsManagement';
 import { MalwareAnalysis } from '@/pages/MalwareAnalysis';
 import { StringAnalyzer } from '@/pages/StringAnalyzer';
@@ -72,6 +73,7 @@ export default function App() {
               <Route path="/ioc-library" element={<IOCLibrary />} />
               <Route path="/ioc-library/:id" element={<IOCDetail />} />
               <Route path="/ioc-node" element={<IOCNodeDetail />} />
+              <Route path="/cve" element={<CVEIntelligence />} />
               <Route path="/feeds" element={<RoleGate require="analyst"><FeedsManagement /></RoleGate>} />
               <Route path="/malware-analysis" element={<MalwareAnalysis />} />
               <Route path="/malware-unpacker" element={<MalwareUnpacker />} />

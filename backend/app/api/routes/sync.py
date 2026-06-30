@@ -67,10 +67,18 @@ class IOCSyncOut(BaseModel):
     sources: list[dict]
 
 
+class CVESyncOut(BaseModel):
+    days: int
+    totals: dict[str, int]
+    sources: list[dict]
+    correlations: dict[str, int]
+
+
 class DynamicSyncOut(BaseModel):
     attack: list | dict
     sector: dict | None = None
     ioc: dict | None = None
+    cve: dict | None = None
 
 
 MITRE_CONTENT = [
@@ -100,6 +108,13 @@ IOC_CONTENT = [
     "actor IOC links",
     "IOC freshness and confidence metadata",
 ]
+CVE_CONTENT = [
+    "NVD CVE API 2.0 recent CVE/CVSS/CWE/CPE sync",
+    "CISA Known Exploited Vulnerabilities sync",
+    "evidence-backed CVE-to-TTP links",
+    "evidence-backed CVE-to-IOC links",
+    "evidence-backed CVE-to-APT links",
+]
 
 SUPPORTED_SOURCES = {
     "mitre-attack": {
@@ -113,6 +128,12 @@ SUPPORTED_SOURCES = {
         "status": "active",
         "content": IOC_CONTENT,
         "schedule": "manual, ThreatFox recent API supports 1-7 days",
+    },
+    "cve-intelligence": {
+        "label": "CVE/CVSS Intelligence",
+        "status": "active",
+        "content": CVE_CONTENT,
+        "schedule": "manual or dynamic DB sync; NVD recent window supports 1-120 days",
     },
     "other": {
         "label": "Other CTI references",
@@ -160,6 +181,7 @@ async def sync_status(session: AsyncSession = Depends(get_session), _: TeamUser 
         ]
         try:
             from app.services.ioc_intel import list_ioc_sources
+            from app.services.cve_intel import list_cve_sources
             ioc_sources = await list_ioc_sources(session)
             ioc_source = next((item for item in sources if item.id == "ioc-intelligence"), None)
             if ioc_source:
@@ -172,6 +194,19 @@ async def sync_status(session: AsyncSession = Depends(get_session), _: TeamUser 
                 ioc_source.content = [
                     *IOC_CONTENT,
                     *[f"{item.label}: {item.sync_status}" for item in ioc_sources],
+                ]
+            cve_sources = await list_cve_sources(session)
+            cve_source = next((item for item in sources if item.id == "cve-intelligence"), None)
+            if cve_source:
+                healthy_statuses = {"ok", "active", "configured"}
+                cve_source.status = (
+                    "active"
+                    if all(item.sync_status in healthy_statuses for item in cve_sources)
+                    else "degraded"
+                )
+                cve_source.content = [
+                    *CVE_CONTENT,
+                    *[f"{item.label}: {item.sync_status}" for item in cve_sources],
                 ]
         except Exception:
             pass
@@ -237,6 +272,24 @@ async def trigger_ioc_sync(
         return result
     except Exception as exc:
         logger.error("IOC sync failed: %s", exc, exc_info=True)
+        raise HTTPException(500, "Operation failed. See server logs.") from exc
+
+
+@router.post("/cve", response_model=CVESyncOut)
+async def trigger_cve_sync(
+    days: int = Query(7, ge=1, le=120),
+    session: AsyncSession = Depends(get_session),
+    user: TeamUser = Depends(analyst),
+):
+    """Synchronize NVD/CISA CVE feeds and refresh strict CVE correlations."""
+    try:
+        from app.services.cve_intel import sync_all_cve_sources
+        result = await sync_all_cve_sources(session, days=days)
+        await audit(session, user, "sync.cve", "cve_source", details={"days": days})
+        await session.commit()
+        return {"days": days, **result}
+    except Exception as exc:
+        logger.error("CVE sync failed: %s", exc, exc_info=True)
         raise HTTPException(500, "Operation failed. See server logs.") from exc
 
 

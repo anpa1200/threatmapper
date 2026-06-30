@@ -22,6 +22,7 @@ type IocSourceDetail = {
   last_synced_at?: string | null;
   indicator_count?: number;
 };
+type CveSourceDetail = Omit<IocSourceDetail, 'indicator_count'>;
 
 const providerLabels: Record<string, string> = {
   anthropic: 'Claude',
@@ -51,24 +52,29 @@ function summarize(result?: SelfTestResult, error?: Error | null) {
   if (!result) {
     return {
       title: 'Running startup self-test',
-      body: 'Checking API, database, Redis, ATT&CK data, API keys, and IOC feed sync state.',
+      body: 'Checking API, database, Redis, ATT&CK data, API keys, IOC feeds, and CVE/CVSS feed sync state.',
       tone: 'pending' as const,
     };
   }
   if (result.status === 'ok') {
     return {
       title: 'AdversaryGraph self-test passed',
-      body: `API, database, Redis, ATT&CK data, API keys, and feed sync state are ready. Checked in ${result.duration_ms} ms.`,
+      body: `API, database, Redis, ATT&CK data, API keys, IOC feeds, and CVE/CVSS feed sync state are ready. Checked in ${result.duration_ms} ms.`,
       tone: 'ok' as const,
     };
   }
   if (result.status === 'degraded') {
     const syncCheck = checkByName(result, 'ioc_sync');
+    const cveSyncCheck = checkByName(result, 'cve_sync');
     const syncDetails = asRecord(syncCheck?.details);
+    const cveSyncDetails = asRecord(cveSyncCheck?.details);
     const degradedSources = Number(syncDetails.degraded_sources ?? 0);
+    const degradedCveSources = Array.isArray(cveSyncDetails.sources)
+      ? cveSyncDetails.sources.filter(source => asRecord(source).sync_status === 'error').length
+      : 0;
     return {
       title: 'AdversaryGraph self-test degraded',
-      body: `Core platform checks passed, but ${degradedSources || 'one or more'} enabled IOC feed source${degradedSources === 1 ? '' : 's'} need attention. Checked in ${result.duration_ms} ms.`,
+      body: `Core platform checks passed, but ${degradedSources + degradedCveSources || 'one or more'} feed source${degradedSources + degradedCveSources === 1 ? '' : 's'} need attention. Checked in ${result.duration_ms} ms.`,
       tone: 'warning' as const,
     };
   }
@@ -104,15 +110,26 @@ function enabledSources(check?: SelfTestCheck) {
     .sort((a, b) => (a.label ?? '').localeCompare(b.label ?? ''));
 }
 
+function cveSources(check?: SelfTestCheck) {
+  const sources = Array.isArray(check?.details.sources) ? check?.details.sources : [];
+  return sources
+    .map(source => asRecord(source) as CveSourceDetail)
+    .filter(source => source.enabled)
+    .sort((a, b) => (a.label ?? '').localeCompare(b.label ?? ''));
+}
+
 function SelfTestDetails({ result }: { result: SelfTestResult }) {
   const apiCheck = checkByName(result, 'api_keys');
   const syncCheck = checkByName(result, 'ioc_sync');
+  const cveSyncCheck = checkByName(result, 'cve_sync');
   const providers = configuredProviders(apiCheck);
   const llmProviders = providers.filter(provider => provider.category === 'llm');
   const feedProviders = providers.filter(provider => provider.category === 'feed');
   const investigationProviders = providers.filter(provider => provider.category === 'investigation');
   const sources = enabledSources(syncCheck);
+  const vulnerabilitySources = cveSources(cveSyncCheck);
   const syncDetails = asRecord(syncCheck?.details);
+  const cveSyncDetails = asRecord(cveSyncCheck?.details);
   const storedIndicators = sources.reduce((sum, source) => sum + Number(source.indicator_count ?? 0), 0);
 
   return (
@@ -181,6 +198,32 @@ function SelfTestDetails({ result }: { result: SelfTestResult }) {
               </span>
             </div>
           )) : <p className="opacity-70">No enabled IOC sources found yet.</p>}
+        </div>
+      </div>
+
+      <div className="rounded border border-white/10 bg-black/15 p-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="font-semibold">CVE / CVSS sync status</p>
+          <span className="opacity-80">
+            {String(cveSyncDetails.cve_count ?? 0)} CVEs · {String(cveSyncDetails.known_exploited_count ?? 0)} KEV
+          </span>
+        </div>
+        <div className="mt-2 max-h-28 space-y-1 overflow-y-auto pr-1">
+          {vulnerabilitySources.length > 0 ? vulnerabilitySources.map(source => (
+            <div key={source.source_id ?? source.label} className="flex items-start justify-between gap-3 rounded bg-black/20 px-2 py-1">
+              <div>
+                <p className="font-medium">{source.label ?? source.source_id}</p>
+                <p className="opacity-70">
+                  {source.kind ?? 'feed'}
+                  {source.last_synced_at ? ` · ${new Date(source.last_synced_at).toLocaleString()}` : ''}
+                </p>
+                {source.sync_error && <p className="text-red-200">{source.sync_error}</p>}
+              </div>
+              <span className={source.sync_status === 'ok' ? 'text-emerald-300' : 'text-amber-200'}>
+                {source.sync_status ?? 'not synced'}
+              </span>
+            </div>
+          )) : <p className="opacity-70">No CVE sources found yet.</p>}
         </div>
       </div>
     </div>

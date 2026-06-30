@@ -14,7 +14,8 @@ import app.models.retrohunt     # noqa: F401 — registers RetroHuntSignal with 
 import app.models.knowledge      # noqa: F401 — registers KnowledgeArticle with Base metadata
 import app.models.asset_surface  # noqa: F401 — registers AssetSurfaceCase with Base metadata
 import app.models.simulation     # noqa: F401 — registers simulation persistence tables
-from app.api.routes import asset_surface, attack, apt, analyze, sync, export, ioc, layers, malwaregraph, operations, pipeline, retrohunt, sector, simulation, system, knowledge
+import app.models.cve            # noqa: F401 — registers CVE intelligence tables
+from app.api.routes import asset_surface, attack, apt, analyze, sync, export, ioc, cve, layers, malwaregraph, operations, pipeline, retrohunt, sector, simulation, system, knowledge
 from app.core.config import settings
 from app.core.database import async_session_factory, create_tables
 from app.core.logging_config import configure_logging
@@ -127,6 +128,7 @@ app.include_router(asset_surface.router, prefix="/api")
 app.include_router(sync.router,    prefix="/api")
 app.include_router(export.router,  prefix="/api")
 app.include_router(ioc.router, prefix="/api")
+app.include_router(cve.router, prefix="/api")
 app.include_router(layers.router,  prefix="/api")
 app.include_router(malwaregraph.router, prefix="/api")
 app.include_router(operations.router, prefix="/api")

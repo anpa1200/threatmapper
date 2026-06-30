@@ -12,7 +12,9 @@ from app.core.config import settings
 from app.core.database import async_session_factory
 from app.core.version import APP_VERSION
 from app.models.attack import AptGroup, AttackVersion, StixObject, StixRelationship, Tactic, Technique
+from app.models.cve import CVEActorLink, CVEIOCLink, CVERecord, CVESource, CVETechniqueLink
 from app.models.ioc import IOCIndicator, IOCSource
+from app.services.cve_intel import ensure_cve_sources
 
 router = APIRouter(prefix="/system", tags=["System"])
 
@@ -434,6 +436,47 @@ async def selftest() -> SelfTestResult:
                         "enabled_sources": len(enabled_sources),
                         "degraded_sources": len(degraded_sources),
                         "sources": sources,
+                    },
+                )
+            )
+
+            await ensure_cve_sources(session)
+            cve_source_rows = (await session.execute(select(CVESource))).scalars().all()
+            cve_total = int(await session.scalar(select(func.count()).select_from(CVERecord)) or 0)
+            cve_known_exploited = int(await session.scalar(select(func.count()).select_from(CVERecord).where(CVERecord.known_exploited.is_(True))) or 0)
+            cve_technique_links = int(await session.scalar(select(func.count()).select_from(CVETechniqueLink)) or 0)
+            cve_ioc_links = int(await session.scalar(select(func.count()).select_from(CVEIOCLink)) or 0)
+            cve_actor_links = int(await session.scalar(select(func.count()).select_from(CVEActorLink)) or 0)
+            cve_sources = [
+                {
+                    "source_id": source.source_id,
+                    "label": source.label,
+                    "kind": source.kind,
+                    "enabled": source.enabled,
+                    "sync_status": source.sync_status,
+                    "sync_error": source.sync_error,
+                    "last_synced_at": source.last_synced_at.isoformat() if source.last_synced_at else None,
+                }
+                for source in sorted(cve_source_rows, key=lambda item: item.label.lower())
+            ]
+            degraded_cve_sources = [
+                source for source in cve_sources
+                if source["enabled"] and source["sync_status"] and source["sync_status"] not in {"ok", "active", "configured"}
+            ]
+            checks.append(
+                _check_status(
+                    "cve_sync",
+                    "degraded" if degraded_cve_sources else "ok",
+                    f"CVE sources checked: {len(cve_sources)} configured, {cve_total} CVEs stored, {cve_known_exploited} known exploited.",
+                    {
+                        "sources": cve_sources,
+                        "cve_count": cve_total,
+                        "known_exploited_count": cve_known_exploited,
+                        "correlations": {
+                            "technique_links": cve_technique_links,
+                            "ioc_links": cve_ioc_links,
+                            "actor_links": cve_actor_links,
+                        },
                     },
                 )
             )

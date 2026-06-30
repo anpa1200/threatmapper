@@ -222,6 +222,68 @@ export interface IOCSummary {
   techniques: Record<string, number>;
 }
 
+// ── CVE / CVSS Intelligence ─────────────────────────────────────────────────
+
+export interface CVESourceStatus {
+  source_id: string;
+  label: string;
+  kind: string;
+  url: string;
+  enabled: boolean;
+  last_synced_at: string | null;
+  sync_status: string;
+  sync_error: string;
+}
+
+export interface CVEItem {
+  id: number | null;
+  cve_id: string;
+  source: string;
+  description: string;
+  published: string | null;
+  last_modified: string | null;
+  vuln_status: string;
+  cvss: { version: string; score: string; severity: string; vector: string };
+  cwe_ids: string[];
+  cpe_matches: string[];
+  references: Array<{ url?: string; source?: string; tags?: string[] }>;
+  tags: string[];
+  known_exploited: boolean;
+  kev_due_date: string;
+  kev_required_action: string;
+}
+
+export interface CVEDetail extends CVEItem {
+  techniques: Array<{ attack_id: string; name: string; relationship: string; confidence: number; evidence: string; source: string }>;
+  iocs: Array<{ indicator_id: number; value: string; type: string; relationship: string; confidence: number; evidence: string; source: string }>;
+  actors: Array<{ actor_attack_id: string; actor_name: string; relationship: string; confidence: number; evidence: string; source: string }>;
+  raw: Record<string, unknown>;
+}
+
+export interface CVELibraryResult {
+  total: number;
+  limit: number;
+  offset: number;
+  items: CVEItem[];
+}
+
+export const cveApi = {
+  sources: (): Promise<CVESourceStatus[]> =>
+    http.get('/cve/sources').then(r => r.data),
+  library: (params: { search?: string; severity?: string; known_exploited?: boolean | null; limit?: number; offset?: number }): Promise<CVELibraryResult> =>
+    http.get('/cve/library', { params }).then(r => r.data),
+  detail: (cveId: string): Promise<CVEDetail> =>
+    http.get(`/cve/${encodeURIComponent(cveId)}`).then(r => r.data),
+  syncAll: (days = 7): Promise<{ totals: { inserted: number; updated: number }; sources: Array<Record<string, unknown>>; correlations: Record<string, number> }> =>
+    http.post('/cve/sync/all', null, { params: { days } }).then(r => r.data),
+  syncNvd: (days = 7, limit = 2000): Promise<Record<string, unknown>> =>
+    http.post('/cve/sync/nvd', null, { params: { days, limit } }).then(r => r.data),
+  syncKev: (): Promise<Record<string, unknown>> =>
+    http.post('/cve/sync/kev').then(r => r.data),
+  correlate: (): Promise<Record<string, number>> =>
+    http.post('/cve/correlate').then(r => r.data),
+};
+
 export interface OpenCTIStatus {
   configured: boolean;
   reachable: boolean;
@@ -742,10 +804,19 @@ export const syncApi = {
   }> =>
     http.post('/sync/ioc', null, { params: { days, ...options } }).then(r => r.data),
 
+  cve: (days = 7): Promise<{
+    days: number;
+    totals: { inserted: number; updated: number };
+    sources: Array<Record<string, unknown>>;
+    correlations: Record<string, number>;
+  }> =>
+    http.post('/sync/cve', null, { params: { days } }).then(r => r.data),
+
   dynamicDb: (params?: { days?: number; force_attack?: boolean }): Promise<{
     attack: unknown;
     sector: Record<string, unknown> | null;
     ioc: Record<string, unknown> | null;
+    cve: Record<string, unknown> | null;
   }> =>
     http.post('/sync/dynamic-db', null, { params: { days: params?.days ?? 7, force_attack: params?.force_attack ?? false } }).then(r => r.data),
 };
