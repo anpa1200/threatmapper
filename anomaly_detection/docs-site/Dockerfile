@@ -1,6 +1,7 @@
 FROM node:20-alpine
 
 RUN apk upgrade --no-cache && apk add --no-cache git rsync
+RUN npm install -g npm@11.18.0
 
 WORKDIR /seed
 COPY anomaly_detection/docs-site/package.json anomaly_detection/docs-site/package-lock.json ./
