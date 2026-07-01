@@ -1,0 +1,140 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version without leading v, for example 5.5.0"
+        required: true
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  release:
+    name: Build and publish release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve release version
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${GITHUB_REF_TYPE:-}" == "tag" ]]; then
+            version="${GITHUB_REF_NAME#v}"
+          else
+            version="${{ github.event.inputs.version }}"
+          fi
+          current="$(tr -d '[:space:]' < VERSION)"
+          if [[ "$version" != "$current" ]]; then
+            echo "Release version '$version' does not match VERSION '$current'." >&2
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=v$version" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Version consistency
+        run: ./scripts/check-version-consistency.sh
+
+      - name: Backend tests
+        working-directory: backend
+        env:
+          DB_PASS: ci_test_password
+          LOG_DIR: /tmp/adversarygraph-test-logs
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          PYTHONPATH=. python -m pytest -q
+
+      - name: Frontend build and lint
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run lint
+          npm run build
+          npx playwright install --with-deps chromium
+          npm run test:e2e
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push backend
+        uses: docker/build-push-action@v6
+        with:
+          context: backend
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/adversarygraph-backend:${{ steps.version.outputs.version }}
+            ghcr.io/${{ github.repository_owner }}/adversarygraph-backend:latest
+
+      - name: Build and push frontend
+        uses: docker/build-push-action@v6
+        with:
+          context: frontend
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/adversarygraph-frontend:${{ steps.version.outputs.version }}
+            ghcr.io/${{ github.repository_owner }}/adversarygraph-frontend:latest
+
+      - name: Build and push MalwareGraph service
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/malwaregraph/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/adversarygraph-malwaregraph:${{ steps.version.outputs.version }}
+            ghcr.io/${{ github.repository_owner }}/adversarygraph-malwaregraph:latest
+
+      - name: Build and push attack lab web
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/attack-lab-web/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/adversarygraph-attack-lab-web:${{ steps.version.outputs.version }}
+            ghcr.io/${{ github.repository_owner }}/adversarygraph-attack-lab-web:latest
+
+      - name: Build and push attack lab endpoint
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/attack-lab-endpoint/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/adversarygraph-attack-lab-endpoint:${{ steps.version.outputs.version }}
+            ghcr.io/${{ github.repository_owner }}/adversarygraph-attack-lab-endpoint:latest
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: AdversaryGraph v${{ steps.version.outputs.version }}
+          body_path: docs/release-notes/v${{ steps.version.outputs.version }}.md
+          fail_on_unmatched_files: true

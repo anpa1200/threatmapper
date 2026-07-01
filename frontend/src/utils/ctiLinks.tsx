@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import type { ReactNode } from 'react';
 
 const ATTACK_ID_PATTERN = /^T\d{4}(?:\.\d{3})?$/i;

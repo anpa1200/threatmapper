@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -9,7 +10,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_session
-from app.models.simulation import SimulationSiemDestination
+from app.models.simulation import SimulationAttackFlow, SimulationSiemDestination
 from app.services import external_simulation
 from app.services.auth import TeamUser, analyst, audit
 
@@ -92,6 +93,42 @@ class SiemDestinationOut(BaseModel):
     updated_at: datetime
 
 
+class AttackFlowOut(BaseModel):
+    id: str
+    run_id: str
+    mode: str
+    ai_provider: str
+    ai_model: str
+    ai_used: bool
+    complicated_attack: bool
+    actor_profile: str
+    scenario_id: str
+    scenario_name: str
+    summary: str
+    technique_ids: list[str]
+    event_count: int
+    last_delivery_status: int
+    last_delivery_ok: bool
+    last_delivery_error: str
+    created_at: datetime
+    updated_at: datetime
+    attack_plan: dict[str, Any]
+    events: list[dict[str, Any]]
+    delivery: dict[str, Any]
+
+
+class AttackFlowResendRequest(BaseModel):
+    destination_url: str = Field(..., min_length=8, max_length=1000)
+    auth_type: str = Field(default="none", pattern="^(none|bearer|token|basic|custom_header)$")
+    username: str = Field(default="", max_length=256)
+    password: str = Field(default="", max_length=2048)
+    token: str = Field(default="", max_length=4096)
+    header_name: str = Field(default="", max_length=80)
+    connection_mode: str = Field(default="auto", pattern="^(auto|direct|docker_host)$")
+    allow_http_fallback: bool = Field(default=True)
+    payload_format: str = Field(default="per_event", pattern="^(raw_lines|per_event|json_lines|envelope)$")
+
+
 @router.get("/catalog")
 async def catalog(_: TeamUser = Depends(analyst)) -> list[dict[str, Any]]:
     return external_simulation.list_simulations()
@@ -105,6 +142,86 @@ async def targets(_: TeamUser = Depends(analyst)) -> list[dict[str, Any]]:
 @router.get("/ai-assistant/scenarios")
 async def ai_assistant_scenarios(_: TeamUser = Depends(analyst)) -> list[dict[str, Any]]:
     return external_simulation.list_ai_assistant_scenarios()
+
+
+@router.get("/attack-flows", response_model=list[AttackFlowOut])
+async def attack_flows(
+    session: AsyncSession = Depends(get_session),
+    _: TeamUser = Depends(analyst),
+) -> list[dict[str, Any]]:
+    result = await session.execute(
+        select(SimulationAttackFlow)
+        .order_by(SimulationAttackFlow.created_at.desc())
+        .limit(20)
+    )
+    return [_attack_flow_out(row) for row in result.scalars().all()]
+
+
+@router.post("/attack-flows/{flow_id}/resend")
+async def resend_attack_flow(
+    flow_id: UUID,
+    payload: AttackFlowResendRequest,
+    session: AsyncSession = Depends(get_session),
+    user: TeamUser = Depends(analyst),
+) -> dict[str, Any]:
+    row = await session.get(SimulationAttackFlow, flow_id)
+    if row is None:
+        raise HTTPException(404, "Attack flow not found")
+    try:
+        delivery = external_simulation.resend_ai_assistant_telemetry_events(
+            stored_result=_attack_flow_result(row),
+            destination_url=payload.destination_url,
+            auth_type=payload.auth_type,
+            username=payload.username,
+            password=payload.password,
+            token=payload.token,
+            header_name=payload.header_name,
+            connection_mode=payload.connection_mode,
+            allow_http_fallback=payload.allow_http_fallback,
+            payload_format=payload.payload_format,
+        )
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    row.delivery = delivery
+    row.last_delivery_status = int(delivery.get("status") or 0)
+    row.last_delivery_ok = bool(delivery.get("ok"))
+    row.last_delivery_error = str(delivery.get("error") or "")[:1000]
+    await _upsert_siem_destination(
+        session,
+        user,
+        SiemDestinationSaveRequest(
+            destination_url=delivery["destination_url"],
+            auth_type=payload.auth_type,
+            username=payload.username,
+            header_name=payload.header_name,
+            connection_mode=payload.connection_mode,
+            allow_http_fallback=payload.allow_http_fallback,
+            payload_format=payload.payload_format,
+            source="endpoint",
+        ),
+        last_status=row.last_delivery_status,
+        last_ok=row.last_delivery_ok,
+        last_event_count=int(delivery.get("event_count") or 0),
+        last_error=row.last_delivery_error,
+    )
+    await audit(
+        session,
+        user,
+        "simulation.resend_attack_flow",
+        "simulation_attack_flow",
+        str(row.id),
+        details={
+            "run_id": row.run_id,
+            "destination_url": delivery["destination_url"],
+            "event_count": delivery["event_count"],
+            "sent_event_count": delivery.get("sent_event_count", 0),
+            "ok": delivery["ok"],
+            "status": delivery["status"],
+        },
+    )
+    await session.commit()
+    await session.refresh(row)
+    return {"flow": _attack_flow_out(row), "delivery": delivery}
 
 
 @router.get("/siem-destinations", response_model=list[SiemDestinationOut])
@@ -261,6 +378,7 @@ async def ai_assistant_telemetry(
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
     delivery = result["delivery"]
+    flow = await _save_attack_flow(session, user, result)
     destination = await _upsert_siem_destination(
         session,
         user,
@@ -296,10 +414,85 @@ async def ai_assistant_telemetry(
             "ok": delivery["ok"],
             "status": delivery["status"],
             "saved_destination_id": str(destination.id),
+            "saved_attack_flow_id": str(flow.id),
         },
     )
+    await _trim_attack_flows(session)
     await session.commit()
     return result
+
+
+def _attack_flow_out(row: SimulationAttackFlow) -> dict[str, Any]:
+    return {
+        "id": str(row.id),
+        "run_id": row.run_id,
+        "mode": row.mode,
+        "ai_provider": row.ai_provider,
+        "ai_model": row.ai_model,
+        "ai_used": row.ai_used,
+        "complicated_attack": row.complicated_attack,
+        "actor_profile": row.actor_profile,
+        "scenario_id": row.scenario_id,
+        "scenario_name": row.scenario_name,
+        "summary": row.summary,
+        "technique_ids": row.technique_ids or [],
+        "event_count": row.event_count,
+        "last_delivery_status": row.last_delivery_status,
+        "last_delivery_ok": row.last_delivery_ok,
+        "last_delivery_error": row.last_delivery_error,
+        "created_at": row.created_at,
+        "updated_at": row.updated_at,
+        "attack_plan": row.attack_plan or {},
+        "events": row.events or [],
+        "delivery": row.delivery or {},
+    }
+
+
+def _attack_flow_result(row: SimulationAttackFlow) -> dict[str, Any]:
+    return {
+        "run_id": row.run_id,
+        "mode": row.mode,
+        "ai_provider": row.ai_provider,
+        "ai_model": row.ai_model,
+        "ai_used": row.ai_used,
+        "complicated_attack": row.complicated_attack,
+        "actor_profile": row.actor_profile,
+        "technique_ids": row.technique_ids or [],
+        "attack_plan": row.attack_plan or {},
+        "events": row.events or [],
+        "delivery": row.delivery or {},
+    }
+
+
+async def _save_attack_flow(session: AsyncSession, user: TeamUser, result: dict[str, Any]) -> SimulationAttackFlow:
+    scenario = result.get("scenario") or {}
+    now = datetime.now(timezone.utc)
+    flow = SimulationAttackFlow(
+        run_id=str(result.get("run_id") or ""),
+        mode=str(result.get("mode") or "challenge"),
+        ai_provider=str(result.get("ai_provider") or "local"),
+        ai_model=str(result.get("ai_model") or ""),
+        ai_used=bool(result.get("ai_used")),
+        complicated_attack=bool(result.get("complicated_attack")),
+        actor_profile=str(result.get("actor_profile") or ""),
+        scenario_id=str(scenario.get("id") or ""),
+        scenario_name=str(scenario.get("name") or ""),
+        summary=str((result.get("attack_plan") or {}).get("summary") or ""),
+        technique_ids=list(result.get("technique_ids") or []),
+        attack_plan=dict(result.get("attack_plan") or {}),
+        events=list(result.get("events") or []),
+        delivery=dict(result.get("delivery") or {}),
+        event_count=len(result.get("events") or []),
+        last_delivery_status=int((result.get("delivery") or {}).get("status") or 0),
+        last_delivery_ok=bool((result.get("delivery") or {}).get("ok")),
+        last_delivery_error=str((result.get("delivery") or {}).get("error") or "")[:1000],
+        created_by=user.name,
+        created_at=now,
+        updated_at=now,
+    )
+    session.add(flow)
+    await session.flush()
+    return flow
 
 
 def _siem_destination_out(row: SimulationSiemDestination) -> dict[str, Any]:
@@ -372,6 +565,17 @@ async def _trim_siem_destinations(session: AsyncSession) -> None:
     stale_ids = list(result.scalars().all())
     if stale_ids:
         await session.execute(delete(SimulationSiemDestination).where(SimulationSiemDestination.id.in_(stale_ids)))
+
+
+async def _trim_attack_flows(session: AsyncSession) -> None:
+    result = await session.execute(
+        select(SimulationAttackFlow.id)
+        .order_by(SimulationAttackFlow.created_at.desc())
+        .offset(20)
+    )
+    stale_ids = list(result.scalars().all())
+    if stale_ids:
+        await session.execute(delete(SimulationAttackFlow).where(SimulationAttackFlow.id.in_(stale_ids)))
 
 
 @router.post("/plan")

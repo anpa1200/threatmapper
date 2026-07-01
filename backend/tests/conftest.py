@@ -74,9 +74,12 @@ class _MockSession:
             count = sum(1 for (obj_model, _), obj in self._objects.items() if obj_model is UserAccount)
             return _MockScalarResult(value=count)
         try:
-            model = statement.column_descriptions[0].get("entity")
+            description = statement.column_descriptions[0]
+            model = description.get("entity")
+            selected_name = getattr(description.get("expr"), "name", None)
         except (AttributeError, IndexError, TypeError):
             model = None
+            selected_name = None
         if model is None:
             return _MockScalarResult()
 
@@ -109,6 +112,21 @@ class _MockSession:
                     rows = [row for row in rows if getattr(row, column_name, None) == expected]
             elif column_name and " IS NULL" in str(criterion).upper():
                 rows = [row for row in rows if getattr(row, column_name, None) is None]
+
+        limit_clause = getattr(statement, "_limit_clause", None)
+        offset_clause = getattr(statement, "_offset_clause", None)
+        if offset_clause is not None:
+            offset_value = getattr(offset_clause, "value", None)
+            if isinstance(offset_value, int):
+                rows = rows[offset_value:]
+        if limit_clause is not None:
+            limit_value = getattr(limit_clause, "value", None)
+            if isinstance(limit_value, int):
+                rows = rows[:limit_value]
+
+        if selected_name and selected_name != getattr(model, "__name__", None):
+            column_rows = [getattr(row, selected_name, None) for row in rows]
+            return _MockScalarResult(value=column_rows[0] if column_rows else None, rows=column_rows)
 
         return _MockScalarResult(value=rows[0] if rows else None, rows=rows)
 

@@ -1,8 +1,8 @@
 export function AppFooter() {
   return (
-    <footer className="shrink-0 border-t border-gray-800 bg-mitre-navy/95 px-6 py-2 text-[11px] text-gray-500">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <span>
+    <footer className="flex h-6 shrink-0 items-center border-t border-gray-800 bg-mitre-navy/95 px-6 text-[10px] text-gray-500">
+      <div className="flex w-full min-w-0 items-center justify-between gap-3">
+        <span className="min-w-0 truncate">
           Copyright (c) {new Date().getFullYear()}{' '}
           <a
             href="https://1200km.com/about.html"
@@ -18,7 +18,7 @@ export function AppFooter() {
           href="https://1200km.com"
           target="_blank"
           rel="noreferrer"
-          className="font-medium text-gray-400 transition-colors hover:text-mitre-accent"
+          className="shrink-0 font-medium text-gray-400 transition-colors hover:text-mitre-accent"
         >
           1200km.com
         </a>

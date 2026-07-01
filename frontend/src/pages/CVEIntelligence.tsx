@@ -50,7 +50,7 @@ export function CVEIntelligence() {
   const correlate = useMutation({ mutationFn: cveApi.correlate, onSuccess: invalidate });
 
   const total = library.data?.total ?? 0;
-  const rows = library.data?.items ?? [];
+  const rows = useMemo(() => library.data?.items ?? [], [library.data?.items]);
   const maxPage = Math.max(0, Math.floor(Math.max(0, total - 1) / limit) * limit);
   const stats = useMemo(() => {
     const kev = rows.filter(item => item.known_exploited).length;

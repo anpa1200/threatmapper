@@ -2733,6 +2733,78 @@ async def run_ai_assistant_telemetry_simulation(
     }
 
 
+def resend_ai_assistant_telemetry_events(
+    stored_result: dict[str, Any],
+    destination_url: str,
+    auth_type: str = "none",
+    username: str = "",
+    password: str = "",
+    token: str = "",
+    header_name: str = "",
+    connection_mode: str = "auto",
+    allow_http_fallback: bool = True,
+    payload_format: str = "per_event",
+) -> dict[str, Any]:
+    events = [event for event in stored_result.get("events", []) if isinstance(event, dict)]
+    run_id = str(stored_result.get("run_id") or f"replay-{uuid4()}")
+    if payload_format not in {"raw_lines", "per_event", "json_lines", "envelope"}:
+        raise ValueError("Unsupported SIEM payload format")
+    destination = _validate_siem_destination(destination_url, connection_mode=connection_mode)
+    complicated_attack = bool(stored_result.get("complicated_attack"))
+    effective_payload_format = "raw_lines" if complicated_attack and payload_format == "raw_lines" else payload_format
+    logs = {
+        "source": "endpoint",
+        "run_id": run_id,
+        "log_file": str(_endpoint_log_path()),
+        "line_count": len(events),
+        "events": events,
+        "returned_at": datetime.now(timezone.utc).isoformat(),
+    }
+    headers = {
+        "Content-Type": "text/plain; charset=utf-8" if effective_payload_format == "raw_lines" else "application/json",
+        "User-Agent": "AdversaryGraph-AI-AttackAssistant-Replay/1.0",
+        "X-AdversaryGraph-Module": "attack-simulation-ai-assistant-replay",
+        "X-AdversaryGraph-Run-Id": run_id,
+        "X-Xpolog-Sender": "adversarygraph-ai-attack-assistant-replay",
+    }
+    headers.update(_siem_auth_headers(auth_type, username=username, password=password, token=token, header_name=header_name))
+    started = time.perf_counter()
+    if effective_payload_format in {"raw_lines", "per_event"}:
+        return _forward_siem_events_individually(
+            destination=destination,
+            logs=logs,
+            headers=headers,
+            started=started,
+            original_destination=destination_url,
+            connection_mode=connection_mode,
+            allow_http_fallback=allow_http_fallback,
+            payload_format=effective_payload_format,
+        )
+    body = _siem_payload_body(logs, effective_payload_format)
+    delivery, fallback_note = _post_siem_payload(
+        destination=destination,
+        body=body,
+        headers=headers,
+        started=started,
+        original_destination=destination_url,
+        connection_mode=connection_mode,
+        allow_http_fallback=allow_http_fallback,
+    )
+    delivery.update(
+        {
+            "source": "endpoint",
+            "run_id": run_id,
+            "event_count": len(events),
+            "duration_ms": round((time.perf_counter() - started) * 1000, 3),
+            "http_fallback_used": bool(fallback_note),
+            "fallback_note": fallback_note,
+            "payload_format": effective_payload_format,
+            "sent_event_count": len(events) if delivery.get("ok") else 0,
+        }
+    )
+    return delivery
+
+
 def _assistant_selected_ttps(mode: str, technique_ids: list[str], actor_profile: str, analyst_goal: str, complicated_attack: bool = False) -> list[str]:
     cleaned = []
     for item in technique_ids:

@@ -1,13 +1,37 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-expected="5.5.0"
-version="$(tr -d '[:space:]' < VERSION)"
+expected="$(tr -d '[:space:]' < VERSION)"
+version="$expected"
 
-if [[ "$version" != "$expected" ]]; then
-  echo "VERSION is '$version', expected '$expected'" >&2
+if [[ ! "$expected" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+  echo "VERSION must be semantic X.Y.Z, got '$expected'" >&2
   exit 1
 fi
+
+python - "$expected" <<'PY'
+import json
+import pathlib
+import re
+import sys
+
+expected = sys.argv[1]
+root = pathlib.Path(".")
+
+checks = [
+    ("frontend/package.json", json.loads((root / "frontend/package.json").read_text()).get("version")),
+    ("frontend/package-lock.json", json.loads((root / "frontend/package-lock.json").read_text()).get("version")),
+    ("helm/adversarygraph/Chart.yaml", re.search(r'^appVersion:\s*"?([^"\n]+)"?', (root / "helm/adversarygraph/Chart.yaml").read_text(), re.M).group(1)),
+    ("backend/app/core/version.py", re.search(r'^APP_VERSION\s*=\s*"([^"]+)"', (root / "backend/app/core/version.py").read_text(), re.M).group(1)),
+]
+failed = False
+for path, value in checks:
+    if value != expected:
+        print(f"{path} version is '{value}', expected '{expected}'", file=sys.stderr)
+        failed = True
+if failed:
+    sys.exit(1)
+PY
 
 include_paths=(
   README.md
@@ -33,6 +57,7 @@ if grep -RInE \
 fi
 
 required_files=(
+  "docs/release-notes/v${expected}.md"
   docs/version-matrix.md
   docs/reviewer-guide.md
   docs/security-threat-model.md
@@ -51,13 +76,15 @@ for file in "${required_files[@]}"; do
   fi
 done
 
-if ! grep -Eq "Current release: \\*\\*v5\\.5\\.0\\*\\*" README.md; then
-  echo "README.md must state the current release as v5.5.0." >&2
+escaped_expected="${expected//./\\.}"
+
+if ! grep -Eq "Current release: \\*\\*v${escaped_expected}\\*\\*" README.md; then
+  echo "README.md must state the current release as v${expected}." >&2
   exit 1
 fi
 
-if ! grep -Eq "Current release: \\*\\*v5\\.5\\.0\\*\\*" ROADMAP.md; then
-  echo "ROADMAP.md must state the current release as v5.5.0." >&2
+if ! grep -Eq "Current release: \\*\\*v${escaped_expected}\\*\\*" ROADMAP.md; then
+  echo "ROADMAP.md must state the current release as v${expected}." >&2
   exit 1
 fi
 

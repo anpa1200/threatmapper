@@ -85,8 +85,8 @@ export function EvidenceGraph() {
   const updateNode = useMutation({ mutationFn: ({ id, body }: { id: string; body: Partial<EvidenceGraphNode> }) => evidenceGraphApi.updateNode(id, body), onSuccess: invalidate });
   const createEdge = useMutation({ mutationFn: evidenceGraphApi.createEdge, onSuccess: invalidate });
 
-  const nodes = graph.data?.nodes ?? [];
-  const edges = graph.data?.edges ?? [];
+  const nodes = useMemo(() => graph.data?.nodes ?? [], [graph.data?.nodes]);
+  const edges = useMemo(() => graph.data?.edges ?? [], [graph.data?.edges]);
   const selected = nodes.find(node => node.id === selectedId) ?? nodes[0];
   const reviewQueue = useMemo(() => nodes.filter(node =>
     (node.ai_generated && node.review_status === 'draft')

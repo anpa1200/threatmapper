@@ -2206,6 +2206,30 @@ export interface AttackSimulationAiAssistantResult {
   log_file: string;
 }
 
+export interface AttackSimulationAttackFlow {
+  id: string;
+  run_id: string;
+  mode: 'ttps' | 'actor' | 'challenge';
+  ai_provider: 'local' | 'claude' | 'openai' | 'gemini' | 'minimax';
+  ai_model: string;
+  ai_used: boolean;
+  complicated_attack: boolean;
+  actor_profile: string;
+  scenario_id: string;
+  scenario_name: string;
+  summary: string;
+  technique_ids: string[];
+  event_count: number;
+  last_delivery_status: number;
+  last_delivery_ok: boolean;
+  last_delivery_error: string;
+  created_at: string;
+  updated_at: string;
+  attack_plan: AttackSimulationAiAssistantResult['attack_plan'];
+  events: Array<Record<string, unknown>>;
+  delivery: Record<string, unknown>;
+}
+
 export interface AttackSimulationAiAssistantScenario {
   id: string;
   name: string;
@@ -2263,6 +2287,20 @@ export const simulationApi = {
     http.post('/simulation/run', payload).then(r => r.data),
   logs: (params: { source?: AttackSimulationLogSource; run_id?: string; limit?: number }): Promise<AttackSimulationLogs> =>
     http.get('/simulation/logs', { params }).then(r => r.data),
+  attackFlows: (): Promise<AttackSimulationAttackFlow[]> =>
+    http.get('/simulation/attack-flows').then(r => r.data),
+  resendAttackFlow: (flowId: string, payload: {
+    destination_url: string;
+    auth_type?: 'none' | 'bearer' | 'token' | 'basic' | 'custom_header';
+    username?: string;
+    password?: string;
+    token?: string;
+    header_name?: string;
+    connection_mode?: 'auto' | 'direct' | 'docker_host';
+    allow_http_fallback?: boolean;
+    payload_format?: 'raw_lines' | 'per_event' | 'json_lines' | 'envelope';
+  }): Promise<{ flow: AttackSimulationAttackFlow; delivery: AttackSimulationForwardResult }> =>
+    http.post(`/simulation/attack-flows/${flowId}/resend`, payload).then(r => r.data),
   siemDestinations: (): Promise<AttackSimulationSiemDestination[]> =>
     http.get('/simulation/siem-destinations').then(r => r.data),
   saveSiemDestination: (payload: {

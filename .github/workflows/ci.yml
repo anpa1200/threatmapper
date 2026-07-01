@@ -105,6 +105,46 @@ jobs:
       - name: Build
         run: npm run build
 
+  frontend-lint:
+    name: Frontend lint
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Lint
+        run: npm run lint
+
+  frontend-e2e:
+    name: Frontend E2E smoke
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+      - name: Build
+        run: npm run build
+      - name: Run smoke tests
+        run: npm run test:e2e
+
   frontend-audit:
     name: Frontend dependency audit (npm audit)
     runs-on: ubuntu-latest
@@ -132,6 +172,13 @@ jobs:
         run: |
           docker compose config --quiet
           docker compose -f docker-compose.yml -f docker-compose.dev.yml config --quiet
+          docker compose -f docker-compose.yml -f docker-compose.prod.yml config --quiet
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+      - name: Validate Helm chart
+        run: |
+          helm lint helm/adversarygraph
+          helm template adversarygraph helm/adversarygraph >/tmp/adversarygraph-rendered.yaml
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
       - name: Build backend image
@@ -160,25 +207,97 @@ jobs:
           file: anomaly_detection/docs-site/Dockerfile
           push: false
           tags: adversarygraph-anomaly-docs:ci
+      - name: Build attack lab web image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/attack-lab-web/Dockerfile
+          push: false
+          tags: adversarygraph-attack-lab-web:ci
+      - name: Build attack lab endpoint image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/attack-lab-endpoint/Dockerfile
+          push: false
+          tags: adversarygraph-attack-lab-endpoint:ci
+
+  compose-selftest:
+    name: Docker Compose self-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Start core stack
+        env:
+          DB_PASS: ci_test_password
+          REDIS_PASSWORD: ci_redis_password
+          AUTH_ENABLED: "false"
+          AUTO_IOC_FULL_SYNC_ON_STARTUP: "false"
+          ATTCK_DOMAINS: enterprise-attack
+        run: docker compose up -d --build postgres redis malwaregraph attack-lab-web attack-lab-endpoint api frontend
+      - name: Run self-test service
+        env:
+          DB_PASS: ci_test_password
+          REDIS_PASSWORD: ci_redis_password
+          AUTH_ENABLED: "false"
+          AUTO_IOC_FULL_SYNC_ON_STARTUP: "false"
+          ATTCK_DOMAINS: enterprise-attack
+        run: docker compose run --rm selftest
+      - name: Show logs on failure
+        if: failure()
+        run: docker compose logs --tail=200 api frontend postgres redis malwaregraph attack-lab-web attack-lab-endpoint
+      - name: Stop stack
+        if: always()
+        run: docker compose down -v
 
   container-scan:
     name: Container scan (Trivy)
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        image:
+          - name: backend
+            context: backend
+            file: backend/Dockerfile
+            tag: adversarygraph-backend:scan
+          - name: frontend
+            context: frontend
+            file: frontend/Dockerfile
+            tag: adversarygraph-frontend:scan
+          - name: malwaregraph
+            context: .
+            file: docker/malwaregraph/Dockerfile
+            tag: adversarygraph-malwaregraph:scan
+          - name: attack-lab-web
+            context: .
+            file: docker/attack-lab-web/Dockerfile
+            tag: adversarygraph-attack-lab-web:scan
+          - name: attack-lab-endpoint
+            context: .
+            file: docker/attack-lab-endpoint/Dockerfile
+            tag: adversarygraph-attack-lab-endpoint:scan
+          - name: anomaly-docs
+            context: .
+            file: anomaly_detection/docs-site/Dockerfile
+            tag: adversarygraph-anomaly-docs:scan
     steps:
       - uses: actions/checkout@v4
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-      - name: Build backend image for scan
+      - name: Build ${{ matrix.image.name }} image for scan
         uses: docker/build-push-action@v6
         with:
-          context: backend
+          context: ${{ matrix.image.context }}
+          file: ${{ matrix.image.file }}
           push: false
           load: true
-          tags: adversarygraph-backend:scan
+          tags: ${{ matrix.image.tag }}
       - name: Trivy scan
         uses: aquasecurity/trivy-action@v0.36.0
         with:
-          image-ref: adversarygraph-backend:scan
+          image-ref: ${{ matrix.image.tag }}
           format: table
           exit-code: "1"
           severity: CRITICAL,HIGH

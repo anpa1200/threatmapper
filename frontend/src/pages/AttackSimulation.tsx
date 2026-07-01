@@ -9,9 +9,11 @@ import { simulationApi } from '@/api/client';
 import { AttackMatrix } from '@/components/Navigator/AttackMatrix';
 import { useAttackMatrix } from '@/hooks/useAttackMatrix';
 import { useAppStore } from '@/store';
+import type { TechniqueListItem } from '@/types/attack';
 import type {
   AttackSimulationCatalogItem,
   AttackSimulationForwardResult,
+  AttackSimulationAttackFlow,
   AttackSimulationAiAssistantResult,
   AttackSimulationAiAssistantScenario,
   AttackSimulationLogSource,
@@ -87,15 +89,19 @@ export function AttackSimulation() {
   const [siemHistory, setSiemHistory] = useState<SiemDestinationHistoryItem[]>(() => loadSiemHistory());
   const [simulationExpandedParents, setSimulationExpandedParents] = useState<Set<string>>(new Set());
   const [simulationExpansionTouched, setSimulationExpansionTouched] = useState(false);
+  const [matrixSearch, setMatrixSearch] = useState('');
+  const [matrixPlatform, setMatrixPlatform] = useState('');
+  const [showOnlyRunnable, setShowOnlyRunnable] = useState(false);
 
   const catalogQuery = useQuery({ queryKey: ['simulation-catalog'], queryFn: simulationApi.catalog });
   const targetsQuery = useQuery({ queryKey: ['simulation-targets'], queryFn: simulationApi.targets });
   const aiScenariosQuery = useQuery({ queryKey: ['simulation-ai-assistant-scenarios'], queryFn: simulationApi.aiAssistantScenarios });
   const siemHistoryQuery = useQuery({ queryKey: ['simulation-siem-destinations'], queryFn: simulationApi.siemDestinations, retry: false });
+  const attackFlowsQuery = useQuery({ queryKey: ['simulation-attack-flows'], queryFn: simulationApi.attackFlows, retry: false });
   const matrixData = useAttackMatrix(domain, version);
-  const catalog = catalogQuery.data ?? [];
-  const targets = targetsQuery.data ?? [];
-  const aiScenarios = aiScenariosQuery.data ?? [];
+  const catalog = useMemo(() => catalogQuery.data ?? [], [catalogQuery.data]);
+  const targets = useMemo(() => targetsQuery.data ?? [], [targetsQuery.data]);
+  const aiScenarios = useMemo(() => aiScenariosQuery.data ?? [], [aiScenariosQuery.data]);
   const selectedSimulation = catalog.find(item => item.id === simulationId);
   const selectedTarget = targets.find(item => item.id === targetId);
   const simulationByTechnique = useMemo(() => {
@@ -113,6 +119,36 @@ export function AttackSimulation() {
     }
     return parents;
   }, [matrixData.subtechsByParent, simulationTechniqueIds]);
+  const availableMatrixPlatforms = useMemo(() => {
+    const platforms = new Set<string>();
+    for (const techs of matrixData.techniquesByTactic.values()) {
+      techs.forEach(tech => tech.platforms.forEach(platform => platforms.add(platform)));
+    }
+    return Array.from(platforms).sort();
+  }, [matrixData.techniquesByTactic]);
+  const filteredSimulationMatrix = useMemo(() => {
+    const term = matrixSearch.trim().toLowerCase();
+    if (!term && !matrixPlatform && !showOnlyRunnable) return matrixData.techniquesByTactic;
+
+    const result = new Map<string, TechniqueListItem[]>();
+    for (const [tactic, techs] of matrixData.techniquesByTactic) {
+      let filtered = techs;
+      if (term) {
+        filtered = filtered.filter(tech =>
+          tech.attack_id.toLowerCase().includes(term) || tech.name.toLowerCase().includes(term),
+        );
+      }
+      if (matrixPlatform) filtered = filtered.filter(tech => tech.platforms.includes(matrixPlatform));
+      if (showOnlyRunnable) {
+        filtered = filtered.filter(tech =>
+          simulationTechniqueIds.has(tech.attack_id) ||
+          (matrixData.subtechsByParent.get(tech.attack_id) ?? []).some(sub => simulationTechniqueIds.has(sub.attack_id)),
+        );
+      }
+      result.set(tactic, filtered);
+    }
+    return result;
+  }, [matrixData.techniquesByTactic, matrixData.subtechsByParent, matrixPlatform, matrixSearch, showOnlyRunnable, simulationTechniqueIds]);
 
   useEffect(() => {
     if (simulationExpansionTouched) return;
@@ -316,7 +352,29 @@ export function AttackSimulation() {
       setShowAllLiveLogs(false);
       setLiveLogsEnabled(true);
       qc.invalidateQueries({ queryKey: ['simulation-siem-destinations'] });
+      qc.invalidateQueries({ queryKey: ['simulation-attack-flows'] });
       qc.invalidateQueries({ queryKey: ['attack-simulation-live-logs'] });
+    },
+  });
+  const resendAttackFlowMutation = useMutation({
+    mutationFn: (flowId: string) => simulationApi.resendAttackFlow(flowId, {
+      destination_url: normalizeSiemDestination(siemUrl),
+      auth_type: siemAuthType,
+      username: siemUsername,
+      password: siemPassword,
+      token: siemToken,
+      header_name: siemHeaderName,
+      connection_mode: siemConnectionMode,
+      allow_http_fallback: allowHttpFallback,
+      payload_format: siemPayloadFormat,
+    }),
+    onSuccess: next => {
+      setFollowRunId(next.flow.run_id);
+      setLiveLogSource('endpoint');
+      setShowAllLiveLogs(false);
+      setLiveLogsEnabled(true);
+      qc.invalidateQueries({ queryKey: ['simulation-attack-flows'] });
+      qc.invalidateQueries({ queryKey: ['simulation-siem-destinations'] });
     },
   });
   const clearSiemDestinationsMutation = useMutation({
@@ -389,6 +447,7 @@ export function AttackSimulation() {
   });
 
   if (!routeSimulationId) {
+    const expandedParentCount = [...simulationExpandedParents].filter(id => matrixData.parentsWithSubs.has(id)).length;
     return (
       <div className="flex h-full flex-col">
         <Header title="Attack Simulation" />
@@ -401,38 +460,6 @@ export function AttackSimulation() {
                   Green cells have an available Attack Simulation scenario. Click a green cell to configure the target and run the attack flow.
                 </p>
               </div>
-              <div className="rounded border border-green-900 bg-green-950/30 px-3 py-2 text-xs text-green-200">
-                {simulationTechniqueIds.size} simulation TTPs
-              </div>
-              <div className="flex flex-wrap gap-2 text-xs">
-                <button
-                  type="button"
-                  onClick={() => expandSimulationParents(matrixData.parentsWithSubs)}
-                  className="secondary-action"
-                  disabled={!matrixData.parentsWithSubs.size}
-                  title="Expand every technique group with sub-techniques"
-                >
-                  Extend all
-                </button>
-                <button
-                  type="button"
-                  onClick={() => expandSimulationParents(runnableSubtechParents)}
-                  className="secondary-action"
-                  disabled={!runnableSubtechParents.size}
-                  title="Expand only parent techniques that contain runnable simulation sub-techniques"
-                >
-                  Extend runnable
-                </button>
-                <button
-                  type="button"
-                  onClick={collapseSimulationParents}
-                  className="secondary-action"
-                  disabled={!simulationExpandedParents.size}
-                  title="Minimize all sub-technique groups"
-                >
-                  Minimize all
-                </button>
-              </div>
               <button
                 type="button"
                 disabled={!catalog.length}
@@ -443,12 +470,90 @@ export function AttackSimulation() {
               </button>
             </div>
           </section>
+          <div className="flex shrink-0 items-center gap-3 overflow-x-auto border-b border-gray-700 bg-gray-900 px-4 py-2 text-xs">
+            <div className="flex shrink-0 items-center gap-1.5">
+              <span className="h-3 w-3 rounded-sm border border-green-500 bg-green-900" />
+              <span className="text-gray-400">Attack Simulation available</span>
+              <span className="text-gray-500">({simulationTechniqueIds.size})</span>
+            </div>
+            <div className="h-4 w-px shrink-0 bg-gray-700" />
+            <button
+              type="button"
+              onClick={() => expandSimulationParents(matrixData.parentsWithSubs)}
+              className="shrink-0 text-gray-400 transition-colors hover:text-white disabled:text-gray-700"
+              disabled={!matrixData.parentsWithSubs.size}
+              title="Expand every technique group with sub-techniques"
+            >
+              Extend all sub-techniques
+            </button>
+            <button
+              type="button"
+              onClick={() => expandSimulationParents(runnableSubtechParents)}
+              className="shrink-0 text-green-300 transition-colors hover:text-white disabled:text-gray-700"
+              disabled={!runnableSubtechParents.size}
+              title="Expand only parent techniques that contain runnable simulation sub-techniques"
+            >
+              Extend runnable
+            </button>
+            {expandedParentCount > 0 && (
+              <button
+                type="button"
+                onClick={collapseSimulationParents}
+                className="shrink-0 text-gray-400 transition-colors hover:text-white"
+                title="Minimize all sub-technique groups"
+              >
+                Minimize all ({expandedParentCount}/{matrixData.parentsWithSubs.size})
+              </button>
+            )}
+            <div className="ml-auto shrink-0 text-gray-600">Click green cells to configure a simulation</div>
+          </div>
+          <div className="flex shrink-0 items-center gap-2 border-b border-gray-800 bg-gray-900/80 px-4 py-1.5 text-xs">
+            <input
+              type="text"
+              value={matrixSearch}
+              onChange={event => setMatrixSearch(event.target.value)}
+              placeholder="Search techniques... (name or ID)"
+              className="w-56 rounded border border-gray-700 bg-gray-800 px-3 py-1.5 text-xs text-gray-300 outline-none placeholder-gray-600 focus:border-mitre-accent"
+            />
+            {availableMatrixPlatforms.length > 0 && (
+              <select
+                value={matrixPlatform}
+                onChange={event => setMatrixPlatform(event.target.value)}
+                className="rounded border border-gray-700 bg-gray-800 px-2 py-1.5 text-xs text-gray-300 outline-none focus:border-mitre-accent"
+              >
+                <option value="">All platforms</option>
+                {availableMatrixPlatforms.map(platform => <option key={platform} value={platform}>{platform}</option>)}
+              </select>
+            )}
+            <button
+              type="button"
+              onClick={() => setShowOnlyRunnable(value => !value)}
+              className={`rounded border px-2.5 py-1 transition-colors ${
+                showOnlyRunnable ? 'border-green-700/60 bg-green-900/30 text-green-300' : 'border-gray-700 text-gray-500 hover:text-gray-300'
+              }`}
+            >
+              Runnable only
+            </button>
+            {(matrixSearch || matrixPlatform || showOnlyRunnable) && (
+              <button
+                type="button"
+                onClick={() => {
+                  setMatrixSearch('');
+                  setMatrixPlatform('');
+                  setShowOnlyRunnable(false);
+                }}
+                className="ml-1 text-gray-500 transition-colors hover:text-gray-300"
+              >
+                Clear filters
+              </button>
+            )}
+          </div>
           <div className="min-h-0 flex-1">
             {matrixData.isLoading && <div className="p-6 text-sm text-gray-400">Loading ATT&amp;CK matrix...</div>}
             {!matrixData.isLoading && (
               <AttackMatrix
                 tactics={matrixData.tactics}
-                techniquesByTactic={matrixData.techniquesByTactic}
+                techniquesByTactic={filteredSimulationMatrix}
                 subtechsByParent={matrixData.subtechsByParent}
                 parentsWithSubs={matrixData.parentsWithSubs}
                 selectedTechniques={new Set()}
@@ -635,6 +740,12 @@ export function AttackSimulation() {
               scenarioId={aiAssistantScenarioId}
               destinationUrl={siemUrl}
               payloadFormat={aiAssistantComplicated ? 'raw_lines' : (siemPayloadFormat === 'raw_lines' ? 'per_event' : siemPayloadFormat)}
+              history={attackFlowsQuery.data ?? []}
+              historyLoading={attackFlowsQuery.isLoading}
+              resendResult={resendAttackFlowMutation.data}
+              resendError={resendAttackFlowMutation.error}
+              resendingFlowId={resendAttackFlowMutation.variables}
+              isResending={resendAttackFlowMutation.isPending}
               result={aiAssistantMutation.data}
               error={aiAssistantMutation.error}
               isPending={aiAssistantMutation.isPending}
@@ -646,6 +757,7 @@ export function AttackSimulation() {
               onGoalChange={setAiAssistantGoal}
               onScenarioChange={setAiAssistantScenarioId}
               onRun={() => aiAssistantMutation.mutate()}
+              onResend={(flowId) => resendAttackFlowMutation.mutate(flowId)}
             />
           </div>
 
@@ -968,6 +1080,12 @@ function AiAttackAssistant({
   scenarioId,
   destinationUrl,
   payloadFormat,
+  history,
+  historyLoading,
+  resendResult,
+  resendError,
+  resendingFlowId,
+  isResending,
   result,
   error,
   isPending,
@@ -979,6 +1097,7 @@ function AiAttackAssistant({
   onGoalChange,
   onScenarioChange,
   onRun,
+  onResend,
 }: {
   mode: AiAssistantMode;
   aiProvider: AiProvider;
@@ -990,6 +1109,12 @@ function AiAttackAssistant({
   scenarioId: string;
   destinationUrl: string;
   payloadFormat: SiemPayloadFormat;
+  history: AttackSimulationAttackFlow[];
+  historyLoading: boolean;
+  resendResult?: { flow: AttackSimulationAttackFlow; delivery: AttackSimulationForwardResult };
+  resendError: unknown;
+  resendingFlowId?: string;
+  isResending: boolean;
   result?: AttackSimulationAiAssistantResult;
   error: unknown;
   isPending: boolean;
@@ -1001,6 +1126,7 @@ function AiAttackAssistant({
   onGoalChange: (value: string) => void;
   onScenarioChange: (value: string) => void;
   onRun: () => void;
+  onResend: (flowId: string) => void;
 }) {
   const selectedTtps = parseTechniqueInput(ttps);
   const canRun = Boolean(destinationUrl.trim()) && (mode !== 'ttps' || selectedTtps.length > 0);
@@ -1107,6 +1233,16 @@ function AiAttackAssistant({
             {isPending ? 'Generating and sending...' : 'Generate and send AI attack telemetry'}
           </button>
           {Boolean(error) && <div className="rounded border border-red-900 bg-red-950/30 p-3 text-xs text-red-300">{String(error)}</div>}
+          <AttackFlowHistory
+            flows={history}
+            loading={historyLoading}
+            canResend={Boolean(destinationUrl.trim())}
+            result={resendResult}
+            error={resendError}
+            resendingFlowId={resendingFlowId}
+            isResending={isResending}
+            onResend={onResend}
+          />
         </div>
         <div className="space-y-3">
           {!result && (
@@ -1163,7 +1299,99 @@ function AiAttackAssistant({
   );
 }
 
+function AttackFlowHistory({
+  flows,
+  loading,
+  canResend,
+  result,
+  error,
+  resendingFlowId,
+  isResending,
+  onResend,
+}: {
+  flows: AttackSimulationAttackFlow[];
+  loading: boolean;
+  canResend: boolean;
+  result?: { flow: AttackSimulationAttackFlow; delivery: AttackSimulationForwardResult };
+  error: unknown;
+  resendingFlowId?: string;
+  isResending: boolean;
+  onResend: (flowId: string) => void;
+}) {
+  return (
+    <div className="rounded border border-gray-800 bg-gray-950 p-3">
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <div className="text-xs font-semibold uppercase tracking-wide text-gray-400">Previous Attack Flows</div>
+          <div className="mt-1 text-[11px] text-gray-600">Last {Math.min(flows.length, 20)} saved flows. Resend uses the current SIEM destination and auth fields.</div>
+        </div>
+        <span className="rounded bg-gray-900 px-2 py-1 text-[10px] text-gray-500">{flows.length}/20</span>
+      </div>
+      {result && (
+        <div className={`mb-2 rounded border p-2 text-xs ${result.delivery.ok ? 'border-green-900 bg-green-950/20 text-green-200' : 'border-red-900 bg-red-950/30 text-red-200'}`}>
+          <b>{result.delivery.ok ? 'Resent' : 'Resend failed'} · HTTP {result.delivery.status}</b>
+          <span className="ml-2">{result.delivery.sent_event_count} / {result.delivery.event_count} events · {shortRun(result.flow.run_id)}</span>
+          {result.delivery.error && <div className="mt-1">{result.delivery.error}</div>}
+        </div>
+      )}
+      {Boolean(error) && <div className="mb-2 rounded border border-red-900 bg-red-950/30 p-2 text-xs text-red-300">{String(error)}</div>}
+      {loading && <div className="rounded border border-gray-800 bg-gray-900/50 p-3 text-xs text-gray-500">Loading saved flows...</div>}
+      {!loading && !flows.length && (
+        <div className="rounded border border-gray-800 bg-gray-900/50 p-3 text-xs leading-5 text-gray-500">
+          No saved AI attack flows yet. Generate one attack telemetry flow and it will be kept here for replay.
+        </div>
+      )}
+      <div className="max-h-[360px] space-y-2 overflow-y-auto pr-1">
+        {flows.map(flow => (
+          <details key={flow.id} className="rounded border border-gray-800 bg-gray-900/60 p-2 text-xs text-gray-300">
+            <summary className="cursor-pointer list-none">
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <div className="truncate font-semibold text-white" title={flow.summary}>{flow.summary || flow.scenario_name || flow.actor_profile || flow.run_id}</div>
+                  <div className="mt-1 font-mono text-[10px] text-gray-500">
+                    {shortRun(flow.run_id)} · {flow.event_count} events · {flow.mode} · {flow.complicated_attack ? 'complicated' : 'standard'}
+                  </div>
+                </div>
+                <span className={`rounded px-2 py-1 text-[10px] ${flow.last_delivery_ok ? 'bg-green-950 text-green-300' : 'bg-red-950 text-red-300'}`}>
+                  HTTP {flow.last_delivery_status || 0}
+                </span>
+              </div>
+            </summary>
+            <div className="mt-2 space-y-2 border-t border-gray-800 pt-2">
+              <div className="grid gap-2">
+                <Mini label="Created" value={formatLogTime(flow.created_at)} />
+                <Mini label="Provider" value={`${flow.ai_provider}${flow.ai_model ? ` / ${flow.ai_model}` : ''}${flow.ai_used ? ' / AI used' : ' / fallback'}`} />
+                <Mini label="Scenario" value={flow.scenario_name || flow.actor_profile || '-'} />
+                <Mini label="Run" value={flow.run_id} />
+              </div>
+              <div className="flex flex-wrap gap-1">
+                {flow.technique_ids.slice(0, 10).map(id => <Chip key={`${flow.id}-${id}`}>{id}</Chip>)}
+                {flow.technique_ids.length > 10 && <Chip>+{flow.technique_ids.length - 10}</Chip>}
+              </div>
+              {flow.last_delivery_error && (
+                <div className="rounded border border-red-900 bg-red-950/20 p-2 text-[11px] text-red-200">
+                  {flow.last_delivery_error}
+                </div>
+              )}
+              <button
+                type="button"
+                disabled={!canResend || (isResending && resendingFlowId === flow.id)}
+                onClick={() => onResend(flow.id)}
+                className="primary-action w-full disabled:opacity-40"
+                title={canResend ? 'Resend this saved event flow to the current SIEM destination' : 'Set SIEM destination first'}
+              >
+                {isResending && resendingFlowId === flow.id ? 'Resending...' : 'Resend this flow'}
+              </button>
+            </div>
+          </details>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function AttackChainGraph({ result }: { result: AttackSimulationAiAssistantResult }) {
+  const [expandedSteps, setExpandedSteps] = useState<Set<string>>(new Set());
   const graphNodes = useMemo<Node[]>(() => result.attack_plan.kill_chain.map((step, index) => ({
     id: `${step.step}-${step.technique_id}`,
     position: { x: index * 230, y: 60 + (index % 2) * 80 },
@@ -1183,46 +1411,168 @@ function AttackChainGraph({ result }: { result: AttackSimulationAiAssistantResul
     target: `${result.attack_plan.kill_chain[index + 1].step}-${result.attack_plan.kill_chain[index + 1].technique_id}`,
     style: { stroke: '#64748b' },
   })), [result.attack_plan.kill_chain]);
+  const eventsByStep = useMemo(() => {
+    const map = new Map<string, Record<string, unknown>[]>();
+    for (const step of result.attack_plan.kill_chain) {
+      const key = attackStepKey(step);
+      const stage = step.flow_stage || 'activity';
+      map.set(key, result.events.filter(event =>
+        String(event.technique_id || '') === step.technique_id &&
+        String(event.flow_stage || 'activity') === stage &&
+        (!step.event_source || String(event.provider || event.event_source || '') === step.event_source) &&
+        (!step.event_id || String(event.event_id || '') === step.event_id),
+      ));
+    }
+    return map;
+  }, [result.attack_plan.kill_chain, result.events]);
+  const allExpanded = expandedSteps.size === result.attack_plan.kill_chain.length;
+  const toggleStep = (key: string) => {
+    setExpandedSteps(prev => {
+      const next = new Set(prev);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
+    });
+  };
   return (
     <div className="mb-3 rounded border border-gray-800 bg-gray-950 p-3">
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
         <div className="text-xs font-semibold uppercase text-gray-400">Attack Chain Graph</div>
-        <div className="text-[11px] text-gray-500">{result.attack_plan.kill_chain.length} phases · {result.events.length} events</div>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="text-[11px] text-gray-500">{result.attack_plan.kill_chain.length} phases · {result.events.length} events</div>
+          <button
+            type="button"
+            onClick={() => setExpandedSteps(allExpanded ? new Set() : new Set(result.attack_plan.kill_chain.map(attackStepKey)))}
+            className="secondary-action"
+          >
+            {allExpanded ? 'Collapse all steps' : 'Expand all steps'}
+          </button>
+        </div>
       </div>
-      <div className="mb-3 h-[320px]">
-        <EntityGraph nodes={graphNodes} edges={graphEdges} />
+      <div className="mb-3 h-[300px] min-h-0">
+        <EntityGraph nodes={graphNodes} edges={graphEdges} compact />
       </div>
       <div className="space-y-0">
-        {result.attack_plan.kill_chain.map((step, index) => (
-          <div key={`graph-${step.step}-${step.technique_id}`} className="grid grid-cols-[32px_minmax(0,1fr)] gap-3">
-            <div className="flex flex-col items-center">
-              <div className="flex h-7 w-7 items-center justify-center rounded-full border border-mitre-accent bg-gray-900 text-[10px] font-semibold text-mitre-accent">
-                {step.step}
-              </div>
-              {index < result.attack_plan.kill_chain.length - 1 && <div className="min-h-8 flex-1 border-l border-gray-700" />}
-            </div>
-            <div className={`mb-2 rounded border border-gray-800 bg-gray-900/70 p-3 ${index === result.attack_plan.kill_chain.length - 1 ? 'mb-0' : ''}`}>
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-sm font-semibold text-mitre-accent"><TtpLink id={step.technique_id} /></span>
-                  <span className="rounded bg-gray-950 px-2 py-0.5 text-[10px] uppercase text-gray-400">{humanizePhase(step.flow_stage || 'activity')}</span>
+        {result.attack_plan.kill_chain.map((step, index) => {
+          const key = attackStepKey(step);
+          const expanded = expandedSteps.has(key);
+          const stepEvents = eventsByStep.get(key) ?? [];
+          return (
+            <div key={`graph-${key}`} className="grid grid-cols-[32px_minmax(0,1fr)] gap-3">
+              <div className="flex flex-col items-center">
+                <div className="flex h-7 w-7 items-center justify-center rounded-full border border-mitre-accent bg-gray-900 text-[10px] font-semibold text-mitre-accent">
+                  {step.step}
                 </div>
-                <span className="font-mono text-[11px] text-gray-500">{step.event_count ?? 1} events</span>
+                {index < result.attack_plan.kill_chain.length - 1 && <div className="min-h-8 flex-1 border-l border-gray-700" />}
               </div>
-              <div className="mt-2 text-xs leading-5 text-gray-300">{step.detection_goal}</div>
-              <div className="mt-2 grid gap-2 md:grid-cols-2">
-                <Mini label="Telemetry source" value={`${step.event_source} · ${step.event_id}`} />
-                <Mini label="Raw format" value={step.source_format || 'normalized_json'} />
-              </div>
-              <div className="mt-2 flex flex-wrap gap-1">
-                {step.focus.map(item => <Chip key={`graph-${step.step}-${item}`}>{item}</Chip>)}
+              <div className={`mb-2 rounded border border-gray-800 bg-gray-900/70 p-3 ${index === result.attack_plan.kill_chain.length - 1 ? 'mb-0' : ''}`}>
+                <div className="flex w-full flex-wrap items-center justify-between gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-sm font-semibold text-mitre-accent"><TtpLink id={step.technique_id} /></span>
+                    <span className="rounded bg-gray-950 px-2 py-0.5 text-[10px] uppercase text-gray-400">{humanizePhase(step.flow_stage || 'activity')}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => toggleStep(key)}
+                    className="flex items-center gap-2 rounded border border-gray-700 px-2 py-1 font-mono text-[11px] text-gray-500 transition-colors hover:border-gray-500 hover:text-gray-200"
+                    aria-expanded={expanded}
+                  >
+                    {stepEvents.length || step.event_count || 1} events
+                    <span className="text-[10px] text-gray-400">{expanded ? 'Hide' : 'Show'}</span>
+                  </button>
+                </div>
+                <div className="mt-2 text-xs leading-5 text-gray-300">{step.detection_goal}</div>
+                <div className="mt-2 grid gap-2 md:grid-cols-2">
+                  <Mini label="Telemetry source" value={`${step.event_source} · ${step.event_id}`} />
+                  <Mini label="Raw format" value={step.source_format || 'normalized_json'} />
+                </div>
+                <div className="mt-2 flex flex-wrap gap-1">
+                  {step.focus.map(item => <Chip key={`graph-${step.step}-${item}`}>{item}</Chip>)}
+                </div>
+                {expanded && (
+                  <div className="mt-3 border-t border-gray-800 pt-3">
+                    <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                      <div className="text-[11px] font-semibold uppercase text-gray-500">Step Events</div>
+                      <div className="font-mono text-[10px] text-gray-600">matched {stepEvents.length} of {result.events.length}</div>
+                    </div>
+                    {stepEvents.length ? (
+                      <div className="max-h-[420px] space-y-2 overflow-y-auto pr-1">
+                        {stepEvents.map((event, eventIndex) => (
+                          <AttackStepEvent
+                            key={`${key}-event-${eventIndex}`}
+                            event={event}
+                            index={eventIndex}
+                          />
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="rounded border border-amber-900 bg-amber-950/20 p-2 text-xs text-amber-100">
+                        No exact event records matched this step. Check the full generated event list by run ID in the SIEM or delivery log.
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
+}
+
+type AttackPlanStep = AttackSimulationAiAssistantResult['attack_plan']['kill_chain'][number];
+
+function attackStepKey(step: AttackPlanStep) {
+  return `${step.step}-${step.technique_id}-${step.flow_stage || 'activity'}-${step.event_source}-${step.event_id}`;
+}
+
+function AttackStepEvent({ event, index }: { event: Record<string, unknown>; index: number }) {
+  const raw = firstString(event, ['raw_line', 'raw', 'message', 'event_original']);
+  const timestamp = firstString(event, ['timestamp', '@timestamp', 'time', 'event_time']);
+  const host = firstString(event, ['host', 'hostname', 'computer', 'Computer', 'dest_host', 'src_host']);
+  const user = firstString(event, ['user', 'username', 'account', 'SubjectUserName', 'TargetUserName']);
+  const process = firstString(event, ['process', 'process_name', 'Image', 'CommandLine', 'command_line']);
+  const source = firstString(event, ['provider', 'event_source', 'source']);
+  const eventId = firstString(event, ['event_id', 'EventID', 'event.code']);
+  const jsonPreview = JSON.stringify(event, null, 2);
+  return (
+    <details className="rounded border border-gray-800 bg-gray-950 p-2 text-xs text-gray-300">
+      <summary className="cursor-pointer list-none">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="rounded bg-gray-900 px-1.5 py-0.5 font-mono text-[10px] text-gray-500">#{index + 1}</span>
+            <span className="font-semibold text-gray-100">{firstString(event, ['rule_name', 'name', 'event_type']) || 'Telemetry event'}</span>
+          </div>
+          <span className="font-mono text-[10px] text-gray-500">{source || 'source'} · {eventId || 'event'}</span>
+        </div>
+      </summary>
+      <div className="mt-2 grid gap-2 md:grid-cols-3">
+        <Mini label="Time" value={timestamp || '-'} />
+        <Mini label="Host" value={host || '-'} />
+        <Mini label="User" value={user || '-'} />
+        <Mini label="Process / command" value={process || '-'} />
+        <Mini label="Technique" value={firstString(event, ['technique_id']) || '-'} />
+        <Mini label="Stage" value={firstString(event, ['flow_stage']) || '-'} />
+      </div>
+      {raw && (
+        <pre className="mt-2 max-h-32 overflow-auto rounded border border-gray-800 bg-black p-2 font-mono text-[11px] leading-5 text-gray-300 whitespace-pre-wrap">
+          {raw}
+        </pre>
+      )}
+      <pre className="mt-2 max-h-56 overflow-auto rounded border border-gray-800 bg-black p-2 font-mono text-[10px] leading-4 text-gray-500">
+        {jsonPreview}
+      </pre>
+    </details>
+  );
+}
+
+function firstString(event: Record<string, unknown>, keys: string[]) {
+  for (const key of keys) {
+    const value = event[key];
+    if (typeof value === 'string' && value.trim()) return value;
+    if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  }
+  return '';
 }
 
 function AttackExplanation({ result }: { result: AttackSimulationAiAssistantResult }) {
