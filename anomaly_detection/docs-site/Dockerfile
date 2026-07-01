@@ -1,6 +1,6 @@
 FROM node:20-alpine
 
-RUN apk add --no-cache git rsync
+RUN apk upgrade --no-cache && apk add --no-cache git rsync
 
 WORKDIR /seed
 COPY anomaly_detection/docs-site/package.json anomaly_detection/docs-site/package-lock.json ./

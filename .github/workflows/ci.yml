@@ -169,6 +169,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Validate Compose config
+        env:
+          DB_PASS: ci_test_password
+          REDIS_PASSWORD: ci_redis_password
+          AUTH_ENABLED: "false"
+          AUTO_IOC_FULL_SYNC_ON_STARTUP: "false"
+          ATTCK_DOMAINS: enterprise-attack
         run: |
           docker compose config --quiet
           docker compose -f docker-compose.yml -f docker-compose.dev.yml config --quiet

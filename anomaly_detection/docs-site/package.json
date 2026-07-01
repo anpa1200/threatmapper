@@ -18,6 +18,9 @@
     "react": "latest",
     "react-dom": "latest"
   },
+  "overrides": {
+    "serialize-javascript": "^7.0.7"
+  },
   "devDependencies": {},
   "browserslist": {
     "production": [">0.5%", "not dead", "not op_mini all"],
