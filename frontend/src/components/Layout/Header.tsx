@@ -1,4 +1,5 @@
 import { useAppStore } from '@/store';
+import { ModuleHelpButton } from '@/components/ModuleHelpButton';
 import type { Domain } from '@/types/attack';
 import { DOMAIN_LABELS } from '@/types/attack';
 
@@ -12,6 +13,8 @@ export function Header({ title }: { title: string }) {
       <h1 className="text-base font-semibold text-white">{title}</h1>
 
       <div className="flex items-center gap-4">
+        <ModuleHelpButton title={title} />
+
         {/* Domain picker */}
         <div className="flex gap-1 bg-gray-800 rounded-lg p-1">
           {DOMAINS.map((d) => (

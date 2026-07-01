@@ -33,6 +33,7 @@ const nav = [
   { to: '/observability', label: 'Observability', icon: '◌' },
   { to: '/admin',         label: 'Admin Panel', icon: '⚙' },
   { to: '/examples',      label: 'DFIR Examples', icon: '▦' },
+  { to: '/help',          label: 'Help / Local Guide', icon: '?' },
   { to: '/troubleshooting', label: 'Troubleshooting', icon: '!' },
 ];
 
