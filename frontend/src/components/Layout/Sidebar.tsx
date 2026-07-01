@@ -57,7 +57,7 @@ export function Sidebar() {
   const hasUpdate = syncStatus?.any_updates_needed ?? false;
 
   return (
-    <aside className="flex h-screen min-h-0 w-56 shrink-0 flex-col overflow-hidden border-r border-gray-700 bg-mitre-navy">
+    <aside className="app-sidebar flex min-h-0 w-56 shrink-0 flex-col overflow-hidden border-r border-gray-700 bg-mitre-navy">
       {/* Logo */}
       <div className="shrink-0 border-b border-gray-700 px-5 py-5">
         <div className="flex items-center gap-2">

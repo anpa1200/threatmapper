@@ -38,7 +38,19 @@
 .field {
   @apply w-full rounded border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-gray-200 outline-none focus:border-mitre-accent;
 }
-.app-route-scroll > * {
+.app-shell {
+  height: 100vh;
+  height: 100dvh;
+}
+.app-sidebar {
+  height: 100vh;
+  height: 100dvh;
+}
+.app-route-scroll {
+  height: 100vh;
+  height: 100dvh;
+}
+.app-route-content {
   min-width: 0;
   flex: 1 1 auto;
 }

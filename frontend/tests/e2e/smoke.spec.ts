@@ -21,13 +21,15 @@ test('discover workspace renders with mocked platform health', async ({ page }) 
   await expect(page.getByText('Attack Simulation').first()).toBeVisible();
   await expect(page.getByText('CVE Library').first()).toBeVisible();
 
-  await expect(page.getByTestId('app-route-scroll')).toBeVisible();
+  const routeScroll = page.getByTestId('app-route-scroll');
+  await expect(routeScroll).toBeVisible();
+  await expect.poll(async () => routeScroll.evaluate(node => node.scrollHeight > node.clientHeight)).toBeTruthy();
 
   const discoverScroll = page.getByTestId('discover-scroll-region');
   await expect(discoverScroll).toBeVisible();
-  await expect.poll(async () => discoverScroll.evaluate(node => node.scrollHeight > node.clientHeight)).toBeTruthy();
-  await discoverScroll.evaluate(node => { node.scrollTop = node.scrollHeight; });
-  await expect.poll(async () => discoverScroll.evaluate(node => node.scrollTop > 0)).toBeTruthy();
+  await routeScroll.evaluate(node => { node.scrollTop = node.scrollHeight; });
+  await expect.poll(async () => routeScroll.evaluate(node => node.scrollTop > 0)).toBeTruthy();
+  await expect(page.getByText('Recent public intelligence')).toBeVisible();
 
   const sidebarScroll = page.getByTestId('sidebar-primary-nav');
   await expect(sidebarScroll).toBeVisible();
