@@ -18,7 +18,11 @@ spec:
         app.kubernetes.io/component: worker
     spec:
       securityContext:
+        runAsUser: 999
+        runAsGroup: 999
         runAsNonRoot: true
+        fsGroup: 999
+        fsGroupChangePolicy: OnRootMismatch
         seccompProfile:
           type: RuntimeDefault
       containers:
@@ -69,7 +73,11 @@ spec:
         app.kubernetes.io/component: beat
     spec:
       securityContext:
+        runAsUser: 999
+        runAsGroup: 999
         runAsNonRoot: true
+        fsGroup: 999
+        fsGroupChangePolicy: OnRootMismatch
         seccompProfile:
           type: RuntimeDefault
       containers:

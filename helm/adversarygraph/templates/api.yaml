@@ -18,7 +18,11 @@ spec:
         app.kubernetes.io/component: api
     spec:
       securityContext:
+        runAsUser: 999
+        runAsGroup: 999
         runAsNonRoot: true
+        fsGroup: 999
+        fsGroupChangePolicy: OnRootMismatch
         seccompProfile:
           type: RuntimeDefault
       containers:

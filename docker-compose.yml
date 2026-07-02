@@ -213,6 +213,14 @@ services:
       timeout: 5s
       retries: 5
 
+  attck-data-permissions:
+    image: busybox:1.36
+    command: sh -c "mkdir -p /app/data/attck && chown -R 999:999 /app/data/attck && chmod -R u+rwX,g+rwX /app/data/attck"
+    user: "0:0"
+    volumes:
+      - attck_data:/app/data/attck
+    restart: "no"
+
   api:
     build:
       context: ./backend
@@ -299,6 +307,8 @@ services:
         condition: service_healthy
       attack-lab-endpoint:
         condition: service_healthy
+      attck-data-permissions:
+        condition: service_completed_successfully
     networks:
       - default
       - malwaregraph_internal
@@ -361,8 +371,12 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
-      - redis
-      - postgres
+      redis:
+        condition: service_started
+      postgres:
+        condition: service_started
+      attck-data-permissions:
+        condition: service_completed_successfully
     deploy:
       resources:
         limits:
@@ -408,8 +422,12 @@ services:
       AUTH_BOOTSTRAP_ADMIN_USERNAME: ${AUTH_BOOTSTRAP_ADMIN_USERNAME:-admin}
       AUTH_BOOTSTRAP_ADMIN_PASSWORD: ${AUTH_BOOTSTRAP_ADMIN_PASSWORD:-}
     depends_on:
-      - redis
-      - postgres
+      redis:
+        condition: service_started
+      postgres:
+        condition: service_started
+      attck-data-permissions:
+        condition: service_completed_successfully
     deploy:
       resources:
         limits:
