@@ -66,6 +66,7 @@ async def _count(session: AsyncSession, statement: Any) -> int:
         value = await session.scalar(statement)
         return int(value or 0)
     except Exception:
+        await session.rollback()
         return 0
 
 
@@ -74,6 +75,7 @@ async def _rows(session: AsyncSession, sql: str, params: dict[str, Any] | None =
         result = await session.execute(text(sql), params or {})
         return [dict(row) for row in result.mappings().all()]
     except Exception:
+        await session.rollback()
         return []
 
 
@@ -140,6 +142,78 @@ async def statistics_overview(
             kind="bar",
             points=[_point(row, category="category") for row in tactic_rows],
         ))
+        platform_rows = await _rows(
+            session,
+            """
+            SELECT platform AS id, platform AS label, COUNT(*)::int AS value
+            FROM techniques t,
+                 LATERAL jsonb_array_elements_text(t.platforms) AS platform
+            WHERE t.domain = :domain AND t.is_deprecated = false
+            GROUP BY platform
+            ORDER BY value DESC, platform ASC
+            LIMIT :limit
+            """,
+            {"domain": domain, "limit": limit},
+        )
+        widgets.append(StatWidget(
+            id="ttp-platform-tags",
+            title="TTP Platform Tags",
+            description="Technique tags by supported platform such as Windows, Linux, Network, Office, or cloud services.",
+            dataset="ttps",
+            kind="bar",
+            points=[_point(row, id="id") for row in platform_rows],
+        ))
+        datasource_rows = await _rows(
+            session,
+            """
+            SELECT tag AS id, tag AS label, COUNT(*)::int AS value
+            FROM (
+                SELECT COALESCE(NULLIF(split_part(ds.value, ':', 1), ''), 'no data source mapped') AS tag
+                FROM techniques t
+                LEFT JOIN LATERAL jsonb_array_elements_text(t.data_sources) AS ds(value) ON true
+                WHERE t.domain = :domain AND t.is_deprecated = false
+            ) tagged
+            GROUP BY tag
+            ORDER BY value DESC, tag ASC
+            LIMIT :limit
+            """,
+            {"domain": domain, "limit": limit},
+        )
+        widgets.append(StatWidget(
+            id="ttp-telemetry-source-tags",
+            title="TTP Telemetry Source Tags",
+            description="Technique tags by ATT&CK data-source family. Useful for telemetry-readiness planning.",
+            dataset="ttps",
+            kind="bar",
+            points=[_point(row, id="id") for row in datasource_rows],
+        ))
+        ttp_type_rows = await _rows(
+            session,
+            """
+            SELECT label, COUNT(*)::int AS value
+            FROM (
+                SELECT CASE
+                    WHEN is_deprecated THEN 'deprecated'
+                    WHEN is_subtechnique THEN 'sub-technique'
+                    WHEN parent_attack_id IS NOT NULL THEN 'child-technique'
+                    ELSE 'parent-technique'
+                END AS label
+                FROM techniques
+                WHERE domain = :domain
+            ) tagged
+            GROUP BY label
+            ORDER BY value DESC, label ASC
+            """,
+            {"domain": domain},
+        )
+        widgets.append(StatWidget(
+            id="ttp-type-tags",
+            title="TTP Type Tags",
+            description="Technique tags by parent/sub-technique/deprecated structure.",
+            dataset="ttps",
+            kind="pie",
+            points=[_point(row) for row in ttp_type_rows],
+        ))
 
     if "actors" in selected:
         actor_count = await _count(session, select(func.count()).select_from(AptGroup).where(AptGroup.domain == domain))
@@ -198,6 +272,99 @@ async def statistics_overview(
             kind="table",
             points=[_point(row, id="id", category="category") for row in technique_usage_rows],
         ))
+        actor_risk_rows = await _rows(
+            session,
+            """
+            WITH actor_usage AS (
+                SELECT g.id, COUNT(gt.technique_id) AS technique_count
+                FROM apt_groups g
+                LEFT JOIN apt_group_techniques gt ON gt.group_id = g.id
+                WHERE g.domain = :domain
+                GROUP BY g.id
+            )
+            SELECT CASE
+                    WHEN technique_count >= 50 THEN 'high-coverage actor'
+                    WHEN technique_count >= 20 THEN 'medium-coverage actor'
+                    WHEN technique_count > 0 THEN 'low-coverage actor'
+                    ELSE 'no mapped techniques'
+                   END AS label,
+                   COUNT(*)::int AS value
+            FROM actor_usage
+            GROUP BY label
+            ORDER BY value DESC, label ASC
+            """,
+            {"domain": domain},
+        )
+        widgets.append(StatWidget(
+            id="actor-risk-tags",
+            title="Actor Risk / Coverage Tags",
+            description="Actor tags derived from mapped technique breadth. This is coverage pressure, not attribution certainty.",
+            dataset="actors",
+            kind="pie",
+            points=[_point(row) for row in actor_risk_rows],
+        ))
+        actor_region_rows = await _rows(
+            session,
+            """
+            SELECT region AS label, COUNT(*)::int AS value
+            FROM (
+                SELECT CASE
+                    WHEN description ILIKE ANY (ARRAY['%iran%', '%middle east%', '%israel%', '%gulf%', '%lebanon%', '%saudi%', '%uae%']) THEN 'Middle East'
+                    WHEN description ILIKE ANY (ARRAY['%china%', '%korea%', '%japan%', '%taiwan%', '%vietnam%', '%india%', '%asia%']) THEN 'Asia-Pacific'
+                    WHEN description ILIKE ANY (ARRAY['%russia%', '%ukraine%', '%europe%', '%belarus%']) THEN 'Europe / Eurasia'
+                    WHEN description ILIKE ANY (ARRAY['%north america%', '%united states%', '%canada%', '%latin america%', '%mexico%', '%brazil%']) THEN 'Americas'
+                    WHEN description ILIKE ANY (ARRAY['%africa%', '%egypt%', '%morocco%']) THEN 'Africa'
+                    ELSE 'Unknown / global'
+                END AS region
+                FROM apt_groups
+                WHERE domain = :domain
+            ) tagged
+            GROUP BY region
+            ORDER BY value DESC, region ASC
+            LIMIT :limit
+            """,
+            {"domain": domain, "limit": limit},
+        )
+        widgets.append(StatWidget(
+            id="actor-region-tags",
+            title="Actor Region Tags",
+            description="Heuristic regional tags derived from ATT&CK group descriptions and aliases.",
+            dataset="actors",
+            kind="bar",
+            points=[_point(row) for row in actor_region_rows],
+        ))
+        actor_sector_rows = await _rows(
+            session,
+            """
+            SELECT sector AS label, COUNT(*)::int AS value
+            FROM (
+                SELECT unnest(ARRAY[
+                    CASE WHEN description ILIKE ANY (ARRAY['%government%', '%ministry%', '%diplomatic%', '%embassy%']) THEN 'government' END,
+                    CASE WHEN description ILIKE ANY (ARRAY['%defense%', '%military%', '%aerospace%']) THEN 'defense' END,
+                    CASE WHEN description ILIKE ANY (ARRAY['%energy%', '%oil%', '%gas%', '%electric%']) THEN 'energy' END,
+                    CASE WHEN description ILIKE ANY (ARRAY['%telecom%', '%telecommunications%']) THEN 'telecom' END,
+                    CASE WHEN description ILIKE ANY (ARRAY['%financial%', '%bank%', '%cryptocurrency%', '%crypto%']) THEN 'finance' END,
+                    CASE WHEN description ILIKE ANY (ARRAY['%health%', '%hospital%', '%pharma%']) THEN 'healthcare' END,
+                    CASE WHEN description ILIKE ANY (ARRAY['%technology%', '%software%', '%cloud%', '%it service%']) THEN 'technology' END
+                ]) AS sector
+                FROM apt_groups
+                WHERE domain = :domain
+            ) tagged
+            WHERE sector IS NOT NULL
+            GROUP BY sector
+            ORDER BY value DESC, sector ASC
+            LIMIT :limit
+            """,
+            {"domain": domain, "limit": limit},
+        )
+        widgets.append(StatWidget(
+            id="actor-sector-tags",
+            title="Actor Target-Sector Tags",
+            description="Heuristic sector tags derived from actor descriptions. Use as an exploration lead, not a source of truth.",
+            dataset="actors",
+            kind="bar",
+            points=[_point(row) for row in actor_sector_rows],
+        ))
 
     if "reports" in selected:
         report_count = await _count(session, select(func.count()).select_from(AnalysisSession))
@@ -215,7 +382,10 @@ async def statistics_overview(
             SELECT COALESCE(item->>'attack_id', item->>'technique_id', item->>'id', 'unknown') AS id,
                    COALESCE(NULLIF(item->>'name', ''), COALESCE(item->>'attack_id', item->>'technique_id', 'unknown')) AS label,
                    COUNT(*)::int AS value,
-                   ROUND(AVG(NULLIF(item->>'confidence', '')::numeric), 1)::text AS secondary
+                   ROUND(AVG(CASE
+                       WHEN item->>'confidence' ~ '^[0-9]+(\\.[0-9]+)?$' THEN (item->>'confidence')::numeric
+                       ELSE NULL
+                   END), 1)::text AS secondary
             FROM analysis_results ar,
                  LATERAL jsonb_array_elements(ar.extracted_techniques) AS item
             GROUP BY id, label
@@ -231,6 +401,55 @@ async def statistics_overview(
             dataset="reports",
             kind="table",
             points=[_point(row, id="id", secondary="secondary") for row in report_ttp_rows],
+        ))
+        report_provider_rows = await _rows(
+            session,
+            """
+            SELECT COALESCE(NULLIF(llm_provider, ''), 'unknown') AS label, COUNT(*)::int AS value
+            FROM analysis_sessions
+            GROUP BY label
+            ORDER BY value DESC, label ASC
+            LIMIT :limit
+            """,
+            {"limit": limit},
+        )
+        widgets.append(StatWidget(
+            id="report-provider-tags",
+            title="Report AI Provider Tags",
+            description="Stored report-analysis sessions grouped by LLM/provider tag.",
+            dataset="reports",
+            kind="pie",
+            points=[_point(row) for row in report_provider_rows],
+        ))
+        report_confidence_rows = await _rows(
+            session,
+            """
+            SELECT CASE
+                    WHEN confidence >= 80 THEN 'high-confidence TTP'
+                    WHEN confidence >= 50 THEN 'medium-confidence TTP'
+                    WHEN confidence >= 1 THEN 'low-confidence TTP'
+                    ELSE 'missing confidence'
+                   END AS label,
+                   COUNT(*)::int AS value
+            FROM (
+                SELECT COALESCE(CASE
+                    WHEN item->>'confidence' ~ '^[0-9]+(\\.[0-9]+)?$' THEN (item->>'confidence')::numeric
+                    ELSE NULL
+                END, 0) AS confidence
+                FROM analysis_results ar,
+                     LATERAL jsonb_array_elements(ar.extracted_techniques) AS item
+            ) scored
+            GROUP BY label
+            ORDER BY value DESC, label ASC
+            """,
+        )
+        widgets.append(StatWidget(
+            id="report-confidence-tags",
+            title="Report Extraction Confidence Tags",
+            description="Confidence bands for TTPs extracted from reports by AI analysis.",
+            dataset="reports",
+            kind="bar",
+            points=[_point(row) for row in report_confidence_rows],
         ))
 
     if "cves" in selected:
@@ -304,6 +523,121 @@ async def statistics_overview(
             kind="bar",
             points=[_point(row, id="id") for row in cwe_rows],
         ))
+        cve_risk_rows = await _rows(
+            session,
+            """
+            SELECT label, COUNT(*)::int AS value
+            FROM (
+                SELECT CASE
+                    WHEN known_exploited THEN 'risk: cisa-kev'
+                    WHEN cvss_score ~ '^[0-9]+(\\.[0-9]+)?$' AND cvss_score::numeric >= 9 THEN 'risk: critical'
+                    WHEN cvss_score ~ '^[0-9]+(\\.[0-9]+)?$' AND cvss_score::numeric >= 7 THEN 'risk: high'
+                    WHEN cvss_score ~ '^[0-9]+(\\.[0-9]+)?$' AND cvss_score::numeric >= 4 THEN 'risk: medium'
+                    WHEN cvss_score ~ '^[0-9]+(\\.[0-9]+)?$' AND cvss_score::numeric > 0 THEN 'risk: low'
+                    ELSE 'risk: unknown'
+                END AS label
+                FROM cve_records
+            ) tagged
+            GROUP BY label
+            ORDER BY value DESC, label ASC
+            """,
+        )
+        widgets.append(StatWidget(
+            id="cve-risk-tags",
+            title="CVE Risk Tags",
+            description="CVE tags derived from CVSS score and CISA KEV status.",
+            dataset="cves",
+            kind="pie",
+            points=[_point(row) for row in cve_risk_rows],
+        ))
+        cve_attack_vector_rows = await _rows(
+            session,
+            """
+            SELECT CASE
+                    WHEN cvss_vector LIKE '%/AV:N/%' OR cvss_vector LIKE 'CVSS:%/AV:N/%' THEN 'attack-vector: network'
+                    WHEN cvss_vector LIKE '%/AV:A/%' OR cvss_vector LIKE 'CVSS:%/AV:A/%' THEN 'attack-vector: adjacent'
+                    WHEN cvss_vector LIKE '%/AV:L/%' OR cvss_vector LIKE 'CVSS:%/AV:L/%' THEN 'attack-vector: local'
+                    WHEN cvss_vector LIKE '%/AV:P/%' OR cvss_vector LIKE 'CVSS:%/AV:P/%' THEN 'attack-vector: physical'
+                    ELSE 'attack-vector: unknown'
+                   END AS label,
+                   COUNT(*)::int AS value
+            FROM cve_records
+            GROUP BY label
+            ORDER BY value DESC, label ASC
+            """,
+        )
+        widgets.append(StatWidget(
+            id="cve-attack-vector-tags",
+            title="CVE Attack Vector Tags",
+            description="CVSS vector tags that identify network, adjacent, local, physical, or unknown exposure.",
+            dataset="cves",
+            kind="bar",
+            points=[_point(row) for row in cve_attack_vector_rows],
+        ))
+        cve_source_rows = await _rows(
+            session,
+            """
+            SELECT COALESCE(s.label, c.source_id, 'unknown') AS label, COUNT(c.id)::int AS value,
+                   COALESCE(c.source_id, '') AS id
+            FROM cve_records c
+            LEFT JOIN cve_sources s ON s.source_id = c.source_id
+            GROUP BY c.source_id, s.label
+            ORDER BY value DESC, label ASC
+            LIMIT :limit
+            """,
+            {"limit": limit},
+        )
+        widgets.append(StatWidget(
+            id="cve-source-tags",
+            title="CVE Source Tags",
+            description="CVE Library coverage by source/feed tag.",
+            dataset="cves",
+            kind="bar",
+            points=[_point(row, id="id") for row in cve_source_rows],
+        ))
+        cve_confidence_rows = await _rows(
+            session,
+            """
+            SELECT label, COUNT(*)::int AS value
+            FROM (
+                SELECT CASE
+                    WHEN confidence >= 85 THEN 'high-confidence CVE link'
+                    WHEN confidence >= 60 THEN 'medium-confidence CVE link'
+                    WHEN confidence > 0 THEN 'low-confidence CVE link'
+                    ELSE 'missing confidence'
+                END AS label
+                FROM cve_technique_links
+                UNION ALL
+                SELECT CASE
+                    WHEN confidence >= 85 THEN 'high-confidence actor link'
+                    WHEN confidence >= 60 THEN 'medium-confidence actor link'
+                    WHEN confidence > 0 THEN 'low-confidence actor link'
+                    ELSE 'missing confidence'
+                END AS label
+                FROM cve_actor_links
+                UNION ALL
+                SELECT CASE
+                    WHEN confidence >= 85 THEN 'high-confidence IOC link'
+                    WHEN confidence >= 60 THEN 'medium-confidence IOC link'
+                    WHEN confidence > 0 THEN 'low-confidence IOC link'
+                    ELSE 'missing confidence'
+                END AS label
+                FROM cve_ioc_links
+            ) tagged
+            GROUP BY label
+            ORDER BY value DESC, label ASC
+            LIMIT :limit
+            """,
+            {"limit": limit},
+        )
+        widgets.append(StatWidget(
+            id="cve-relationship-confidence-tags",
+            title="CVE Relationship Confidence Tags",
+            description="Confidence bands across CVE-to-TTP, CVE-to-actor, and CVE-to-IOC links.",
+            dataset="cves",
+            kind="bar",
+            points=[_point(row) for row in cve_confidence_rows],
+        ))
 
     if "iocs" in selected:
         ioc_count = await _count(session, select(func.count()).select_from(IOCIndicator))
@@ -374,6 +708,88 @@ async def statistics_overview(
             kind="table",
             points=[_point(row, id="id") for row in ioc_ttp_rows],
         ))
+        ioc_confidence_rows = await _rows(
+            session,
+            """
+            SELECT CASE
+                    WHEN confidence >= 85 THEN 'confidence: high'
+                    WHEN confidence >= 60 THEN 'confidence: medium'
+                    WHEN confidence > 0 THEN 'confidence: low'
+                    ELSE 'confidence: unknown'
+                   END AS label,
+                   COUNT(*)::int AS value
+            FROM ioc_indicators
+            GROUP BY label
+            ORDER BY value DESC, label ASC
+            """,
+        )
+        widgets.append(StatWidget(
+            id="ioc-confidence-tags",
+            title="IOC Confidence Tags",
+            description="Indicator confidence bands from the normalized IOC Library.",
+            dataset="iocs",
+            kind="pie",
+            points=[_point(row) for row in ioc_confidence_rows],
+        ))
+        ioc_tlp_rows = await _rows(
+            session,
+            """
+            SELECT COALESCE(NULLIF(UPPER(tlp), ''), 'UNKNOWN') AS label, COUNT(*)::int AS value
+            FROM ioc_indicators
+            GROUP BY label
+            ORDER BY value DESC, label ASC
+            LIMIT :limit
+            """,
+            {"limit": limit},
+        )
+        widgets.append(StatWidget(
+            id="ioc-tlp-tags",
+            title="IOC TLP Tags",
+            description="Traffic Light Protocol tags attached to stored indicators.",
+            dataset="iocs",
+            kind="pie",
+            points=[_point(row) for row in ioc_tlp_rows],
+        ))
+        ioc_malware_rows = await _rows(
+            session,
+            """
+            SELECT malware_family AS label, COUNT(*)::int AS value
+            FROM ioc_indicators
+            WHERE COALESCE(NULLIF(malware_family, ''), '') <> ''
+            GROUP BY malware_family
+            ORDER BY value DESC, malware_family ASC
+            LIMIT :limit
+            """,
+            {"limit": limit},
+        )
+        widgets.append(StatWidget(
+            id="ioc-malware-family-tags",
+            title="IOC Malware Family Tags",
+            description="Malware-family tags attached to collected indicators.",
+            dataset="iocs",
+            kind="bar",
+            points=[_point(row) for row in ioc_malware_rows],
+        ))
+        ioc_tag_rows = await _rows(
+            session,
+            """
+            SELECT tag AS id, tag AS label, COUNT(*)::int AS value
+            FROM ioc_indicators i,
+                 LATERAL jsonb_array_elements_text(i.tags) AS tag
+            GROUP BY tag
+            ORDER BY value DESC, tag ASC
+            LIMIT :limit
+            """,
+            {"limit": limit},
+        )
+        widgets.append(StatWidget(
+            id="ioc-freeform-tags",
+            title="IOC Freeform Tags",
+            description="Source-provided and enrichment tags stored with IOC records.",
+            dataset="iocs",
+            kind="table",
+            points=[_point(row, id="id") for row in ioc_tag_rows],
+        ))
 
     if "sectors" in selected:
         sector_count = await _count(session, select(func.count()).select_from(SectorPack))
@@ -435,6 +851,66 @@ async def statistics_overview(
             kind="table",
             points=[_point(row) for row in sector_ttp_rows],
         ))
+        sector_surface_rows = await _rows(
+            session,
+            """
+            SELECT surface AS label, COUNT(*)::int AS value
+            FROM sector_packs s,
+                 LATERAL jsonb_array_elements_text(s.common_attack_surfaces) AS surface
+            GROUP BY surface
+            ORDER BY value DESC, surface ASC
+            LIMIT :limit
+            """,
+            {"limit": limit},
+        )
+        widgets.append(StatWidget(
+            id="sector-attack-surface-tags",
+            title="Sector Attack Surface Tags",
+            description="Common attack-surface tags from sector intelligence packs.",
+            dataset="sectors",
+            kind="bar",
+            points=[_point(row) for row in sector_surface_rows],
+        ))
+        sector_telemetry_rows = await _rows(
+            session,
+            """
+            SELECT telemetry AS label, COUNT(*)::int AS value
+            FROM sector_packs s,
+                 LATERAL jsonb_array_elements_text(s.telemetry_requirements) AS telemetry
+            GROUP BY telemetry
+            ORDER BY value DESC, telemetry ASC
+            LIMIT :limit
+            """,
+            {"limit": limit},
+        )
+        widgets.append(StatWidget(
+            id="sector-telemetry-tags",
+            title="Sector Telemetry Requirement Tags",
+            description="Telemetry tags required by sector intelligence and detection-engineering packs.",
+            dataset="sectors",
+            kind="table",
+            points=[_point(row) for row in sector_telemetry_rows],
+        ))
+        sector_vuln_rows = await _rows(
+            session,
+            """
+            SELECT vuln_focus AS label, COUNT(*)::int AS value
+            FROM sector_packs s,
+                 LATERAL jsonb_array_elements_text(s.vulnerability_intelligence_focus) AS vuln_focus
+            GROUP BY vuln_focus
+            ORDER BY value DESC, vuln_focus ASC
+            LIMIT :limit
+            """,
+            {"limit": limit},
+        )
+        widgets.append(StatWidget(
+            id="sector-vulnerability-tags",
+            title="Sector Vulnerability Focus Tags",
+            description="Vulnerability-intelligence tags that recur across sector packs.",
+            dataset="sectors",
+            kind="table",
+            points=[_point(row) for row in sector_vuln_rows],
+        ))
 
     cross_rows = await _rows(
         session,
@@ -452,7 +928,12 @@ async def statistics_overview(
         LEFT JOIN apt_group_techniques gt ON gt.technique_id = t.id
         LEFT JOIN campaign_techniques ct ON ct.technique_id = t.id
         LEFT JOIN cve_technique_links ctl ON ctl.attack_id = t.attack_id
-        LEFT JOIN ioc_indicators i ON i.technique_ids ? t.attack_id
+        LEFT JOIN LATERAL (
+            SELECT i.id
+            FROM ioc_indicators i,
+                 LATERAL jsonb_array_elements_text(i.technique_ids) AS tid
+            WHERE tid = t.attack_id
+        ) i ON true
         WHERE t.domain = :domain AND t.is_deprecated = false
         GROUP BY t.id, t.attack_id, t.name
         HAVING (COUNT(DISTINCT gt.group_id)
@@ -471,6 +952,118 @@ async def statistics_overview(
         dataset="cross",
         kind="table",
         points=[_point(row, id="id", secondary="secondary") for row in cross_rows],
+    ))
+    entity_tag_rows = await _rows(
+        session,
+        """
+        SELECT label, COUNT(*)::int AS value
+        FROM (
+            SELECT 'TTP tactic: ' || ta.shortname AS label
+            FROM techniques t
+            JOIN technique_tactics tt ON tt.technique_id = t.id
+            JOIN tactics ta ON ta.id = tt.tactic_id
+            WHERE t.domain = :domain AND t.is_deprecated = false
+
+            UNION ALL
+            SELECT 'TTP platform: ' || platform AS label
+            FROM techniques t,
+                 LATERAL jsonb_array_elements_text(t.platforms) AS platform
+            WHERE t.domain = :domain AND t.is_deprecated = false
+
+            UNION ALL
+            SELECT 'TTP type: ' || CASE WHEN is_subtechnique THEN 'sub-technique' ELSE 'parent-technique' END AS label
+            FROM techniques
+            WHERE domain = :domain AND is_deprecated = false
+
+            UNION ALL
+            SELECT 'Actor region: ' || CASE
+                WHEN description ILIKE ANY (ARRAY['%iran%', '%middle east%', '%israel%', '%gulf%', '%lebanon%', '%saudi%', '%uae%']) THEN 'Middle East'
+                WHEN description ILIKE ANY (ARRAY['%china%', '%korea%', '%japan%', '%taiwan%', '%vietnam%', '%india%', '%asia%']) THEN 'Asia-Pacific'
+                WHEN description ILIKE ANY (ARRAY['%russia%', '%ukraine%', '%europe%', '%belarus%']) THEN 'Europe / Eurasia'
+                WHEN description ILIKE ANY (ARRAY['%north america%', '%united states%', '%canada%', '%latin america%', '%mexico%', '%brazil%']) THEN 'Americas'
+                WHEN description ILIKE ANY (ARRAY['%africa%', '%egypt%', '%morocco%']) THEN 'Africa'
+                ELSE 'Unknown / global'
+            END AS label
+            FROM apt_groups
+            WHERE domain = :domain
+
+            UNION ALL
+            SELECT 'Actor sector: ' || sector AS label
+            FROM (
+                SELECT unnest(ARRAY[
+                    CASE WHEN description ILIKE ANY (ARRAY['%government%', '%ministry%', '%diplomatic%', '%embassy%']) THEN 'government' END,
+                    CASE WHEN description ILIKE ANY (ARRAY['%defense%', '%military%', '%aerospace%']) THEN 'defense' END,
+                    CASE WHEN description ILIKE ANY (ARRAY['%energy%', '%oil%', '%gas%', '%electric%']) THEN 'energy' END,
+                    CASE WHEN description ILIKE ANY (ARRAY['%telecom%', '%telecommunications%']) THEN 'telecom' END,
+                    CASE WHEN description ILIKE ANY (ARRAY['%financial%', '%bank%', '%cryptocurrency%', '%crypto%']) THEN 'finance' END,
+                    CASE WHEN description ILIKE ANY (ARRAY['%health%', '%hospital%', '%pharma%']) THEN 'healthcare' END,
+                    CASE WHEN description ILIKE ANY (ARRAY['%technology%', '%software%', '%cloud%', '%it service%']) THEN 'technology' END
+                ]) AS sector
+                FROM apt_groups
+                WHERE domain = :domain
+            ) actor_sector_tags
+            WHERE sector IS NOT NULL
+
+            UNION ALL
+            SELECT 'CVE severity: ' || COALESCE(NULLIF(cvss_severity, ''), 'UNKNOWN') AS label
+            FROM cve_records
+
+            UNION ALL
+            SELECT 'CVE risk: ' || CASE
+                WHEN known_exploited THEN 'cisa-kev'
+                WHEN cvss_score ~ '^[0-9]+(\\.[0-9]+)?$' AND cvss_score::numeric >= 9 THEN 'critical'
+                WHEN cvss_score ~ '^[0-9]+(\\.[0-9]+)?$' AND cvss_score::numeric >= 7 THEN 'high'
+                WHEN cvss_score ~ '^[0-9]+(\\.[0-9]+)?$' AND cvss_score::numeric >= 4 THEN 'medium'
+                WHEN cvss_score ~ '^[0-9]+(\\.[0-9]+)?$' AND cvss_score::numeric > 0 THEN 'low'
+                ELSE 'unknown'
+            END AS label
+            FROM cve_records
+
+            UNION ALL
+            SELECT 'CVE attack vector: ' || CASE
+                WHEN cvss_vector LIKE '%/AV:N/%' OR cvss_vector LIKE 'CVSS:%/AV:N/%' THEN 'network'
+                WHEN cvss_vector LIKE '%/AV:A/%' OR cvss_vector LIKE 'CVSS:%/AV:A/%' THEN 'adjacent'
+                WHEN cvss_vector LIKE '%/AV:L/%' OR cvss_vector LIKE 'CVSS:%/AV:L/%' THEN 'local'
+                WHEN cvss_vector LIKE '%/AV:P/%' OR cvss_vector LIKE 'CVSS:%/AV:P/%' THEN 'physical'
+                ELSE 'unknown'
+            END AS label
+            FROM cve_records
+
+            UNION ALL
+            SELECT 'IOC type: ' || indicator_type AS label
+            FROM ioc_indicators
+
+            UNION ALL
+            SELECT 'IOC TLP: ' || COALESCE(NULLIF(UPPER(tlp), ''), 'UNKNOWN') AS label
+            FROM ioc_indicators
+
+            UNION ALL
+            SELECT 'IOC confidence: ' || CASE
+                WHEN confidence >= 85 THEN 'high'
+                WHEN confidence >= 60 THEN 'medium'
+                WHEN confidence > 0 THEN 'low'
+                ELSE 'unknown'
+            END AS label
+            FROM ioc_indicators
+
+            UNION ALL
+            SELECT 'IOC malware: ' || malware_family AS label
+            FROM ioc_indicators
+            WHERE COALESCE(NULLIF(malware_family, ''), '') <> ''
+        ) tags
+        GROUP BY label
+        ORDER BY value DESC, label ASC
+        LIMIT :limit
+        """,
+        {"domain": domain, "limit": limit},
+    )
+    widgets.append(StatWidget(
+        id="global-entity-tag-cloud",
+        title="Global Entity Tag Cloud",
+        description="Unified tag frequency across TTPs, actors, CVEs, and IOCs: tactic, platform, type, region, sector, risk, confidence, TLP, source, and malware-family tags.",
+        dataset="cross",
+        kind="table",
+        points=[_point(row) for row in entity_tag_rows],
     ))
 
     return StatisticsOverview(

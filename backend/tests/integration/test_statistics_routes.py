@@ -21,6 +21,14 @@ async def test_statistics_overview_returns_widget_shape(client: AsyncClient):
     assert isinstance(body["totals"], list)
     assert isinstance(body["widgets"], list)
     assert all({"id", "title", "dataset", "kind", "points"} <= set(widget) for widget in body["widgets"])
+    widget_ids = {widget["id"] for widget in body["widgets"]}
+    assert {
+        "ttp-platform-tags",
+        "ttp-telemetry-source-tags",
+        "cve-risk-tags",
+        "cve-attack-vector-tags",
+        "global-entity-tag-cloud",
+    } <= widget_ids
 
 
 @pytest.mark.asyncio

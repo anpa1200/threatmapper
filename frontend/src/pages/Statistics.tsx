@@ -18,12 +18,12 @@ import { statisticsApi, type StatPoint, type StatWidget } from '@/api/client';
 import { useAppStore } from '@/store';
 
 const DATASETS = [
-  { id: 'actors', label: 'Groups / actors', detail: 'Actor TTP coverage and recurring behaviors.' },
-  { id: 'reports', label: 'Reports', detail: 'Stored AI report extraction and TTP frequency.' },
-  { id: 'sectors', label: 'Sectors', detail: 'Sector pack confidence, actor mentions, and TTP categories.' },
-  { id: 'ttps', label: 'TTPs', detail: 'Technique, sub-technique, and tactic distribution.' },
-  { id: 'cves', label: 'CVEs', detail: 'CVSS severity, KEV, weakness, and CVE-to-TTP usage.' },
-  { id: 'iocs', label: 'IOCs', detail: 'IOC type, source, actor, and technique relationships.' },
+  { id: 'actors', label: 'Groups / actors', detail: 'Actor TTP coverage, risk, region, and target-sector tags.' },
+  { id: 'reports', label: 'Reports', detail: 'Stored AI report extraction, provider, and confidence tags.' },
+  { id: 'sectors', label: 'Sectors', detail: 'Sector confidence, telemetry, attack surface, and vulnerability tags.' },
+  { id: 'ttps', label: 'TTPs', detail: 'Technique type, tactic, platform, and telemetry-source tags.' },
+  { id: 'cves', label: 'CVEs', detail: 'CVSS, KEV, risk, attack-vector, CWE, source, and confidence tags.' },
+  { id: 'iocs', label: 'IOCs', detail: 'IOC type, source, TLP, confidence, malware-family, and freeform tags.' },
 ];
 
 const COLORS = ['#fb7185', '#38bdf8', '#34d399', '#fbbf24', '#a78bfa', '#f472b6', '#22d3ee', '#f97316'];
@@ -63,7 +63,8 @@ export function Statistics() {
                 <h2 className="text-lg font-semibold text-white">Statistical analysis workspace</h2>
                 <p className="mt-2 max-w-4xl text-sm leading-6 text-sky-100/80">
                   Compare actor behavior, report extraction, sector relevance, ATT&amp;CK usage, CVE relationships,
-                  and IOC coverage. Add or remove datasets with checkboxes to build the statistical view you need.
+                  and IOC coverage. Add or remove datasets with checkboxes to build the statistical view you need,
+                  including risk, confidence, region, sector, type, source, telemetry, and relationship tags.
                 </p>
               </div>
               <div className="rounded border border-gray-800 bg-gray-950 px-3 py-2 text-xs text-gray-400">
