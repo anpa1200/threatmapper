@@ -3,7 +3,8 @@ target-version = "py312"
 line-length = 140
 
 [tool.ruff.lint]
-# Keep the new CI lint gate focused on correctness for the current release.
-# The repository still has legacy style debt, so broad pycodestyle/pyflakes
-# cleanup should be handled as a separate mechanical refactor.
-select = ["E9", "F63", "F7", "F82"]
+# E9/F6x/F8x: syntax + undefined-name errors (original correctness gate)
+# B: flake8-bugbear — catches real bugs (mutable defaults, bare `assert`, etc.)
+# ASYNC: flake8-async — catches incorrect async patterns
+select = ["E9", "F63", "F7", "F82", "B", "ASYNC"]
+ignore = ["B008", "B904"]

@@ -1,6 +1,25 @@
 import pytest
 from httpx import AsyncClient
 
+from app.core.config import settings
+from app.services.auth import TeamUser, current_user
+
+
+@pytest.fixture(autouse=True)
+def _auth_disabled_by_default(monkeypatch, app):
+    monkeypatch.setattr(settings, "auth_enabled", False)
+
+    async def test_user():
+        return TeamUser(
+            name="test-analyst",
+            roles=["admin", "analyst", "viewer"],
+            permissions=["read", "run_analysis", "export_data", "manage_auth"],
+        )
+
+    app.dependency_overrides[current_user] = test_user
+    yield
+    app.dependency_overrides.pop(current_user, None)
+
 
 @pytest.mark.asyncio
 async def test_statistics_overview_returns_widget_shape(client: AsyncClient):
@@ -29,6 +48,7 @@ async def test_statistics_overview_returns_widget_shape(client: AsyncClient):
         "cve-attack-vector-tags",
         "global-entity-tag-cloud",
     } <= widget_ids
+    assert "ttp-type-tags" not in widget_ids
 
 
 @pytest.mark.asyncio

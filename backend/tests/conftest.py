@@ -13,6 +13,7 @@ from __future__ import annotations
 from contextlib import asynccontextmanager
 import os
 import operator
+from pathlib import Path
 from uuid import uuid4
 from unittest.mock import MagicMock
 
@@ -207,3 +208,27 @@ def _reset_mock_session():
     _mock_session._objects.clear()
     yield
     _mock_session._objects.clear()
+
+
+@pytest.fixture(autouse=True)
+def _authenticated_route_user(request, monkeypatch, app):
+    """Protected-route tests run as a default analyst; auth-route tests exercise real auth."""
+    if Path(str(request.node.fspath)).name == "test_auth_routes.py":
+        yield
+        return
+
+    from app.core.config import settings
+    from app.services.auth import TeamUser, current_user
+
+    monkeypatch.setattr(settings, "auth_enabled", False)
+
+    async def test_user():
+        return TeamUser(
+            name="local",
+            roles=["admin", "analyst", "viewer"],
+            permissions=["read", "run_analysis", "export_data", "manage_auth"],
+        )
+
+    app.dependency_overrides[current_user] = test_user
+    yield
+    app.dependency_overrides.pop(current_user, None)

@@ -61,7 +61,7 @@ export function Sidebar() {
   return (
     <aside className="app-sidebar flex min-h-0 w-56 shrink-0 flex-col overflow-hidden border-r border-gray-700 bg-mitre-navy">
       {/* Logo */}
-      <div className="shrink-0 border-b border-gray-700 px-5 py-5">
+      <div className="shrink-0 border-b border-gray-700 px-5 py-4">
         <div className="flex items-center gap-2">
           <img src={adversaryGraphIcon} alt="" className="h-8 w-8 rounded-lg object-cover" />
           <div>
@@ -72,8 +72,8 @@ export function Sidebar() {
       </div>
 
       {/* Navigation */}
-      <nav data-testid="sidebar-primary-nav" className="sidebar-scroll min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain px-3 py-4">
-        <div className="sticky top-0 z-10 -mx-3 -mt-4 bg-mitre-navy px-3 pb-3 pt-4"><GlobalSearch /></div>
+      <nav data-testid="sidebar-primary-nav" className="sidebar-scroll min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain px-3 py-2">
+        <div className="sticky top-0 z-10 -mx-3 -mt-2 bg-mitre-navy px-3 pb-2 pt-2"><GlobalSearch /></div>
         {nav.filter(item => item.to !== '/admin' || hasRole(user, 'admin')).map(({ to, label, icon }) => (
           <NavLink
             key={to}

@@ -86,6 +86,9 @@ class Settings(BaseSettings):
     # X-Internal-Proxy-Secret with this value; requests that fail the check are
     # treated as anonymous regardless of AUTH_ENABLED.
     proxy_secret: str = ""
+    # Set to false when running behind an HTTP-only reverse proxy in local dev.
+    # Must be true in production deployments served over HTTPS.
+    secure_cookies: bool = True
 
     # CORS — comma-separated list of allowed origins.
     # In production set this to the actual frontend domain, e.g.

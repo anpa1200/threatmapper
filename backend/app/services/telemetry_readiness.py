@@ -179,6 +179,158 @@ def build_telemetry_readiness(
     )
 
 
+def infer_telemetry_source_tags(
+    attack_id: str,
+    tactics: list[str],
+    platforms: list[str],
+    data_sources: list[str],
+    detection: str = "",
+    description: str = "",
+    name: str = "",
+) -> list[str]:
+    """Return stable source tags for a technique, even when ATT&CK has no data_sources list."""
+    tags: list[str] = []
+    for source in data_sources or []:
+        normalized = _normalize_source_tag(source)
+        if normalized:
+            tags.append(normalized)
+
+    required = _required_components(attack_id, tactics, platforms, data_sources or [])
+    for component in required:
+        tags.extend(_tags_for_component(component))
+
+    text = " ".join([name, description, detection, " ".join(platforms), " ".join(tactics)]).lower()
+    keyword_tags = (
+        ("powershell", "powershell:script-block"),
+        ("script", "script:execution"),
+        ("command line", "command:execution"),
+        ("process", "process:creation"),
+        ("registry", "registry:modification"),
+        ("file", "file:activity"),
+        ("credential", "authentication:credential"),
+        ("logon", "authentication:logon"),
+        ("network", "network:connection"),
+        ("dns", "dns:query"),
+        ("http", "web:http"),
+        ("web", "web:http"),
+        ("proxy", "proxy:request"),
+        ("cloud", "cloud:audit"),
+        ("container", "container:audit"),
+        ("service", "service:change"),
+        ("scheduled task", "scheduled-task:event"),
+        ("wmi", "wmi:activity"),
+    )
+    for token, tag in keyword_tags:
+        if token in text:
+            tags.append(tag)
+
+    if not tags:
+        tags.extend(("process:creation", "network:connection"))
+    return _dedupe(tags)
+
+
+def _normalize_source_tag(source: str) -> str:
+    value = " ".join(str(source or "").replace("_", " ").split())
+    if not value:
+        return ""
+    if ":" in value:
+        family, component = value.split(":", 1)
+        return f"{_source_family_slug(family)}:{_slug(component)}"
+    return f"{_slug(value)}:attck"
+
+
+def _tags_for_component(component: str) -> tuple[str, ...]:
+    component_map: tuple[tuple[str, tuple[str, ...]], ...] = (
+        ("Process Creation", ("process:creation",)),
+        ("Command Execution", ("command:execution",)),
+        ("Script Block Logging", ("powershell:script-block", "script:execution")),
+        ("Module Load", ("module:load",)),
+        ("File Creation", ("file:creation",)),
+        ("File Modification", ("file:modification",)),
+        ("File Deletion", ("file:deletion",)),
+        ("File Access", ("file:access",)),
+        ("File Read", ("file:read",)),
+        ("Sensitive File Read", ("file:sensitive-read",)),
+        ("Registry Key Modification", ("registry:modification",)),
+        ("Registry Value Modification", ("registry:modification",)),
+        ("Registry Access", ("registry:access",)),
+        ("Network Connection", ("network:connection",)),
+        ("Network Flow", ("network:flow",)),
+        ("Connection Attempt", ("network:connection-attempt",)),
+        ("Firewall Traffic", ("firewall:traffic",)),
+        ("DNS Query", ("dns:query",)),
+        ("HTTP Request", ("web:http",)),
+        ("Web Server Access Log", ("web:access-log",)),
+        ("WAF/Security Alert", ("waf:alert",)),
+        ("HTTP File Upload", ("web:file-upload",)),
+        ("Proxy Request", ("proxy:request",)),
+        ("Large Upload", ("network:large-upload", "proxy:upload")),
+        ("Authentication Event", ("authentication:event",)),
+        ("Logon Event", ("authentication:logon",)),
+        ("Logon Failure", ("authentication:failure",)),
+        ("Logon Success", ("authentication:success",)),
+        ("Authentication Success", ("authentication:success",)),
+        ("Account Context", ("identity:account-context",)),
+        ("Source IP/User Correlation", ("identity:source-correlation",)),
+        ("Account Management", ("identity:account-management",)),
+        ("Service Creation", ("service:creation",)),
+        ("Service Modification", ("service:modification",)),
+        ("Remote Service Creation", ("service:remote-creation",)),
+        ("Scheduled Task Event", ("scheduled-task:event",)),
+        ("Windows Security 4698", ("windows-security:4698",)),
+        ("Process Access", ("process:access",)),
+        ("LSASS Access", ("edr:lsass-access",)),
+        ("Credential Store Access", ("credential-store:access",)),
+        ("Memory Allocation", ("memory:allocation",)),
+        ("Token/Privilege Use", ("privilege:use",)),
+        ("Exploit Telemetry", ("edr:exploit",)),
+        ("Kernel/EDR Alert", ("edr:kernel-alert",)),
+        ("Cloud Audit Event", ("cloud:audit",)),
+        ("Container Audit Event", ("container:audit",)),
+        ("WMI Activity", ("wmi:activity",)),
+        ("Driver Load", ("driver:load",)),
+        ("Kernel Object Access", ("kernel:object-access",)),
+        ("File Attribute Change", ("file:attribute-change",)),
+        ("EDR Tamper Alert", ("edr:tamper",)),
+    )
+    tags: list[str] = []
+    for token, mapped in component_map:
+        if token == component:
+            tags.extend(mapped)
+    if tags:
+        return tuple(tags)
+    lowered = component.lower()
+    for token, mapped in component_map:
+        if token.lower() in lowered:
+            tags.extend(mapped)
+    return tuple(tags)
+
+
+def _slug(value: str) -> str:
+    out = []
+    previous_dash = False
+    for char in value.strip().lower():
+        if char.isalnum():
+            out.append(char)
+            previous_dash = False
+        elif not previous_dash:
+            out.append("-")
+            previous_dash = True
+    return "".join(out).strip("-")
+
+
+def _source_family_slug(value: str) -> str:
+    slug = _slug(value)
+    aliases = {
+        "wineventlog": "windows-event-log",
+        "nsm": "network-security-monitoring",
+        "sysmon": "windows-event-log",
+        "windows-security": "windows-security",
+        "windows-event-log": "windows-event-log",
+    }
+    return aliases.get(slug, slug)
+
+
 def _required_components(attack_id: str, tactics: list[str], platforms: list[str], data_sources: list[str]) -> list[str]:
     components: list[str] = []
     if attack_id in _TECHNIQUE_OVERRIDES:

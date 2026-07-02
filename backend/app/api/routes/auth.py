@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from datetime import datetime, timezone
 from uuid import UUID
 
@@ -93,7 +91,7 @@ def set_session_cookie(response: Response, token: str) -> None:
         token,
         max_age=max(15, settings.auth_session_minutes) * 60,
         httponly=True,
-        secure=False,
+        secure=settings.secure_cookies,
         samesite="lax",
         path="/",
     )

@@ -638,7 +638,7 @@ async def manual_result(
         raise HTTPException(404, str(exc)) from exc
     result = {
         "result_id": f"manual-{payload.simulation_id}-{payload.target_id}",
-        "created_at": datetime.utcnow().isoformat() + "Z",
+        "created_at": datetime.now(timezone.utc).isoformat() + "Z",
         "plan": plan,
         "detection_result": payload.detection_result,
         "validation_status": payload.detection_result,

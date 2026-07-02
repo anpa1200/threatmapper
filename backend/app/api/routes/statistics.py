@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections import Counter
 from datetime import datetime, timezone
 from typing import Any
 
@@ -7,6 +8,7 @@ from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.core.database import get_session
 from app.models.analysis import AnalysisResult, AnalysisSession
@@ -22,6 +24,7 @@ from app.models.cve import CVEActorLink, CVEIOCLink, CVERecord, CVETechniqueLink
 from app.models.ioc import IOCActorLink, IOCIndicator, IOCSource
 from app.models.sector_packs import SectorPack
 from app.services.auth import TeamUser, current_user
+from app.services.telemetry_readiness import infer_telemetry_source_tags
 
 router = APIRouter(prefix="/statistics", tags=["Statistics"])
 
@@ -88,6 +91,39 @@ def _point(row: dict[str, Any], label: str = "label", value: str = "value", **ex
         category=str(row.get(extra.get("category", "category")) or ""),
         detail=str(row.get(extra.get("detail", "detail")) or ""),
     )
+
+
+async def _technique_source_tag_rows(session: AsyncSession, domain: str, limit: int) -> list[dict[str, Any]]:
+    try:
+        result = await session.execute(
+            select(Technique)
+            .where(Technique.domain == domain, Technique.is_deprecated.is_(False))
+            .options(selectinload(Technique.tactics))
+        )
+        techniques = result.scalars().all()
+    except Exception:
+        await session.rollback()
+        return []
+
+    counts: Counter[str] = Counter()
+    for technique in techniques:
+        tactics = [tactic.shortname for tactic in technique.tactics]
+        tags = infer_telemetry_source_tags(
+            technique.attack_id,
+            tactics,
+            technique.platforms or [],
+            technique.data_sources or [],
+            technique.detection or "",
+            technique.description or "",
+            technique.name,
+        )
+        for tag in tags:
+            counts[tag.split(":", 1)[0]] += 1
+
+    return [
+        {"id": tag, "label": tag, "value": value}
+        for tag, value in sorted(counts.items(), key=lambda item: (-item[1], item[0]))[:limit]
+    ]
 
 
 @router.get("/overview", response_model=StatisticsOverview)
@@ -163,22 +199,7 @@ async def statistics_overview(
             kind="bar",
             points=[_point(row, id="id") for row in platform_rows],
         ))
-        datasource_rows = await _rows(
-            session,
-            """
-            SELECT tag AS id, tag AS label, COUNT(*)::int AS value
-            FROM (
-                SELECT COALESCE(NULLIF(split_part(ds.value, ':', 1), ''), 'no data source mapped') AS tag
-                FROM techniques t
-                LEFT JOIN LATERAL jsonb_array_elements_text(t.data_sources) AS ds(value) ON true
-                WHERE t.domain = :domain AND t.is_deprecated = false
-            ) tagged
-            GROUP BY tag
-            ORDER BY value DESC, tag ASC
-            LIMIT :limit
-            """,
-            {"domain": domain, "limit": limit},
-        )
+        datasource_rows = await _technique_source_tag_rows(session, domain, limit)
         widgets.append(StatWidget(
             id="ttp-telemetry-source-tags",
             title="TTP Telemetry Source Tags",
@@ -187,34 +208,6 @@ async def statistics_overview(
             kind="bar",
             points=[_point(row, id="id") for row in datasource_rows],
         ))
-        ttp_type_rows = await _rows(
-            session,
-            """
-            SELECT label, COUNT(*)::int AS value
-            FROM (
-                SELECT CASE
-                    WHEN is_deprecated THEN 'deprecated'
-                    WHEN is_subtechnique THEN 'sub-technique'
-                    WHEN parent_attack_id IS NOT NULL THEN 'child-technique'
-                    ELSE 'parent-technique'
-                END AS label
-                FROM techniques
-                WHERE domain = :domain
-            ) tagged
-            GROUP BY label
-            ORDER BY value DESC, label ASC
-            """,
-            {"domain": domain},
-        )
-        widgets.append(StatWidget(
-            id="ttp-type-tags",
-            title="TTP Type Tags",
-            description="Technique tags by parent/sub-technique/deprecated structure.",
-            dataset="ttps",
-            kind="pie",
-            points=[_point(row) for row in ttp_type_rows],
-        ))
-
     if "actors" in selected:
         actor_count = await _count(session, select(func.count()).select_from(AptGroup).where(AptGroup.domain == domain))
         campaign_count = await _count(session, select(func.count()).select_from(Campaign).where(Campaign.domain == domain))

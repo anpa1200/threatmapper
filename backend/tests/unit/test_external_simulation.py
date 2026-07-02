@@ -3,6 +3,8 @@ import json
 from pathlib import Path
 import threading
 
+import pytest
+
 from app.services.external_simulation import (
     TELEMETRY_FIDELITY_NOTE,
     TELEMETRY_FIDELITY_POLICY,
@@ -17,6 +19,12 @@ from app.services.external_simulation import (
     run_controlled_record,
     tail_telemetry_logs,
 )
+
+
+@pytest.fixture(autouse=True)
+def _use_in_process_lab_fixture(monkeypatch):
+    monkeypatch.delenv("ATTACK_LAB_WEB_URL", raising=False)
+    monkeypatch.delenv("ATTACK_LAB_ENDPOINT_URL", raising=False)
 
 
 def test_ai_assistant_prompt_policy_requires_source_correct_telemetry():
@@ -238,6 +246,7 @@ def test_forward_telemetry_logs_to_http_collector():
             run_id=result["run_id"],
             destination_url=f"http://127.0.0.1:{server.server_port}/collector",
             limit=10,
+            connection_mode="direct",
             auth_type="basic",
             username="analyst",
             password="secret",
@@ -279,6 +288,7 @@ def test_forward_telemetry_logeye_per_event_payloads():
             run_id=result["run_id"],
             destination_url=f"http://127.0.0.1:{server.server_port}/collector",
             limit=10,
+            connection_mode="direct",
             payload_format="per_event",
         )
     finally:
@@ -317,6 +327,7 @@ def test_forward_real_access_log_payloads():
             run_id=result["run_id"],
             destination_url=f"http://127.0.0.1:{server.server_port}/collector",
             limit=10,
+            connection_mode="direct",
             payload_format="per_event",
         )
     finally:
@@ -354,6 +365,7 @@ def test_forward_telemetry_supports_bearer_and_custom_header_auth():
             run_id=result["run_id"],
             destination_url=f"http://127.0.0.1:{server.server_port}/collector",
             limit=10,
+            connection_mode="direct",
             auth_type="bearer",
             token="bearer-secret",
             payload_format="envelope",
@@ -363,6 +375,7 @@ def test_forward_telemetry_supports_bearer_and_custom_header_auth():
             run_id=result["run_id"],
             destination_url=f"http://127.0.0.1:{server.server_port}/collector",
             limit=10,
+            connection_mode="direct",
             auth_type="custom_header",
             header_name="X-SIEM-Token",
             token="custom-secret",
@@ -400,6 +413,7 @@ def test_forward_telemetry_accepts_raw_host_destination():
             run_id=result["run_id"],
             destination_url=f"127.0.0.1:{server.server_port}/collector",
             limit=10,
+            connection_mode="direct",
         )
     finally:
         server.shutdown()
@@ -433,6 +447,7 @@ def test_forward_telemetry_can_fallback_from_https_to_http_collector():
             run_id=result["run_id"],
             destination_url=f"https://127.0.0.1:{server.server_port}/collector",
             limit=10,
+            connection_mode="direct",
             allow_http_fallback=True,
         )
     finally:

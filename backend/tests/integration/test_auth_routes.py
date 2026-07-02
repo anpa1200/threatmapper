@@ -5,6 +5,15 @@ from app.core.config import settings
 
 
 @pytest.mark.asyncio
+async def test_openapi_schema_renders_with_auth_routes(client: AsyncClient):
+    response = await client.get("/openapi.json")
+    assert response.status_code == 200
+    schema = response.json()
+    assert schema["openapi"].startswith("3.")
+    assert "/api/auth/login" in schema["paths"]
+
+
+@pytest.mark.asyncio
 async def test_native_auth_login_and_admin_user_management(client: AsyncClient, monkeypatch):
     monkeypatch.setattr(settings, "auth_enabled", True)
     monkeypatch.setattr(settings, "auth_bootstrap_admin_username", "auth-admin")

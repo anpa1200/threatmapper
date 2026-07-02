@@ -11,7 +11,7 @@ import json
 import logging
 import re
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Annotated, AsyncIterator
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
@@ -668,7 +668,7 @@ def _build_log_pcap_report(
         "# AdversaryGraph Log / PCAP Analysis Report",
         "",
         f"Source: {filename or 'pasted text'}",
-        f"Generated: {datetime.utcnow().isoformat()}Z",
+        f"Generated: {datetime.now(timezone.utc).isoformat()}Z",
         "",
         "## Executive Summary",
         "",

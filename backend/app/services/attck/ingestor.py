@@ -74,6 +74,58 @@ def _is_stale(obj: dict) -> bool:
     return bool(obj.get("x_mitre_deprecated") or obj.get("revoked"))
 
 
+def _detection_source_map(by_id: dict[str, dict], relationships: list[dict]) -> dict[str, list[str]]:
+    """Map attack-pattern STIX IDs to ATT&CK v19 detection analytic log-source labels."""
+    mapped: dict[str, list[str]] = {}
+    for rel in relationships:
+        if rel.get("relationship_type") != "detects":
+            continue
+        target = by_id.get(rel.get("target_ref"), {})
+        strategy = by_id.get(rel.get("source_ref"), {})
+        if target.get("type") != "attack-pattern" or strategy.get("type") != "x-mitre-detection-strategy":
+            continue
+        if _is_stale(target) or _is_stale(strategy):
+            continue
+        labels: list[str] = []
+        for analytic_ref in strategy.get("x_mitre_analytic_refs", []) or []:
+            analytic = by_id.get(analytic_ref, {})
+            if analytic.get("type") != "x-mitre-analytic" or _is_stale(analytic):
+                continue
+            for source_ref in analytic.get("x_mitre_log_source_references", []) or []:
+                label = _log_source_label(source_ref, by_id)
+                if label:
+                    labels.append(label)
+        if labels:
+            mapped.setdefault(target["id"], [])
+            mapped[target["id"]] = _dedupe([*mapped[target["id"]], *labels])
+    return mapped
+
+
+def _log_source_label(source_ref: dict | str, by_id: dict[str, dict]) -> str:
+    if isinstance(source_ref, str):
+        component = by_id.get(source_ref, {})
+        return component.get("name", "")
+    if not isinstance(source_ref, dict):
+        return ""
+
+    name = str(source_ref.get("name") or "").strip()
+    component_ref = source_ref.get("x_mitre_data_component_ref")
+    component_name = str(by_id.get(component_ref, {}).get("name") or "").strip()
+    if name:
+        return name
+    return component_name
+
+
+def _dedupe(values: list[str]) -> list[str]:
+    seen: set[str] = set()
+    out: list[str] = []
+    for value in values:
+        if value and value not in seen:
+            seen.add(value)
+            out.append(value)
+    return out
+
+
 # ── Bundle parser ─────────────────────────────────────────────────────────────
 
 def parse_bundle(bundle_path: Path, domain: str = "enterprise-attack") -> dict:
@@ -94,6 +146,7 @@ def parse_bundle(bundle_path: Path, domain: str = "enterprise-attack") -> dict:
             relationships.append(obj)
         else:
             by_id[obj["id"]] = obj
+    detection_sources_by_technique = _detection_source_map(by_id, relationships)
 
     tactics:    list[dict] = []
     techniques: list[dict] = []
@@ -147,7 +200,10 @@ def parse_bundle(bundle_path: Path, domain: str = "enterprise-attack") -> dict:
                     "is_subtechnique":  is_sub,
                     "parent_attack_id": parent,
                     "platforms":        obj.get("x_mitre_platforms", []) or [],
-                    "data_sources":     obj.get("x_mitre_data_sources", []) or [],
+                    "data_sources":     _dedupe([
+                        *(obj.get("x_mitre_data_sources", []) or []),
+                        *detection_sources_by_technique.get(obj["id"], []),
+                    ]),
                     "detection":        obj.get("x_mitre_detection", "") or "",
                     "tactic_shortnames": tactic_shortnames,
                 })
@@ -394,7 +450,22 @@ def ingest_domain(domain: str, bundle_path: Path, version: str) -> None:
                     detection=t["detection"], domain=domain,
                     version_id=version_id, is_deprecated=False,
                 )
-                .on_conflict_do_nothing(constraint="uq_technique_version")
+                .on_conflict_do_update(
+                    constraint="uq_technique_version",
+                    set_={
+                        "stix_id": t["stix_id"],
+                        "name": t["name"],
+                        "description": t["description"],
+                        "url": t["url"],
+                        "is_subtechnique": t["is_subtechnique"],
+                        "parent_attack_id": t["parent_attack_id"],
+                        "platforms": t["platforms"],
+                        "data_sources": t["data_sources"],
+                        "detection": t["detection"],
+                        "domain": domain,
+                        "is_deprecated": False,
+                    },
+                )
                 .returning(Technique.id)
             )
             row = session.execute(stmt).fetchone()

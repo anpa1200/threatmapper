@@ -10,8 +10,6 @@ Both functions validate the target URL before making the request:
      or the cloud metadata endpoint (169.254.169.254).
   3. Redirects are disabled so a redirect cannot bypass the IP check.
 """
-from __future__ import annotations
-
 import ipaddress
 import socket
 import urllib.parse

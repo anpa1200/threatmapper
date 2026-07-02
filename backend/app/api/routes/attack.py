@@ -7,7 +7,7 @@ from sqlalchemy.orm import selectinload
 from app.core.database import get_session
 from app.models.attack import AttackVersion, StixObject, StixRelationship, Tactic, Technique
 from app.services.auth import TeamUser, current_user
-from app.services.telemetry_readiness import build_telemetry_readiness
+from app.services.telemetry_readiness import build_telemetry_readiness, infer_telemetry_source_tags
 
 router = APIRouter(prefix="/attack", tags=["ATT&CK"])
 
@@ -281,7 +281,15 @@ async def get_technique(
 
     tactics = [t.shortname for t in tech.tactics]
     platforms = tech.platforms or []
-    data_sources = tech.data_sources or []
+    data_sources = infer_telemetry_source_tags(
+        tech.attack_id,
+        tactics,
+        platforms,
+        tech.data_sources or [],
+        tech.detection or "",
+        tech.description or "",
+        tech.name,
+    )
     readiness = build_telemetry_readiness(
         tech.attack_id,
         tech.name,

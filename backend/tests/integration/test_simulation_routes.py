@@ -83,7 +83,7 @@ async def test_simulation_run_record_route_collects_local_web_telemetry(client):
     payload = response.json()
     assert payload["traffic_emitted"] is True
     assert payload["status"] == "completed_with_local_lab_telemetry"
-    assert payload["telemetry"]["server"]["url"] == "http://127.0.0.1:8765"
+    assert payload["telemetry"]["server"]["url"].startswith(("http://127.0.0.1:", "http://attack-lab-web:"))
     assert payload["telemetry"]["request_count"] == 2
     logs = await client.get("/api/simulation/logs", params={"source": "web", "run_id": payload["run_id"], "limit": 10})
     assert logs.status_code == 200
