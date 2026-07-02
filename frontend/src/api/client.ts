@@ -947,9 +947,36 @@ export interface SelfTestResult {
   checks: SelfTestCheck[];
 }
 
+export interface TroubleshootingAssistantRequest {
+  provider: 'local' | 'claude' | 'openai' | 'gemini' | 'minimax';
+  model?: string;
+  error_message?: string;
+  status?: string;
+  url?: string;
+  operator_notes?: string;
+  selftest_result?: SelfTestResult;
+  include_docker_commands?: boolean;
+}
+
+export interface TroubleshootingAssistantResponse {
+  provider: string;
+  model: string;
+  ai_used: boolean;
+  severity: 'low' | 'medium' | 'high' | 'critical';
+  summary: string;
+  likely_root_cause: string;
+  immediate_actions: string[];
+  validation_commands: string[];
+  evidence_to_collect: string[];
+  do_not_do: string[];
+  raw_response: string;
+}
+
 export const systemApi = {
   selftest: (): Promise<SelfTestResult> =>
     http.get('/system/selftest').then(r => r.data),
+  troubleshootingAssistant: (payload: TroubleshootingAssistantRequest): Promise<TroubleshootingAssistantResponse> =>
+    http.post('/troubleshooting/assistant', payload, { skipGlobalError: true } as any).then(r => r.data),
 };
 
 // ── MITRE Sync ────────────────────────────────────────────────────────────────
